@@ -46,7 +46,7 @@ def inference(args):
 
     # Test code
     if args.test is True:
-        model.testFromList(args.test_list,
+        model.testFromList(args.test_path,
                            cohorts_path=args.cohorts_path,
                            thre_score=args.test_threshold,
                            print_interval=100,

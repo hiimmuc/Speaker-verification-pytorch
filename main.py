@@ -137,6 +137,10 @@ if __name__ == '__main__':
                         type=str,
                         default="dataset/data_public_test.txt",
                         help='Evaluation list')
+    parser.add_argument('--test_path',
+                        type=str,
+                        default="dataset/",
+                        help='Absolute path to the test set')
     parser.add_argument('--musan_path',
                         type=str,
                         default="dataset/musan_split",
