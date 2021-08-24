@@ -299,14 +299,14 @@ class SpeakerNet(nn.Module):
                         break
                     data = line.split()
 
-                    data_1_class = Path(data[1]).parent.stem
-                    data_2_class = Path(data[2]).parent.stem
+                    data_1_class = Path(data[0]).parent.stem
+                    data_2_class = Path(data[1]).parent.stem
                     if data_1_class not in used_speakers:
                         used_speakers.append(data_1_class)
-                        files.append(data[1])
+                        files.append(data[0])
                     if data_2_class not in used_speakers:
                         used_speakers.append(data_2_class)
-                        files.append(data[2])
+                        files.append(data[1])
             setfiles = list(set(files))
             setfiles.sort()
 
