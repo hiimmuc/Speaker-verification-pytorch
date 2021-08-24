@@ -1,5 +1,4 @@
 import random
-import random
 import sys
 from math import fabs
 from pathlib import Path
@@ -47,7 +46,7 @@ def inference(args):
 
     # Test code
     if args.test is True:
-        model.testFromList(args.test_path,
+        model.testFromList(args.test_list,
                            cohorts_path=args.cohorts_path,
                            thre_score=args.test_threshold,
                            print_interval=100,

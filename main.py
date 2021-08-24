@@ -12,9 +12,6 @@ def main(args):
     elif args.do_infer and args.eval:
         # TODO: evaluate model
         inference(args)
-    elif args.do_infer and args.test:
-        # TODO: test model
-        inference(args)
     else:
         raise 'wrong mode'
 
