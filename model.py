@@ -210,7 +210,7 @@ class SpeakerNet(nn.Module):
         cohorts = np.load(cohorts_path)
 
         # Read all lines
-        data_root = Path(root, 'public-test')
+        data_root = Path(root, 'public-test/data_test')
         read_file = Path(root, 'public-test.csv')
         write_file = Path(root, 'submission.csv')
         with open(read_file, newline='') as rf:
