@@ -205,9 +205,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     # Initialise directories
-    model_save_path = args.save_path + "/model"
-    os.makedirs(model_save_path, exist_ok=True)
-    result_save_path = args.save_path + "/result"
-    os.makedirs(result_save_path, exist_ok=True)
+    if args.do_train:
+        model_save_path = args.save_path + "/model"
+        os.makedirs(model_save_path, exist_ok=True)
+        result_save_path = args.save_path + "/result"
+        os.makedirs(result_save_path, exist_ok=True)
     # Run
     main(args)
