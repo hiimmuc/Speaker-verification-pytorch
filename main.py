@@ -9,7 +9,7 @@ def main(args):
     if args.do_train:
         # TODO: train model
         train(args)
-    elif args.do_infer and args.eval:
+    elif args.do_infer:
         # TODO: evaluate model
         inference(args)
     else:
