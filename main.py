@@ -1,7 +1,8 @@
 import argparse
 import os
+
 from inference import inference
-from train import  train
+from train import train
 
 
 def main(args):
@@ -54,7 +55,8 @@ if __name__ == '__main__':
                         help='Augment input')
 
     # Training details
-    parser.add_argument('--device', type=str, default="cuda", help='cuda or cpu')
+    parser.add_argument('--device', type=str,
+                        default="cuda", help='cuda or cpu')
     parser.add_argument('--test_interval',
                         type=int,
                         default=10,
@@ -136,7 +138,7 @@ if __name__ == '__main__':
                         help='Train list')
     parser.add_argument('--test_list',
                         type=str,
-                        default="dataset/val.def.txt",
+                        default="dataset/data_public_test.txt",
                         help='Evaluation list')
     parser.add_argument('--musan_path',
                         type=str,

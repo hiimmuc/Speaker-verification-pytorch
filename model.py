@@ -15,7 +15,7 @@ from utils import loadWAV, score_normalization
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, model, optimizer, scheduler, trainfunc, device, **kwargs):
+    def __init__(self, model, optimizer, callbacks, trainfunc, device, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
 
@@ -30,10 +30,11 @@ class SpeakerNet(nn.Module):
         Optimizer = importlib.import_module(
             'optimizer.' + optimizer).__getattribute__('Optimizer')
         self.__optimizer__ = Optimizer(self.parameters(), **kwargs)
-
+        # TODO: set up callbacks, add reduce on plateau + early stopping
         Scheduler = importlib.import_module(
-            'scheduler.' + scheduler).__getattribute__('Scheduler')
-        self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **kwargs)
+            'callbacks.' + callbacks).__getattribute__('Scheduler')
+        self.__scheduler__, self.lr_step = Scheduler(
+            self.__optimizer__, **kwargs)
 
         assert self.lr_step in ['epoch', 'iteration']
 
@@ -54,7 +55,7 @@ class SpeakerNet(nn.Module):
             self.zero_grad()
             feat = []
             for inp in data:
-                outp = self.__S__.forward(inp.to(self.device))
+                outp = self.__S__(inp.to(self.device))
                 feat.append(outp)
 
             feat = torch.stack(feat, dim=1).squeeze()
@@ -86,7 +87,10 @@ class SpeakerNet(nn.Module):
 
         sys.stdout.write("\n")
 
-        return loss / counter, top1 / counter
+        loss_result = loss / counter
+        precision = top1 / counter
+
+        return loss_result, precision
 
     def evaluateFromList(self,
                          listfilename,

@@ -12,7 +12,7 @@ from scipy.io import wavfile
 from tqdm import tqdm
 
 # Parse input arguments
-parser = argparse.ArgumentParser(description="VoxCeleb downloader")
+parser = argparse.ArgumentParser(description="Data preparation")
 
 parser.add_argument('--save_path',
                     type=str,
@@ -172,7 +172,7 @@ def generate_lists(args):
                     if not val_filepaths_list[x]:
                         continue
                     if val_filepaths_list[x][0].parent.stem != val_filepaths[
-                        i].parent.stem:
+                            i].parent.stem:
                         break
                 y = random.randint(0, len(val_filepaths_list[x]) - 1)
                 val_writer.write(label + ' ' + str(val_filepaths[i]) + ' ' +
