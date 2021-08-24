@@ -72,7 +72,7 @@ if __name__ == '__main__':
                         type=str,
                         default="adam",
                         help='sgd or adam')
-    parser.add_argument('--scheduler',
+    parser.add_argument('--callbacks',
                         type=str,
                         default="steplr",
                         help='Learning rate scheduler')
