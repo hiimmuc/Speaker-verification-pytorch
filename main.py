@@ -121,7 +121,7 @@ if __name__ == '__main__':
     # Load and save
     parser.add_argument('--initial_model',
                         type=str,
-                        default="checkpoints/baseline_v2_ap.model",
+                        default="",
                         help='Initial model weights')
     parser.add_argument('--save_path',
                         type=str,

@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from callbacks import EarlyStopping, LRScheduler
 from utils import loadWAV, score_normalization
 
 
@@ -210,7 +211,7 @@ class SpeakerNet(nn.Module):
         cohorts = np.load(cohorts_path)
 
         # Read all lines
-        data_root = Path(root, 'public-test/data_test')
+        data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
         write_file = Path(root, 'submission.csv')
         with open(read_file, newline='') as rf:
