@@ -12,9 +12,9 @@ from torch import nn
 
 
 # @LOSS.register('ms_loss')
-class MultiSimilarityLoss(nn.Module):
+class LossFunction(nn.Module):
     def __init__(self, args):
-        super(MultiSimilarityLoss, self).__init__()
+        super(LossFunction, self).__init__()
         self.thresh = 0.5
         self.margin = 0.1
 
