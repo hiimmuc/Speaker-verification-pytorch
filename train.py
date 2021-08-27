@@ -9,10 +9,10 @@ from utils import get_data_loader, tuneThresholdfromScore
 
 def train(args):
     # Initialise directories
-    model_save_path = args.save_path + "/model"
-    result_save_path = args.save_path + "/result"
+    model_save_path = args.save_path + f"/{args.model}_model"
+    result_save_path = args.save_path + f"/{args.model}_result"
 
-    # Load models 
+    # Load models
     s = SpeakerNet(**vars(args))
 
     it = 1
@@ -21,16 +21,17 @@ def train(args):
     min_eer = [100]
 
     # Load model weights
-    model_files = glob.glob('%s/model0*.model' % model_save_path)
+    model_files = glob.glob(f'%{model_save_path}/model0*.model')
     model_files.sort()
 
-    if len(model_files) >= 1:
-        s.loadParameters(model_files[-1])
-        print("Model %s loaded from previous state!" % model_files[-1])
-        it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][5:]) + 1
-    elif args.initial_model != "":
+    if args.initial_model != "":
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
+    elif len(model_files) >= 1:
+        s.loadParameters(model_files[-1])
+        print("Model %s loaded from previous state!" % model_files[-1])
+        it = int(os.path.splitext(
+            os.path.basename(model_files[-1]))[0][5:]) + 1
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
@@ -87,7 +88,7 @@ def train(args):
             print(time.strftime("%Y-%m-%d %H:%M:%S"),
                   "LR %f, TEER/TAcc %2.2f, TLOSS %f" % (max(clr), trainer, loss))
             score_file.write("IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f\n" %
-                            (it, max(clr), trainer, loss))
+                             (it, max(clr), trainer, loss))
 
             score_file.flush()
 
