@@ -7,6 +7,9 @@ from torchsummary import summary
 
 from models.ResNetBlocks import *
 
+INPUT_SIZE = (64, 400)
+BATCH_SIZE = 128
+
 
 class ResNetSE(nn.Module):
     def __init__(self,
@@ -155,5 +158,5 @@ def MainModel(nOut=256, summary_model=True, **kwargs):
     num_filters = [16, 32, 64, 128]
     model = ResNetSE(SEBasicBlock, [3, 4, 6, 3], num_filters, nOut, **kwargs)
     if summary_model:
-        summary(model, (3, 64, 400), 128)
+        summary(model, INPUT_SIZE, BATCH_SIZE)
     return model
