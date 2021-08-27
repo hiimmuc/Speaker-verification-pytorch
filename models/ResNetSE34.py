@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torchsummary import summary
 
 from models.ResNetBlocks import *
 
@@ -19,17 +20,23 @@ class ResNetSE(nn.Module):
         self.bn1 = nn.BatchNorm2d(num_filters[0])
         self.relu = nn.ReLU(inplace=True)
 
-        self.maxPool = nn.MaxPool2d(kernel_size=(3, 3), stride=(2, 1), padding=1)
+        self.maxPool = nn.MaxPool2d(
+            kernel_size=(3, 3), stride=(2, 1), padding=1)
         self.layer1 = self._make_layer(block, num_filters[0], layers[0])
-        self.layer2 = self._make_layer(block, num_filters[1], layers[1], stride=(2, 2))
-        self.layer3 = self._make_layer(block, num_filters[2], layers[2], stride=(2, 2))
-        self.layer4 = self._make_layer(block, num_filters[3], layers[3], stride=(2, 2))
+        self.layer2 = self._make_layer(
+            block, num_filters[1], layers[1], stride=(2, 2))
+        self.layer3 = self._make_layer(
+            block, num_filters[2], layers[2], stride=(2, 2))
+        self.layer4 = self._make_layer(
+            block, num_filters[3], layers[3], stride=(2, 2))
 
         self.instancenorm = nn.InstanceNorm1d(257)
 
         if self.encoder_type == "SAP":
-            self.sap_linear = nn.Linear(num_filters[3] * block.expansion, num_filters[3] * block.expansion)
-            self.attention = self.new_parameter(num_filters[3] * block.expansion, 1)
+            self.sap_linear = nn.Linear(
+                num_filters[3] * block.expansion, num_filters[3] * block.expansion)
+            self.attention = self.new_parameter(
+                num_filters[3] * block.expansion, 1)
             out_dim = num_filters[3] * block.expansion
         else:
             raise ValueError('Undefined encoder')
@@ -38,7 +45,8 @@ class ResNetSE(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(
+                    m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -71,7 +79,8 @@ class ResNetSE(nn.Module):
                        window=torch.hann_window(int(0.025 * 16000)), center=False, normalized=False, onesided=True)
         x = (x[:, :, :, 0].pow(2) + x[:, :, :, 1].pow(2)).pow(0.5)
 
-        if self.log_input: x = x.log()
+        if self.log_input:
+            x = x.log()
 
         x = self.instancenorm(x).unsqueeze(1).detach()
 
@@ -104,8 +113,10 @@ class ResNetSE(nn.Module):
         return x
 
 
-def MainModel(nOut=256, **kwargs):
+def MainModel(nOut=256, summary_=True, **kwargs):
     # Number of filters
     num_filters = [16, 32, 64, 128]
     model = ResNetSE(SEBasicBlock, [3, 4, 6, 3], num_filters, nOut, **kwargs)
+    if summary_:
+        summary(model, (3, 64, 400), 128)
     return model

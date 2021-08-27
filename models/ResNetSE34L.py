@@ -1,8 +1,10 @@
 import torch
-import torchaudio
 import torch.nn as nn
 import torch.nn.functional as F
+import torchaudio
 from torch.nn import Parameter
+from torchsummary import summary
+
 from models.ResNetBlocks import *
 
 
@@ -111,7 +113,8 @@ class ResNetSE(nn.Module):
     def forward(self, x):
 
         x = self.torchfb(x) + 1e-6
-        if self.log_input: x = x.log()
+        if self.log_input:
+            x = x.log()
         x = self.instancenorm(x).unsqueeze(1).detach()
 
         x = self.conv1(x)
@@ -147,8 +150,10 @@ class ResNetSE(nn.Module):
         return x
 
 
-def MainModel(nOut=256, **kwargs):
+def MainModel(nOut=256, summary_model=True, **kwargs):
     # Number of filters
     num_filters = [16, 32, 64, 128]
     model = ResNetSE(SEBasicBlock, [3, 4, 6, 3], num_filters, nOut, **kwargs)
+    if summary_model:
+        summary(model, (3, 64, 400), 128)
     return model
