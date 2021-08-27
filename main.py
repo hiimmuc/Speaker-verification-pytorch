@@ -104,13 +104,13 @@ if __name__ == '__main__':
                         type=float,
                         default=1,
                         help='Loss margin, only for some loss functions')
-    parser.add_argument('--scale',
+    parser.add_argument('--scale_pos',
                         type=float,
-                        default=15,
+                        default=2.0,
                         help='Loss scale, only for some loss functions')
-    parser.add_argument('--scale',
+    parser.add_argument('--scale_neg',
                         type=float,
-                        default=15,
+                        default=40.0,
                         help='Loss scale, only for some loss functions')
     parser.add_argument('--scale',
                         type=float,
