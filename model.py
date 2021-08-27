@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from callbacks import EarlyStopping, LRScheduler
+from callbacks.steplr import EarlyStopping, LRScheduler
 from utils import loadWAV, score_normalization
 
 
