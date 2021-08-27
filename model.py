@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
 from tqdm import tqdm
 
 from callbacks.steplr import EarlyStopping, LRScheduler
@@ -36,7 +37,6 @@ class SpeakerNet(nn.Module):
             'callbacks.' + callbacks).__getattribute__('Scheduler')
         self.__scheduler__, self.lr_step = Scheduler(
             self.__optimizer__, **kwargs)
-
         assert self.lr_step in ['epoch', 'iteration']
 
     def train_network(self, loader):
@@ -51,11 +51,14 @@ class SpeakerNet(nn.Module):
 
         tstart = time.time()
 
-        for data, data_label in loader:
+        for i, (data, data_label) in enumerate(loader):
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
+
             for inp in data:
+                if i == 0:
+                    summary(self.__S__, inp.size(), stepsize)
                 outp = self.__S__(inp.to(self.device))
                 feat.append(outp)
 

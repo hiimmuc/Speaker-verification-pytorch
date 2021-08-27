@@ -6,9 +6,6 @@ from utils import PreEmphasis
 
 from models.ResNetBlocks import SEBasicBlock
 
-INPUT_SIZE = (64, 400)
-BATCH_SIZE = 128
-
 
 class ResNetSE(nn.Module):
     def __init__(self,
@@ -148,6 +145,4 @@ def MainModel(nOut=256, summary_model=True, **kwargs):
     # Number of filters
     num_filters = [32, 64, 128, 256]
     model = ResNetSE(SEBasicBlock, [3, 4, 6, 3], num_filters, nOut, **kwargs)
-    if summary_model:
-        summary(model, INPUT_SIZE, BATCH_SIZE)
     return model
