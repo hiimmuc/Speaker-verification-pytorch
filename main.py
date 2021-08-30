@@ -191,7 +191,7 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Test only')
     parser.add_argument('--test_by_pair',
-                        dest='test',
+                        dest='test_by_pair',
                         action='store_true',
                         help='Test only')
     parser.add_argument('--initial_model_infer',
