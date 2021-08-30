@@ -317,6 +317,7 @@ class SpeakerNet(nn.Module):
 
             # Save all features to file
             # desciption: load file and extrac feature embedding
+
             for idx, f in enumerate(tqdm(setfiles)):
                 inp1 = torch.FloatTensor(
                     loadWAV(f, eval_frames, evalmode=True,
