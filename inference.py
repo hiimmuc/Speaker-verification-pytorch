@@ -53,6 +53,14 @@ def inference(args):
                            eval_frames=args.eval_frames)
         sys.exit(1)
 
+    if args.test_by_pair is True:
+        model.test_each_pair(args.test_path,
+                             cohorts_path=args.cohorts_path,
+                             thre_score=args.test_threshold,
+                             print_interval=100,
+                             eval_frames=args.eval_frames)
+        sys.exit(1)
+
     # Prepare embeddings for cohorts/verification
     if args.prepare is True:
         model.prepare(eval_frames=args.eval_frames,
