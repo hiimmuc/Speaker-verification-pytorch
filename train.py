@@ -35,8 +35,8 @@ def train(args):
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
     elif len(model_files) >= 1:
-        s.loadParameters(model_files[-1])
-        print("Model %s loaded from previous state!" % model_files[-1])
+        s.loadParameters(prev_model_state)
+        print("Model %s loaded from previous state!" % prev_model_state)
         it = int(os.path.splitext(
             os.path.basename(model_files[-1]))[0][5:]) + 1
     else:
