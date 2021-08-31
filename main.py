@@ -44,10 +44,10 @@ if __name__ == '__main__':
                         help='Maximum number of utterances per speaker per epoch')
     parser.add_argument('--nDataLoaderThread',
                         type=int,
-                        default=8,
+                        default=2,
                         help='Number of loader threads')
     parser.add_argument('--augment',
-                        type=bool,
+                        action='store_true',
                         default=False,
                         help='Augment input')
 
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     # Load and save
     parser.add_argument('--initial_model',
                         type=str,
-                        default="",
+                        default=None,
                         help='Initial model weights')
     parser.add_argument('--save_path',
                         type=str,
