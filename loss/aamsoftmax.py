@@ -2,22 +2,28 @@
 # -*- encoding: utf-8 -*-
 # Adapted from https://github.com/wujiyang/Face_Pytorch (Apache License)
 
+import math
+import pdb
+import time
+
+import numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import time, pdb, numpy, math
 from utils import accuracy
+
 
 class LossFunction(nn.Module):
     def __init__(self, nOut, nClasses, margin=0.3, scale=15, easy_margin=False, **kwargs):
         super(LossFunction, self).__init__()
 
         self.test_normalize = True
-        
+
         self.m = margin
         self.s = scale
         self.in_feats = nOut
-        self.weight = torch.nn.Parameter(torch.FloatTensor(nClasses, nOut), requires_grad=True)
+        self.weight = torch.nn.Parameter(
+            torch.FloatTensor(nClasses, nOut), requires_grad=True)
         self.ce = nn.CrossEntropyLoss()
         nn.init.xavier_normal_(self.weight, gain=1)
 
@@ -29,13 +35,13 @@ class LossFunction(nn.Module):
         self.th = math.cos(math.pi - self.m)
         self.mm = math.sin(math.pi - self.m) * self.m
 
-        print('Initialised AAMSoftmax margin %.3f scale %.3f'%(self.m,self.s))
+        print('Initialised AAMSoftmax margin %.3f scale %.3f' % (self.m, self.s))
 
     def forward(self, x, label=None):
 
         assert x.size()[0] == label.size()[0]
         assert x.size()[1] == self.in_feats
-        
+
         # cos(theta)
         cosine = F.linear(F.normalize(x), F.normalize(self.weight))
         # cos(theta + m)
@@ -53,6 +59,6 @@ class LossFunction(nn.Module):
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output = output * self.s
 
-        loss    = self.ce(output, label)
-        prec1   = accuracy(output.detach(), label.detach(), topk=(1,))[0]
+        loss = self.ce(output, label)
+        prec1 = accuracy(output.detach(), label.detach(), topk=(1,))[0]
         return loss, prec1

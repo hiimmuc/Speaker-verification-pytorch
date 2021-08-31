@@ -3,8 +3,10 @@
 
 import torch
 import torch.nn as nn
-import loss.softmax as softmax
-import loss.angleproto as angleproto
+
+import losses.angleproto as angleproto
+import losses.softmax as softmax
+
 
 class LossFunction(nn.Module):
 
@@ -22,8 +24,9 @@ class LossFunction(nn.Module):
 
         assert x.size()[1] == 2
 
-        nlossS, prec1   = self.softmax(x.reshape(-1,x.size()[-1]), label.repeat_interleave(2))
+        nlossS, prec1 = self.softmax(
+            x.reshape(-1, x.size()[-1]), label.repeat_interleave(2))
 
-        nlossP, _       = self.angleproto(x,None)
+        nlossP, _ = self.angleproto(x, None)
 
         return nlossS+nlossP, prec1
