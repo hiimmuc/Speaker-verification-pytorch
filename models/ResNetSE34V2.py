@@ -107,13 +107,12 @@ class ResNetSE(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        print(x.size())
         with torch.no_grad():
             x = self.torchfb(x) + 1e-6
             if self.log_input:
                 x = x.log()
             x = self.instancenorm(x).unsqueeze(1)
-        print(x.size())
+
         x = self.conv1(x)
         x = self.relu(x)
         x = self.bn1(x)
