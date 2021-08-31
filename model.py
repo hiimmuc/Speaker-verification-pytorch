@@ -55,10 +55,11 @@ class SpeakerNet(nn.Module):
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
+            print(data.size())
 
             for inp in data:
-                if i == 0:
-                    summary(self.__S__, inp.size(), stepsize)
+                # if i == 0:
+                #     summary(self.__S__, inp.size(), stepsize)
                 outp = self.__S__(inp.to(self.device))
                 feat.append(outp)
 
