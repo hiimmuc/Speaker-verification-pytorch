@@ -223,9 +223,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # Initialise directories
     if args.do_train:
-        model_save_path = args.save_path + f"/{args.model}_model"
+        model_save_path = args.save_path + f"/{args.model}/model"
         os.makedirs(model_save_path, exist_ok=True)
-        result_save_path = args.save_path + f"/{args.model}_result"
+        result_save_path = args.save_path + f"/{args.model}/result"
         os.makedirs(result_save_path, exist_ok=True)
     # Run
     main(args)
