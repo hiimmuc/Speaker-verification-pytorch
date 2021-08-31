@@ -11,14 +11,15 @@ import time
 from pathlib import Path
 from zipfile import ZipFile
 
-import config as cfg
 import librosa
 import numpy as np
+import scipy
 import soundfile as sf
 from scipy.io import wavfile
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
+import config as cfg
 from utils import AugmentWavEngine, load_wav_file
 
 # TODO: load data, apply augmentation, and extract MFCCs, save as npy files
@@ -167,6 +168,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
     list_audio = []
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc='Augmented process')):
         audio, sr = load_wav_file(fpath, max_frames=max_frames)
+
         aug_type = random.randint(0, 3)
 
         if aug_type == 0:
@@ -244,7 +246,7 @@ class FeatureExtraction:
             map(lambda x: x.replace('\n', '').split(' ')[0], self.data_files))
 
     def extract_feature_frame(self, audio_path):
-        '''Extract MFCC features from audio file
+        '''Extract Mel spectrogram features from audio file
 
         Args:
             audio_path (str or file type): path to audio file
@@ -261,16 +263,19 @@ class FeatureExtraction:
 
             # calculate by avg time length / time overlap - 1 for st :v
             max_pad_length = self.config.max_pad_length
-            n_mfcc = self.config.n_mfcc
+            win_length = self.config.max_pad_length
             n_fft = self.config.n_fft
             hop_length = self.config.hop_length
             n_mels = self.config.n_mels
+            window = scipy.signal.hamming(win_length, sym=False)
 
-            mfccs = librosa.feature.mfcc(y=y, sr=sample_rate,
-                                         n_mfcc=n_mfcc,
-                                         n_fft=n_fft,
-                                         hop_length=hop_length,
-                                         n_mels=n_mels)
+            mfccs = librosa.feature.melspectrogram(y=y, sr=sample_rate,
+                                                   n_fft=n_fft,
+                                                   hop_length=hop_length,
+                                                   win_length=win_length,
+                                                   n_mels=n_mels,
+                                                   window=window)
+
             pad_width = max_pad_length - mfccs.shape[1]
             pad_width = pad_width if pad_width >= 0 else 0
             mfccs = np.pad(mfccs[:, :max_pad_length], pad_width=(
@@ -430,7 +435,7 @@ if __name__ == '__main__':
     parser.add_argument('--raw_dataset',
                         type=str,
                         default="dataset/wavs",
-                        help='Directory consists raw dataset')
+                        help='Deractory consists raw dataset')
 
     parser.add_argument('--split_ratio',
                         type=float,
