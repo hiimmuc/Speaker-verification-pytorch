@@ -20,7 +20,7 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
 import config as cfg
-from utils import AugmentWavEngine, load_wav_file
+from utils import *
 
 # TODO: load data, apply augmentation, and extract MFCCs, save as npy files
 
@@ -163,11 +163,11 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
 
     random_indices = random.sample(range(len(audio_paths)), num_aug)
     augment_audio_paths = [audio_paths[i] for i in random_indices]
-    augment_engine = AugmentWavEngine(musan_path, rir_path, max_frames)
+    augment_engine = AugmentWAV(musan_path, rir_path, max_frames)
 
     list_audio = []
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc='Augmented process')):
-        audio, sr = load_wav_file(fpath, max_frames=max_frames)
+        audio, sr = loadWAV(fpath, max_frames=max_frames)
 
         aug_type = random.randint(0, 3)
 
