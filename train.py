@@ -13,7 +13,7 @@ def train(args):
     result_save_path = args.save_path + f"/{args.model}_result"
 
     # Load models
-    s = SpeakerNet(**vars(args))
+    s = SpeakerNet(args, **vars(args))
 
     it = 1
     min_loss = float("inf")
@@ -63,7 +63,7 @@ def train(args):
               "Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
-        loss, trainer = s.train_network(loader=train_loader, it=it)
+        loss, trainer = s.train_network(loader=train_loader, epoch=it)
 
         # Validate and save
         if it % args.test_interval == 0:

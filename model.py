@@ -10,16 +10,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from callbacks.steplr import EarlyStopping, LRScheduler
 from utils import loadWAV, score_normalization
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, model, optimizer, callbacks, trainfunc, device, **kwargs):
+    def __init__(self, args, model, optimizer, callbacks, trainfunc, device, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
+        self.args = args
 
         SpeakerNetModel = importlib.import_module(
             'models.' + model).__getattribute__('MainModel')
@@ -39,7 +40,7 @@ class SpeakerNet(nn.Module):
             self.__optimizer__, **kwargs)
         assert self.lr_step in ['epoch', 'iteration']
 
-    def train_network(self, loader):
+    def train_network(self, loader, epoch=0):
         self.train()
 
         stepsize = loader.batch_size
@@ -51,15 +52,12 @@ class SpeakerNet(nn.Module):
 
         tstart = time.time()
 
-        for i, (data, data_label) in enumerate(loader):
+        for i, (data, data_label) in enumerate(tqdm(loader, unit='iters', desc=f"Epoch: {epoch}/{self.args.max_epoch}")):
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
-            print(data.size())
 
             for inp in data:
-                # if i == 0:
-                #     summary(self.__S__, inp.size(), stepsize)
                 outp = self.__S__(inp.to(self.device))
                 feat.append(outp)
 
