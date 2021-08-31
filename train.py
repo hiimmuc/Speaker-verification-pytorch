@@ -10,7 +10,7 @@ from utils import get_data_loader, tuneThresholdfromScore
 def train(args):
     # Initialise directories
     model_save_path = args.save_path + f"/{args.model}/model"
-    results_save_path = args.save_path + f"/{args.model}/result"
+    result_save_path = args.save_path + f"/{args.model}/result"
 
     # Load models
     s = SpeakerNet(args, **vars(args))
