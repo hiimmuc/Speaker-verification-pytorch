@@ -16,7 +16,7 @@ def train(args):
     s = SpeakerNet(**vars(args))
 
     it = 1
-    prevloss = float("inf")
+    min_loss = float("inf")
     sumloss = 0
     min_eer = [100]
 
@@ -24,7 +24,14 @@ def train(args):
     model_files = glob.glob(f'%{model_save_path}/model0*.model')
     model_files.sort()
 
-    if args.initial_model != "":
+    # if exists best model load from it
+    if len(model_files) > 0:
+        if os.path.exists(f'{model_save_path}/best_state.model'):
+            prev_model_state = f'{model_save_path}/best_state.model'
+        else:
+            prev_model_state = model_files[-1]
+
+    if args.initial_model:
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
     elif len(model_files) >= 1:
@@ -32,13 +39,15 @@ def train(args):
         print("Model %s loaded from previous state!" % model_files[-1])
         it = int(os.path.splitext(
             os.path.basename(model_files[-1]))[0][5:]) + 1
+    else:
+        print("Train model from scratch!")
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
 
     # Write args to score_file
     score_file = open(result_save_path + "/scores.txt", "a+")
-
+    # summary settings
     for items in vars(args):
         print(items, vars(args)[items])
         score_file.write('%s %s\n' % (items, vars(args)[items]))
@@ -54,7 +63,7 @@ def train(args):
               "Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
-        loss, trainer = s.train_network(loader=train_loader)
+        loss, trainer = s.train_network(loader=train_loader, it=it)
 
         # Validate and save
         if it % args.test_interval == 0:
@@ -78,9 +87,13 @@ def train(args):
 
             score_file.flush()
 
-            s.saveParameters(model_save_path + "/model%09d.model" % it)
+            s.saveParameters(model_save_path + "/model%06d.model" % it)
+            if loss == min(min_loss, loss):
+                print(
+                    f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
+                model.save_parameters(model_save_path + "/best_state.model")
 
-            with open(model_save_path + "/model%09d.eer" % it, 'w') as eerfile:
+            with open(model_save_path + "/model%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
 
         else:
@@ -92,9 +105,13 @@ def train(args):
 
             score_file.flush()
 
+        # update min loss
+        min_loss = min(min_loss, loss)
+        
         if it >= args.max_epoch:
+            score_file.close()
             sys.exit(1)
 
         it += 1
         print("")
-    score_file.close()
+ 
