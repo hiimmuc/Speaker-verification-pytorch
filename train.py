@@ -22,6 +22,7 @@ def train(args):
 
     # Load model weights
     model_files = glob.glob(f'%{model_save_path}/model0*.model')
+
     model_files.sort()
 
     # if exists best model load from it
@@ -38,7 +39,7 @@ def train(args):
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
         it = int(os.path.splitext(
-            os.path.basename(model_files[-1]))[0][5:]) + 1
+            os.path.basename(model_files[-1]))[0][12:]) + 1
     else:
         print("Train model from scratch!")
 
@@ -87,13 +88,13 @@ def train(args):
 
             score_file.flush()
 
-            s.saveParameters(model_save_path + "/model%06d.model" % it)
+            s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
             if loss == min(min_loss, loss):
                 print(
                     f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
                 model.save_parameters(model_save_path + "/best_state.model")
 
-            with open(model_save_path + "/model%06d.eer" % it, 'w') as eerfile:
+            with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
 
         else:

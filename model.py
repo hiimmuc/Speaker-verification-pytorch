@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
-from tqdm.auto import tqdm
+from tqdm.autonotebook import tqdm
 
 from callbacks.steplr import EarlyStopping, LRScheduler
 from utils import loadWAV, score_normalization
