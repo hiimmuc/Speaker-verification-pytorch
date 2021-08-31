@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from zipfile import ZipFile
 
+import config as cfg
 import librosa
 import numpy as np
 import soundfile as sf
@@ -18,7 +19,6 @@ from scipy.io import wavfile
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
-import config as cfg
 from utils import AugmentWavEngine, load_wav_file
 
 # TODO: load data, apply augmentation, and extract MFCCs, save as npy files
@@ -430,7 +430,7 @@ if __name__ == '__main__':
     parser.add_argument('--raw_dataset',
                         type=str,
                         default="dataset/wavs",
-                        help='Deractory consists raw dataset')
+                        help='Directory consists raw dataset')
 
     parser.add_argument('--split_ratio',
                         type=float,
