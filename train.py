@@ -22,7 +22,8 @@ def train(args):
 
     # Load model weights
     # fix to model_state_*.model when done training
-    model_files = glob.glob(f'{model_save_path}/model0*.model')
+    model_files = glob.glob(os.path.join(
+        model_save_path, 'model_state_*.model'))
 
     model_files.sort()
 
@@ -42,7 +43,7 @@ def train(args):
     else:
         print("Train model from scratch!")
     # fix 5-> 12 when doen training
-    it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][5:]) + 1
+    it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][12:]) + 1
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
