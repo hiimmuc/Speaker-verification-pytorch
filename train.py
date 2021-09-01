@@ -78,7 +78,7 @@ def train(args):
         if loss == min(min_loss, loss):
             print(
                 f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
-            s.save_parameters(model_save_path + "/best_state.model")
+            s.saveParameters(model_save_path + "/best_state.model")
         min_loss = min(min_loss, loss)
 
         # Validate and save
