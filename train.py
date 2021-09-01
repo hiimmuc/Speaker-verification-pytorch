@@ -21,7 +21,6 @@ def train(args):
     min_eer = [100]
 
     # Load model weights
-    # fix to model_state_*.model when done training
     model_files = glob.glob(os.path.join(
         model_save_path, 'model_state_*.model'))
 
@@ -42,7 +41,8 @@ def train(args):
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
-    # fix 5-> 12 when doen training
+
+    # model_state_xxxxxx.model, so 12 is index of number sequence
     it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][12:]) + 1
 
     for ii in range(0, it - 1):
@@ -59,6 +59,7 @@ def train(args):
     # Initialise data loader
     train_loader = get_data_loader(args.train_list, **vars(args))
 
+    # Training loop
     while True:
         clr = [x['lr'] for x in s.__optimizer__.param_groups]
 
@@ -67,6 +68,12 @@ def train(args):
 
         # Train network
         loss, trainer = s.train_network(loader=train_loader, epoch=it)
+        # save best model
+        if loss == min(min_loss, loss):
+            print(
+                f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
+            s.save_parameters(model_save_path + "/best_state.model")
+        min_loss = min(min_loss, loss)
 
         # Validate and save
         if it % args.test_interval == 0:
@@ -91,10 +98,6 @@ def train(args):
             score_file.flush()
 
             s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
-            if loss == min(min_loss, loss):
-                print(
-                    f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
-                s.save_parameters(model_save_path + "/best_state.model")
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
@@ -107,9 +110,6 @@ def train(args):
                              (it, max(clr), trainer, loss))
 
             score_file.flush()
-
-        # update min loss
-        min_loss = min(min_loss, loss)
 
         if it >= args.max_epoch:
             score_file.close()
