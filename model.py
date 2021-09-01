@@ -27,7 +27,7 @@ class SpeakerNet(nn.Module):
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
 
         LossFunction = importlib.import_module(
-            'loss.' + trainfunc).__getattribute__('LossFunction')
+            'losses.' + trainfunc).__getattribute__('LossFunction')
         self.__L__ = LossFunction(**kwargs).to(self.device)
 
         Optimizer = importlib.import_module(

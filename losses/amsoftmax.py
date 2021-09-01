@@ -29,7 +29,7 @@ class LossFunction(nn.Module):
         print('Initialised AMSoftmax m=%.3f s=%.3f' % (self.m, self.s))
 
     def forward(self, x, label=None):
-
+        x, label = x.reshape(-1, x.size()[-1]), label.repeat_interleave(2)
         assert x.size()[0] == label.size()[0]
         assert x.size()[1] == self.in_feats
 

@@ -6,7 +6,9 @@
 # This source code is licensed under the LICENSE file in the root directory of this source tree.
 
 import torch
+from config import *
 from torch import nn
+from utils import *
 
 # from ret_benchmark.losses.registry import LOSS
 
@@ -20,8 +22,8 @@ class LossFunction(nn.Module):
 
         # self.scale_pos = cfg.LOSSES.MULTI_SIMILARITY_LOSS.SCALE_POS
         # self.scale_neg = cfg.LOSSES.MULTI_SIMILARITY_LOSS.SCALE_NEG
-        self.scale_pos = args.scale_pos
-        self.scale_neg = args.scale_neg
+        self.scale_pos = MultiSimilarityLoss.scale_pos
+        self.scale_neg = MultiSimilarityLoss.scale_neg
 
     def forward(self, feats, labels):
         assert feats.size(0) == labels.size(0), \
@@ -54,4 +56,5 @@ class LossFunction(nn.Module):
             return torch.zeros([], requires_grad=True)
 
         loss = sum(loss) / batch_size
-        return loss, 0
+        prec1 = accuracy(sim_mat.detach(), labels.detach(), topk=(1,))[0]
+        return loss, prec1

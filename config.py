@@ -18,3 +18,8 @@ class training_config:
 
 NUM_CLASSES = 400
 FEATURE_DIM = (mfcc_config.n_mels, mfcc_config.max_pad_length)
+
+
+class MultiSimilarityLoss:
+    scale_pos = 2
+    scale_neg = 1
