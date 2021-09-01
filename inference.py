@@ -14,7 +14,17 @@ from utils import tuneThresholdfromScore
 
 def inference(args):
     model = SpeakerNet(**vars(args))
-    model.loadParameters(args.initial_model_infer)
+    model_save_path = args.save_path + f"/{args.model}/model"
+    # if weight is not select
+    if args.initial_model_infer:
+        chosen_model_state = args.initial_model_infer
+    elif os.path.exists(f'{model_save_path}/best_state.model'):
+        chosen_model_state = f'{model_save_path}/best_state.model'
+    else:
+        model_files = glob.glob(os.path.join(model_save_path, 'model_state_*.model'))
+        chosen_model_state = model_files[-1]
+
+    model.loadParameters(chosen_model_state)
     model.eval()
     # cohorts = np.load('checkpoints/cohorts_final_500_f100.npy')
     # top_cohorts = 200
