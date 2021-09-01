@@ -13,7 +13,7 @@ from utils import tuneThresholdfromScore
 
 
 def inference(args):
-    model = SpeakerNet(**vars(args))
+    model = SpeakerNet(args, **vars(args))
     model_save_path = args.save_path + f"/{args.model}/model"
     # if weight is not select
     if args.initial_model_infer:
