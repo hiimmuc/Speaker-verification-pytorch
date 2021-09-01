@@ -21,7 +21,8 @@ def train(args):
     min_eer = [100]
 
     # Load model weights
-    model_files = glob.glob(f'{model_save_path}/model0*.model') # fix to model_state_*.model when done training
+    # fix to model_state_*.model when done training
+    model_files = glob.glob(f'{model_save_path}/model0*.model')
 
     model_files.sort()
 
@@ -40,8 +41,8 @@ def train(args):
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
-    it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][5:]) + 1 # fix 5-> 12 when doen training
-
+    # fix 5-> 12 when doen training
+    it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][5:]) + 1
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
@@ -92,7 +93,7 @@ def train(args):
             if loss == min(min_loss, loss):
                 print(
                     f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
-                model.save_parameters(model_save_path + "/best_state.model")
+                s.save_parameters(model_save_path + "/best_state.model")
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
@@ -108,11 +109,10 @@ def train(args):
 
         # update min loss
         min_loss = min(min_loss, loss)
-        
+
         if it >= args.max_epoch:
             score_file.close()
             sys.exit(1)
 
         it += 1
         print("")
- 
