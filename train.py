@@ -56,6 +56,7 @@ def train(args):
     # Write args to score_file
     score_file = open(result_save_path + "/scores.txt", "a+")
     # summary settings
+    score_file.write(f"\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n")
     for items in vars(args):
         print(items, vars(args)[items])
         score_file.write('%s %s\n' % (items, vars(args)[items]))
@@ -69,7 +70,7 @@ def train(args):
         clr = [x['lr'] for x in s.__optimizer__.param_groups]
 
         print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
-              "Training %s with LR %f..." % (args.model, max(clr)))
+              "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
         loss, trainer = s.train_network(loader=train_loader, epoch=it)
@@ -83,7 +84,7 @@ def train(args):
         # Validate and save
         if it % args.test_interval == 0:
 
-            print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "Evaluating...")
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
 
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
