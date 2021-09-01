@@ -52,7 +52,7 @@ class SpeakerNet(nn.Module):
 
         tstart = time.time()
 
-        for i, (data, data_label) in enumerate(tqdm(loader, unit='it', desc=f"Epoch: {epoch}/{self.args.max_epoch}")):
+        for i, (data, data_label) in enumerate(loader):
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
@@ -76,7 +76,7 @@ class SpeakerNet(nn.Module):
             telapsed = time.time() - tstart
             tstart = time.time()
 
-            sys.stdout.write("\nProcessing (%d) " % (index))
+            sys.stdout.write("\rEpoch [{epoch}/{self.args.max_epoch}]- Processing (%d) :" % (index))
             sys.stdout.write(
                 "Loss %f TEER/TAcc %2.3f%% - %.2f Hz " %
                 (loss / counter, top1 / counter, stepsize / telapsed))

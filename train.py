@@ -43,7 +43,12 @@ def train(args):
         print("Train model from scratch!")
 
     # model_state_xxxxxx.model, so 12 is index of number sequence
-    it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][12:]) + 1
+    start_it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][12:]) + 1
+    
+    if args.max_epoch > start_it:
+        it = start_it
+    else:
+        it = 1
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
