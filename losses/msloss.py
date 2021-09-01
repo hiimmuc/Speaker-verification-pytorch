@@ -15,7 +15,7 @@ from utils import *
 
 # @LOSS.register('ms_loss')
 class LossFunction(nn.Module):
-    def __init__(self, args):
+    def __init__(self, **kwargs):
         super(LossFunction, self).__init__()
         self.thresh = 0.5
         self.margin = 0.1
