@@ -211,11 +211,11 @@ class SpeakerNet(nn.Module):
 
         # Cohorts
         cohorts = np.load(cohorts_path)
-
+        save_root = self.args.save_path + f"/{args.model}/result"
         # Read all lines
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
-        write_file = Path(root, 'submission.csv')
+        write_file = Path(save_root, 'submission_list.csv')
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
@@ -389,10 +389,10 @@ class SpeakerNet(nn.Module):
         cohorts = np.load(cohorts_path)
 
         # Read all lines
-
+        save_root = self.args.save_path + f"/{args.model}/result"
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
-        write_file = Path(root, 'submission.csv')
+        write_file = Path(save_root, 'submission_pair.csv')
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
