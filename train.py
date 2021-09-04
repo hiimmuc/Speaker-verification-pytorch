@@ -33,6 +33,16 @@ def train(args):
         else:
             prev_model_state = model_files[-1]
 
+        # model_state_xxxxxx.model, so 12 is index of number sequence
+        start_it = int(os.path.splitext(
+            os.path.basename(model_files[-1]))[0][12:]) + 1
+
+        if args.max_epoch > start_it:
+            it = start_it
+        else:
+            it = 1
+
+
     if args.initial_model:
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
@@ -42,25 +52,23 @@ def train(args):
     else:
         print("Train model from scratch!")
 
-    # model_state_xxxxxx.model, so 12 is index of number sequence
-    start_it = int(os.path.splitext(os.path.basename(model_files[-1]))[0][12:]) + 1
-    
-    if args.max_epoch > start_it:
-        it = start_it
-    else:
-        it = 1
 
     for ii in range(0, it - 1):
         s.__scheduler__.step()
 
     # Write args to score_file
+    settings_file = open(result_save_path + '/settings.txt', 'a+')
     score_file = open(result_save_path + "/scores.txt", "a+")
     # summary settings
-    score_file.write(f'\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+    settings_file.write(
+        f'\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+    score_file.write(
+        f'\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+    # write the settings to settings file
     for items in vars(args):
         print(items, vars(args)[items])
-        score_file.write('%s %s\n' % (items, vars(args)[items]))
-    score_file.flush()
+        settings_file.write('%s %s\n' % (items, vars(args)[items]))
+    settings_file.flush()
 
     # Initialise data loader
     train_loader = get_data_loader(args.train_list, **vars(args))
@@ -84,7 +92,8 @@ def train(args):
         # Validate and save
         if it % args.test_interval == 0:
 
-            print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
+            print(time.strftime("%Y-%m-%d %H:%M:%S"),
+                  it, "[INFO] Evaluating...")
 
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
