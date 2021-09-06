@@ -45,7 +45,8 @@ def train(args):
     if args.initial_model:
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
-        it = 1
+        if 'checkpoints' in args.initial_model:
+            it = 1
     elif len(model_files) >= 1:
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
