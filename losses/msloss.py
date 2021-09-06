@@ -15,20 +15,18 @@ from utils import *
 
 # @LOSS.register('ms_loss')
 class LossFunction(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self, margin=0.1, scale_neg=50, scale_pos=2, ** kwargs):
         super(LossFunction, self).__init__()
         self.thresh = 0.5
-        self.margin = 0.1
-
-        # self.scale_pos = cfg.LOSSES.MULTI_SIMILARITY_LOSS.SCALE_POS
-        # self.scale_neg = cfg.LOSSES.MULTI_SIMILARITY_LOSS.SCALE_NEG
-        self.scale_pos = MultiSimilarityLoss.scale_pos
-        self.scale_neg = MultiSimilarityLoss.scale_neg
+        self.margin = margin
+        self.scale_pos = scale_pos
+        self.scale_neg = scale_neg
 
     def forward(self, feats, labels):
         assert feats.size(0) == labels.size(0), \
             f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
         batch_size = feats.size(0)
+        # feat: batch_size x outdim
         sim_mat = torch.matmul(feats, torch.t(feats))
 
         epsilon = 1e-5

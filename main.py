@@ -110,7 +110,7 @@ if __name__ == '__main__':
                         help='Loss scale, only for some loss functions')
     parser.add_argument('--scale_neg',
                         type=float,
-                        default=40.0,
+                        default=50.0,
                         help='Loss scale, only for some loss functions')
     parser.add_argument('--scale',
                         type=float,
