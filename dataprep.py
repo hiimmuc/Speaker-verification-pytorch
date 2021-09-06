@@ -167,7 +167,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
 
     list_audio = []
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc='Augmented process')):
-        audio, sr = loadWAV(fpath, max_frames=max_frames)
+        audio, sr = loadWAV(fpath, max_frames=max_frames, evalmode=False)
 
         aug_type = random.randint(0, 3)
 

@@ -52,7 +52,7 @@ def train(args):
     else:
         print("Train model from scratch!")
 
-
+    
     for ii in range(0, it - 1):
         s.__scheduler__.step()
 

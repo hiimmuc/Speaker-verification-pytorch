@@ -10,11 +10,12 @@ import yaml
 from scipy import signal
 from scipy.io import wavfile
 from sklearn import metrics
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
     # Maximum audio length
+    # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
 
     # Read wav file and convert to torch tensor
@@ -108,19 +109,11 @@ class AugmentWAV(object):
         return signal.convolve(audio, rir, mode='full')[:, :self.max_audio]
 
 
-class voxceleb_loader(Dataset):
-    def __init__(self, dataset_file_name, augment, musan_path, rir_path,
-                 max_frames):
-
-        self.augment_wav = AugmentWAV(musan_path=musan_path,
-                                      rir_path=rir_path,
-                                      max_frames=max_frames)
+class Loader(Dataset):
+    def __init__(self, dataset_file_name, max_frames):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
-        self.musan_path = musan_path
-        self.rir_path = rir_path
-        self.augment = augment
 
         # Read Training Files...
         with open(dataset_file_name) as dataset_file:
@@ -157,17 +150,6 @@ class voxceleb_loader(Dataset):
                             self.max_frames,
                             evalmode=False)
 
-            if self.augment:
-                augtype = random.randint(0, 4)
-                if augtype == 1:
-                    audio = self.augment_wav.reverberate(audio)
-                elif augtype == 2:
-                    audio = self.augment_wav.additive_noise('music', audio)
-                elif augtype == 3:
-                    audio = self.augment_wav.additive_noise('speech', audio)
-                elif augtype == 4:
-                    audio = self.augment_wav.additive_noise('noise', audio)
-
             feat.append(audio)
 
         feat = np.concatenate(feat, axis=0)
@@ -178,7 +160,7 @@ class voxceleb_loader(Dataset):
         return len(self.data_list)
 
 
-class voxceleb_sampler(torch.utils.data.Sampler):
+class Sampler(torch.utils.data.Sampler):
     def __init__(self, data_source, nPerSpeaker, max_seg_per_spk, batch_size):
         self.data_source = data_source
         self.label_dict = data_source.label_dict
@@ -190,7 +172,8 @@ class voxceleb_sampler(torch.utils.data.Sampler):
         dictkeys = list(self.label_dict.keys())
         dictkeys.sort()
 
-        lol = lambda lst, sz: [lst[i:i + sz] for i in range(0, len(lst), sz)]
+        def lol(lst, sz): return [lst[i:i + sz]
+                                  for i in range(0, len(lst), sz)]
 
         flattened_list = []
         flattened_label = []
@@ -212,7 +195,7 @@ class voxceleb_sampler(torch.utils.data.Sampler):
         mixlabel = []
         mixmap = []
 
-        ## Prevent two pairs of the same speaker in the same batch
+        # Prevent two pairs of the same speaker in the same batch
         for ii in mixid:
             startbatch = len(mixlabel) - len(mixlabel) % self.batch_size
             if flattened_label[ii] not in mixlabel[startbatch:]:
@@ -225,14 +208,12 @@ class voxceleb_sampler(torch.utils.data.Sampler):
         return len(self.data_source)
 
 
-def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
-                    rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
+def get_data_loader(dataset_file_name, batch_size, max_frames, max_seg_per_spk, nDataLoaderThread,
                     nPerSpeaker, **kwargs):
-    train_dataset = voxceleb_loader(dataset_file_name, augment, musan_path,
-                                    rir_path, max_frames)
+    train_dataset = Loader(dataset_file_name, max_frames)
 
-    train_sampler = voxceleb_sampler(train_dataset, nPerSpeaker,
-                                     max_seg_per_spk, batch_size)
+    train_sampler = Sampler(train_dataset, nPerSpeaker,
+                            max_seg_per_spk, batch_size)
 
     train_loader = DataLoader(
         train_dataset,

@@ -76,7 +76,8 @@ class SpeakerNet(nn.Module):
             telapsed = time.time() - tstart
             tstart = time.time()
 
-            sys.stdout.write(f"\rEpoch [{epoch}/{self.args.max_epoch}] - Processing ({index}) :")
+            sys.stdout.write(
+                f"\rEpoch [{epoch}/{self.args.max_epoch}] - Processing ({index}) :")
             sys.stdout.write(
                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
                 (loss / counter, top1 / counter, stepsize / telapsed))

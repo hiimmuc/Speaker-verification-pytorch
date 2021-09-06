@@ -5,3 +5,5 @@ config/
 exp/
 dataset/
 venv/
+.venv/
+
