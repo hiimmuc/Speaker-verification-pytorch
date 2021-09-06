@@ -102,7 +102,7 @@ if __name__ == '__main__':
                         )
     parser.add_argument('--margin',
                         type=float,
-                        default=1,
+                        default=0.2,
                         help='Loss margin, only for some loss functions')
     parser.add_argument('--scale_pos',
                         type=float,
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                         help='Loss scale, only for some loss functions')
     parser.add_argument('--scale',
                         type=float,
-                        default=15,
+                        default=30.0,
                         help='Loss scale, only for some loss functions')
 
     parser.add_argument('--nPerSpeaker',

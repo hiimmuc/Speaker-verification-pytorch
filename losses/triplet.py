@@ -14,7 +14,7 @@ from utils import tuneThresholdfromScore
 
 class LossFunction(nn.Module):
 
-    def __init__(self, hard_rank=0, hard_prob=0, margin=0, **kwargs):
+    def __init__(self, hard_rank=0, hard_prob=0, margin=0.2, **kwargs):
         super(LossFunction, self).__init__()
 
         self.test_normalize = True

@@ -13,7 +13,7 @@ from sklearn import metrics
 from torch.utils.data import DataLoader, Dataset
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     # Maximum audio length
     # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
@@ -42,7 +42,8 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
             feats.append(audio[int(asf):int(asf) + max_audio])
 
     feat = np.stack(feats, axis=0).astype(np.float)
-
+    if sr:
+        return feat, sample_rate
     return feat
 
 
@@ -76,7 +77,7 @@ class AugmentWAV(object):
                 self.noiselist[file.split('/')[-4]] = []
             self.noiselist[file.split('/')[-4]].append(file)
 
-        self.rir_files = glob.glob(os.path.join(rir_path, '*/*/*.wav'))
+        self.rir_files = glob.glob(os.path.join(rir_path, '*/*/*/*.wav'))
 
     def additive_noise(self, noisecat, audio):
         clean_db = 10 * np.log10(np.mean(audio ** 2) + 1e-4)
@@ -232,13 +233,14 @@ def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
     batch_size = target.size(0)
-
+    # tensor.topk -> tensor, long tensor, return the k largest values along dim
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
+    # Computes element-wise equality
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
-
+    # calculate number of true values/ batchsize
     for k in topk:
         correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
