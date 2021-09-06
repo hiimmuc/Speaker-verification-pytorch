@@ -42,17 +42,16 @@ def train(args):
         else:
             it = 1
 
-
     if args.initial_model:
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
+        it = 1
     elif len(model_files) >= 1:
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
 
-    
     for ii in range(0, it - 1):
         s.__scheduler__.step()
 
