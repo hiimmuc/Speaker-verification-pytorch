@@ -389,16 +389,25 @@ class DataGenerator():
         val_filepaths_list = []
         for classpath in classpaths:
             filepaths = list(classpath.glob('*.wav'))
-            val_num = 3  # 3 utterances per speaker for val
-            if self.args.split_ratio > 0:
-                val_num = int(self.args.split_ratio * len(filepaths))
+
             random.shuffle(filepaths)
-            val_filepaths = filepaths[:val_num]
-            train_filepaths = filepaths[val_num:]
+            augment_path = list(
+                filter(lambda x: 'augment' in str(x), filepaths))
+            non_augment_path = list(
+                filter(lambda x: 'augment' not in str(x), filepaths))
+
+            val_num = 3  # 3 utterances per speaker for val
+
+            if self.args.split_ratio > 0:
+                val_num = int(self.args.split_ratio * len(non_augment_path))
+
+            val_filepaths = non_augment_path[:val_num]
+            train_filepaths = non_augment_path[val_num:] + augment_path
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')
             val_filepaths_list.append(val_filepaths)
+
         for val_filepaths in val_filepaths_list:
             for i in range(len(val_filepaths) - 1):
                 for j in range(i + 1, len(val_filepaths)):

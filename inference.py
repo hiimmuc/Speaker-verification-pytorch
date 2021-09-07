@@ -1,3 +1,5 @@
+import glob
+import os
 import random
 import sys
 from math import fabs
@@ -21,15 +23,13 @@ def inference(args):
     elif os.path.exists(f'{model_save_path}/best_state.model'):
         chosen_model_state = f'{model_save_path}/best_state.model'
     else:
-        model_files = glob.glob(os.path.join(model_save_path, 'model_state_*.model'))
+        model_files = glob.glob(os.path.join(
+            model_save_path, 'model_state_*.model'))
         chosen_model_state = model_files[-1]
-
+    print(f'Loading model from {chosen_model_state}')
     model.loadParameters(chosen_model_state)
     model.eval()
-    # cohorts = np.load('checkpoints/cohorts_final_500_f100.npy')
-    # top_cohorts = 200
-    # threshold = 1.7206447124481201
-    # eval_frames = 100
+
     num_eval = 10
     # Evaluation code
     if args.eval is True:
