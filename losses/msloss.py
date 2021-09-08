@@ -31,16 +31,22 @@ class LossFunction(nn.Module):
 
         epsilon = 1e-5
         loss = list()
-
+        c = 0
         for i in range(batch_size):
-            pos_pair_ = sim_mat[i][labels == labels[i]]
-            pos_pair_ = pos_pair_[pos_pair_ < 1 - epsilon]
-            neg_pair_ = sim_mat[i][labels != labels[i]]
+            # mining step same as hard mining loss  https://github.com/bnu-wangxun/Deep_Metric/blob/master/losses/HardMining.py
+            pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i])
 
-            neg_pair = neg_pair_[neg_pair_ + self.margin > min(pos_pair_)]
-            pos_pair = pos_pair_[pos_pair_ - self.margin < max(neg_pair_)]
+            #  move itself
+            pos_pair_ = torch.masked_select(pos_pair_, pos_pair_ < 1 - epsilon)
+            neg_pair_ = torch.masked_select(sim_mat[i], labels != labels[i])
+
+            neg_pair = torch.masked_select(
+                neg_pair_, neg_pair_ > min(pos_pair_) - self.margin)
+            pos_pair = torch.masked_select(
+                pos_pair_, pos_pair_ < max(neg_pair_) + self.margin)
 
             if len(neg_pair) < 1 or len(pos_pair) < 1:
+                c += 1
                 continue
 
             # weighting step
@@ -48,11 +54,12 @@ class LossFunction(nn.Module):
                 1 + torch.sum(torch.exp(-self.scale_pos * (pos_pair - self.thresh))))
             neg_loss = 1.0 / self.scale_neg * torch.log(
                 1 + torch.sum(torch.exp(self.scale_neg * (neg_pair - self.thresh))))
+
             loss.append(pos_loss + neg_loss)
 
         if len(loss) == 0:
             return torch.zeros([], requires_grad=True)
 
         loss = sum(loss) / batch_size
-        prec1 = accuracy(sim_mat.detach(), labels.detach(), topk=(1,))[0]
+        prec1 = float(c) / batch_size
         return loss, prec1
