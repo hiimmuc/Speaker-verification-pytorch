@@ -31,7 +31,7 @@ class LossFunction(nn.Module):
 
         epsilon = 1e-5
         loss = list()
-
+        print(feats, labels)
         for i in range(batch_size):
             pos_pair_ = sim_mat[i][labels == labels[i]]
             pos_pair_ = pos_pair_[pos_pair_ < 1 - epsilon]
