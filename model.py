@@ -216,7 +216,7 @@ class SpeakerNet(nn.Module):
         # Read all lines
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
-        write_file = Path(save_root, 'submission_list.csv')
+        write_file = Path(save_root, 'submission_list_test.csv')
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
@@ -393,7 +393,7 @@ class SpeakerNet(nn.Module):
         save_root = self.args.save_path + f"/{self.args.model}/result"
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
-        write_file = Path(save_root, 'submission_pair.csv')
+        write_file = Path(save_root, 'submission_pair_test.csv')
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
