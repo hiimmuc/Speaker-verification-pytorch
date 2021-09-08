@@ -1,45 +1,95 @@
-# import torch
-# import torch.nn.functional as F
-# import time
-# x = torch.randn((256, 96, 128, 128)).cuda()
-# t = time.time()
-# x = F.avg_pool2d(x, x.size()[2:])
 
-# %timeit F.adaptive_avg_pool2d(x, (1, 1))
-
-# %timeit torch.mean(x.view(x.size(0), x.size(1), -1), dim=2)
-# from utils import *
-
-# path = './dataset/wavs/272-M-26/speaker_272-10.wav'
-# audio = loadWAV(path, 100, evalmode=False)
-# print(audio.shape)
 import csv
 import glob
 import os
 
 import pandas as pd
+import torch
+from torch import nn
 
-# path1 = ''
-# path2 = ''
+from config import *
+from utils import *
 
-csv1 = pd.read_csv(
-    "exp/dump/submission_list_test2.csv")  # 86.55%
-csv2 = pd.read_csv(
-    "exp/dump/submission_model_pretrain_resnet34v2_rawcode.csv")  # 87.38%
+# csv1 = pd.read_csv(
+#     "exp/dump/submission_list_test2.csv")  # 86.55%
+# csv2 = pd.read_csv(
+#     "exp/dump/submission_model_pretrain_resnet34v2_rawcode.csv")  # 87.38%
 
-data1 = list(csv1['label'])
-data2 = list(csv2['label'])
-# print(data1)
-# print(data2)
-similarity = [1 if data1[i] == data2[i] else 0 for i in range(len(data1))]
-print(similarity.count(1))
-print(f"similarity: {similarity.count(1)/len(data1)}")
-# path = 'dataset/val.txt'
-# with open(path, 'r') as f:
-#     lines = f.readlines()
-#     # for line in lines:
-#     #     print(line)
-#     #     os.system(f"rm dataset/{line.split(' ')[0]}")
-# raw_data = list(filter(lambda x: 'augment' not in x, lines))
-# augment_data = list(filter(lambda x: 'augment' in x, lines))
-# print(len(raw_data), len(augment_data))
+# data1 = list(csv1['label'])
+# data2 = list(csv2['label'])
+
+# similarity = [1 if data1[i] == data2[i] else 0 for i in range(len(data1))]
+# print(similarity.count(1))
+# print(f"similarity: {similarity.count(1)/len(data1)}")
+
+# Copyright (c) Malong Technologies Co., Ltd.
+# All rights reserved.
+#
+# Contact: github@malong.com
+#
+# This source code is licensed under the LICENSE file in the root directory of this source tree.
+
+
+# from ret_benchmark.losses.registry import LOSS
+
+
+# @LOSS.register('ms_loss')
+class LossFunction(nn.Module):
+    def __init__(self, margin=0.1, scale_neg=50, scale_pos=2, ** kwargs):
+        super(LossFunction, self).__init__()
+        self.thresh = 0.5
+        self.margin = margin
+        self.scale_pos = scale_pos
+        self.scale_neg = scale_neg
+
+    def forward(self, feats, labels):
+        assert feats.size(0) == labels.size(0), \
+            f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
+        batch_size = feats.size(0)
+        # feat: batch_size x outdim
+        sim_mat = torch.matmul(feats, torch.t(feats))
+
+        epsilon = 1e-5
+        loss = list()
+        c = 0
+
+        for i in range(batch_size):
+            # mining step same as hard mining loss  https://github.com/bnu-wangxun/Deep_Metric/blob/master/losses/HardMining.py
+            pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i])
+
+            #  move itself
+            pos_pair_ = torch.masked_select(pos_pair_, pos_pair_ < 1 - epsilon)
+            neg_pair_ = torch.masked_select(sim_mat[i], labels != labels[i])
+
+            neg_pair = torch.masked_select(
+                neg_pair_, neg_pair_ > min(pos_pair_) - self.margin)
+            pos_pair = torch.masked_select(
+                pos_pair_, pos_pair_ < max(neg_pair_) + self.margin)
+
+            if len(neg_pair) < 1 or len(pos_pair) < 1:
+                c += 1
+                continue
+
+            # weighting step
+            pos_loss = 1.0 / self.scale_pos * torch.log(
+                1 + torch.sum(torch.exp(-self.scale_pos * (pos_pair - self.thresh))))
+            neg_loss = 1.0 / self.scale_neg * torch.log(
+                1 + torch.sum(torch.exp(self.scale_neg * (neg_pair - self.thresh))))
+
+            loss.append(pos_loss + neg_loss)
+
+        if len(loss) == 0:
+            return torch.zeros([], requires_grad=True)
+
+        loss = sum(loss) / batch_size
+        prec1 = float(c) / batch_size
+        return loss, prec1
+
+
+if __name__ == '__main__':
+    loss = LossFunction()
+    feats = torch.rand([64, 512])
+    labels = torch.rand(64)
+    loss, prec1 = loss(feats, labels)
+    print(loss)
+    print(prec1)

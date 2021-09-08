@@ -32,6 +32,7 @@ class LossFunction(nn.Module):
         epsilon = 1e-5
         loss = list()
         c = 0
+        labels = torch.Tensor(labels)
         for i in range(batch_size):
             # mining step same as hard mining loss  https://github.com/bnu-wangxun/Deep_Metric/blob/master/losses/HardMining.py
             pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i])
@@ -63,3 +64,12 @@ class LossFunction(nn.Module):
         loss = sum(loss) / batch_size
         prec1 = float(c) / batch_size
         return loss, prec1
+
+
+if __name__ == '__main__':
+    loss = LossFunction()
+    feats = torch.rand([64, 512])
+    labels = torch.rand(64)
+    loss, prec1 = loss(feats, labels)
+    print(loss)
+    print(prec1)
