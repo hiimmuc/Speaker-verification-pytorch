@@ -19,7 +19,7 @@ class ResNetSE(nn.Module):
                  **kwargs):
         super(ResNetSE, self).__init__()
 
-        # print('Embedding size is %d, encoder %s.' % (nOut, encoder_type))
+        print('Embedding size is %d, encoder %s.' % (nOut, encoder_type))
         self.inplanes = num_filters[0]
         self.encoder_type = encoder_type
         self.n_mels = n_mels

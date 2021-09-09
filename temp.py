@@ -47,18 +47,19 @@ class LossFunction(nn.Module):
             f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
         batch_size = feats.size(0)
         # feat: batch_size x outdim
+        feats = F.normalize(feats, dim=1)
         sim_mat = torch.matmul(feats, torch.t(feats))
 
-        epsilon = 1e-5
+        epsilon = 0.1
         loss = list()
         c = 0
 
         for i in range(batch_size):
             # mining step same as hard mining loss  https://github.com/bnu-wangxun/Deep_Metric/blob/master/losses/HardMining.py
             pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i])
-
             #  move itself
             pos_pair_ = torch.masked_select(pos_pair_, pos_pair_ < 1 - epsilon)
+
             neg_pair_ = torch.masked_select(sim_mat[i], labels != labels[i])
 
             neg_pair = torch.masked_select(
