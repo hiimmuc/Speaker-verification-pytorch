@@ -49,7 +49,24 @@ Pretrained models and corresponding cohorts can be downloaded from [here](https:
 to train model, run:
 
 ```python
-python main.py --do_train --augment --max_epoch 500 --batch_size 320 --model ResNetSE34v2 --initial_model checkpoints/baseline_v2_ap.model
+!python main.py --do_train \
+                --train_list dataset/train.txt \
+                --test_list dataset/val.txt \
+                --model ResNetSE34Half \
+                --max_epoch 500 \
+                --batch_size 128 \
+                --nDataLoaderThread 2 \
+                --trainfunc amsoftmaxproto \
+                --margin 0.1\
+                --scale 30\
+                --nPerSpeaker 2
+                --initial_model checkpoints/baseline_v2_ap.model
+```
+
+plot loss and accuracy:
+
+```python
+python plot_loss.py --model ResNetSE34v2
 ```
 
 ## Inference
@@ -57,17 +74,41 @@ python main.py --do_train --augment --max_epoch 500 --batch_size 320 --model Res
 1. prepare cohorts
 
 ```python
-python main.py --do_infer --prepare --save_path checkpoints/cohorts_final_500_f100.npy --initial_model checkpoints/final_500.model
+!python main.py --do_infer --prepare \
+                --model ResNetSE34v2 \
+                --test_list dataset/val.txt \
+                --save_path checkpoints/cohorts_resnet34v2.npy \
+                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
 
 2. Evaluate and tune thresholds
 
 ```python
-python main.py --do_infer --eval --cohorts_path checkpoints/cohorts_final_500_f100.npy --initial_model checkpoints/final_500.model
+!python main.py --do_infer --eval \
+                --model ResNetSE34v2 \
+                --test_list dataset/val.txt \
+                --save_path checkpoints/cohorts_resnet34v2.npy \
+                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
 
 3. Run on Test set
 
 ```python
-python main.py --do_infer --test --cohorts_path checkpoints/cohorts_final_500_f100.npy --test_threshold 1.7206447124481201 --test_path dataset --initial_model checkpoints/final_500.model
+!python main.py --do_infer --test \
+                --model ResNetSE34v2 \
+                --cohorts_path checkpoints/cohorts_resnet34v2.npy \
+                --test_threshold 1.7206447124481201 \
+                --test_path dataset \
+                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
+```
+
+4. test each pair(to get the predict time of each pair):
+
+```python
+!python main.py --do_infer --test_by_pair \
+                --model ResNetSE34v2 \
+                --cohorts_path checkpoints/cohorts_resnet34v2.npy \
+                --test_threshold 1.7206447124481201 \
+                --test_path dataset \
+                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
