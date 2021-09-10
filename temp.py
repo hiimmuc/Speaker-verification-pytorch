@@ -9,7 +9,7 @@ import pandas as pd
 
 
 csv1 = pd.read_csv(
-    "exp/dump/submission_list_test.csv")  # 86.55%
+    "exp/dump/submission_list_test1091600.csv")  # 86.55%
 csv2 = pd.read_csv(
     "exp/dump/submission_model_pretrain_resnet34v2_rawcode.csv")  # 87.38%
 

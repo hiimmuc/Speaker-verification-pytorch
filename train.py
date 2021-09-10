@@ -3,6 +3,7 @@ import os
 import sys
 import time
 
+from callbacks.earlyStopping import *
 from model import SpeakerNet
 from utils import get_data_loader, tuneThresholdfromScore
 
@@ -17,7 +18,6 @@ def train(args):
 
     it = 1
     min_loss = float("inf")
-    sumloss = 0
     min_eer = [100]
 
     # Load model weights
@@ -72,6 +72,9 @@ def train(args):
 
     # Initialise data loader
     train_loader = get_data_loader(args.train_list, **vars(args))
+
+    if args.early_stop:
+        early_stopping = EarlyStopping()
 
     # Training loop
     while True:
@@ -129,6 +132,12 @@ def train(args):
         if it >= args.max_epoch:
             score_file.close()
             sys.exit(1)
+
+        if args.early_stop:
+            early_stopping(loss)
+            if early_stopping.early_stop:
+                score_file.close()
+                sys.exit(1)
 
         it += 1
         print("")

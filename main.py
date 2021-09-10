@@ -76,6 +76,10 @@ if __name__ == '__main__':
                         type=str,
                         default="steplr",
                         help='Learning rate scheduler')
+    parser.add_argument('--early_stop',
+                        action='store_true',
+                        default=False,
+                        help='Early stopping')
     parser.add_argument('--lr',
                         type=float,
                         default=0.001,
