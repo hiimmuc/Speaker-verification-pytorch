@@ -4,7 +4,7 @@ import os
 from matplotlib import pyplot as plt
 
 
-def plot_graph(data, x_label, y_label, title, save_path, color='b-', mono=True, figsize=(10, 6)):
+def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', mono=True, figsize=(10, 6)):
     plt.figure(figsize=figsize)
     if mono:
         plt.plot(data, color=color)
@@ -15,16 +15,12 @@ def plot_graph(data, x_label, y_label, title, save_path, color='b-', mono=True, 
     plt.ylabel(y_label)
     plt.title(title)
     plt.savefig(save_path)
-    plt.show()
-    plt.close()
+    if show:
+        plt.show()
 
 
-parser = argparse.ArgumentParser(description="plot model")
-if __name__ == '__main__':
-    parser.add_argument('--model', type=str,
-                        default='ResNetSE34V2', help='model name')
-    args = parser.parse_args()
-    model_name = args.model
+def plot_from_file(model, show=False):
+    model_name = model
     with open(f"exp/{model_name}/result/scores.txt") as f:
         line_data = f.readlines()
 
@@ -36,7 +32,17 @@ if __name__ == '__main__':
             data.append(line)
     data_loss = [float(line[3].strip().split(' ')[1]) for line in data]
     plot_graph(data_loss, 'epoch', 'loss', 'Loss',
-               f"exp/{model_name}/result/loss.png", color='b', mono=True)
+               f"exp/{model_name}/result/loss.png", color='b', mono=True, show=show)
     data_acc = [float(line[2].strip().split(' ')[1]) for line in data]
     plot_graph(data_acc, 'epoch', 'accuracy', 'Accuracy',
-               f"exp/{model_name}/result/acc.png", color='r')
+               f"exp/{model_name}/result/acc.png", color='r', show=show)
+    plt.close()
+
+
+parser = argparse.ArgumentParser(description="plot model")
+if __name__ == '__main__':
+    parser.add_argument('--model', type=str,
+                        default='ResNetSE34V2', help='model name')
+    args = parser.parse_args()
+    model_name = args.model
+    plot_from_file(model_name, show=True)

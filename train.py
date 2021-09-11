@@ -5,6 +5,7 @@ import time
 
 from callbacks.earlyStopping import *
 from model import SpeakerNet
+from plot_loss import *
 from utils import get_data_loader, tuneThresholdfromScore
 
 
@@ -119,6 +120,8 @@ def train(args):
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
+
+            plot_from_file(args.model, show=False)
 
         else:
 
