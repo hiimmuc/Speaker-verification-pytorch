@@ -23,9 +23,10 @@ class LossFunction(nn.Module):
             f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
         batch_size = feats.size(0)
         # feat: batch_size x outdim
-        # feats = F.normalize(feats)
 
         sim_mat = torch.matmul(feats, torch.t(feats))
+        # test: normalize sim mat so all values is below 1
+        sim_mat = F.normalize(sim_mat)
 
         epsilon = 1e-5
         losses = list()
@@ -58,7 +59,6 @@ class LossFunction(nn.Module):
                 1 + torch.sum(torch.exp(self.scale_neg * (neg_pair - self.thresh))))
             loss_ms = pos_loss + neg_loss
 
-            print(loss_ms)
             losses.append(loss_ms)
 
         if len(losses) == 0:
@@ -73,7 +73,6 @@ if __name__ == '__main__':
     loss = LossFunction()
     feats = torch.rand([64, 512])
     labels = torch.rand(64)
-    print(feats)
     loss, pred = loss(feats, labels)
     print(loss)
     print(pred)
