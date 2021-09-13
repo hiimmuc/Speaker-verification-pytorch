@@ -283,8 +283,8 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
         idx = np.nanargmin(np.absolute((tfa - fpr)))
         tunedThreshold.append([thresholds[idx], fpr[idx], fnr[idx]])
 
-    idxE = np.nanargmin(np.absolute((fnr - fpr)))
-    eer = max(fpr[idxE], fnr[idxE])
+    idxE = np.nanargmin(np.absolute((fnr - fpr))) # index of min fpr - fnr
+    eer = max(fpr[idxE], fnr[idxE]) / 100
 
     return (tunedThreshold, eer, thresholds[idxE], metrics.auc(fpr, tpr))
 

@@ -9,13 +9,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class LossFunction(nn.Module):
     def __init__(self, margin=0.1, scale_neg=50.0, scale_pos=2.0, ** kwargs):
         super(LossFunction, self).__init__()
-        self.thresh = 0.5 # lambda
-        self.margin = margin 
-        self.scale_pos = scale_pos # alpha
-        self.scale_neg = scale_neg # beta
+        self.thresh = 0.5  # lambda
+        self.margin = margin
+        self.scale_pos = scale_pos  # alpha
+        self.scale_neg = scale_neg  # beta
 
     def forward(self, feats, labels):
         assert feats.size(0) == labels.size(0), \
@@ -29,11 +30,11 @@ class LossFunction(nn.Module):
         epsilon = 1e-5
         losses = list()
         c = 0
-        labels = torch.Tensor(labels)
+
         for i in range(batch_size):
-            # pair mining step 
+            # pair mining step
             # implement same as hard mining loss  https://github.com/bnu-wangxun/Deep_Metric/blob/master/losses/HardMining.py
-            pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i]) 
+            pos_pair_ = torch.masked_select(sim_mat[i], labels == labels[i])
 
             #  move itself
             pos_pair_ = torch.masked_select(pos_pair_, pos_pair_ < 1 - epsilon)
@@ -75,4 +76,4 @@ if __name__ == '__main__':
     print(feats)
     loss, pred = loss(feats, labels)
     print(loss)
-    print(prec1)
+    print(pred)

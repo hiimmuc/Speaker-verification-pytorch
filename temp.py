@@ -9,10 +9,11 @@ import pandas as pd
 
 
 csv1 = pd.read_csv(
-    "exp/dump/submission_list_test1091600.csv")  # 86.55%
+    "exp/dump/submission_list_test11091050.csv")  # 86.55%
+
 csv2 = pd.read_csv(
     "exp/dump/submission_model_pretrain_resnet34v2_rawcode.csv")  # 87.38%
-
+# similarity accepted: 74% -> 100%
 data1 = list(csv1['label'])
 data2 = list(csv2['label'])
 
