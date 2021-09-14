@@ -29,7 +29,7 @@ def inference(args):
         f'\n[INFER]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
     # write the settings to settings file
     for items in vars(args):
-        print(items, vars(args)[items])
+        # print(items, vars(args)[items])
         settings_file.write('%s %s\n' % (items, vars(args)[items]))
     settings_file.flush()
     settings_file.close()
