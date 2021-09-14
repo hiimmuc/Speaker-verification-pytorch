@@ -99,7 +99,7 @@ def inference(args):
     if args.prepare is True:
         model.prepare(eval_frames=args.eval_frames,
                       from_path=args.test_list,
-                      save_path=args.save_path,
+                      save_path=args.cohorts_path,
                       num_eval=num_eval,
                       prepare_type=args.prepare_type)
         sys.exit(1)
