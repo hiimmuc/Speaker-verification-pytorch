@@ -46,14 +46,15 @@ def inference(args):
     print(f'Loading model from {chosen_model_state}')
     model.loadParameters(chosen_model_state)
     model.eval()
-
+    # set defalut threshold
+    threshold = args.test_threshold
     num_eval = 10
     # Evaluation code
     if args.eval is True:
         sc, lab, trials = model.evaluateFromList(
             args.test_list,
             cohorts_path=args.cohorts_path,
-            print_interval=100,
+            print_interval=10,
             eval_frames=args.eval_frames)
         target_fa = np.linspace(10, 0, num=50)
         result = tuneThresholdfromScore(sc, lab, target_fa)
@@ -74,13 +75,14 @@ def inference(args):
             Best sum rate {best_sum_rate} at {best_tfa}\n\
             EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
         score_file.close()
+        # threshold = result[2]
         sys.exit(1)
 
     # Test code
     if args.test is True:
         model.testFromList(args.test_path,
                            cohorts_path=args.cohorts_path,
-                           thre_score=args.test_threshold,
+                           thre_score=threshold,
                            print_interval=100,
                            eval_frames=args.eval_frames)
         sys.exit(1)
@@ -88,7 +90,7 @@ def inference(args):
     if args.test_by_pair is True:
         model.test_each_pair(args.test_path,
                              cohorts_path=args.cohorts_path,
-                             thre_score=args.test_threshold,
+                             thre_score=threshold,
                              print_interval=100,
                              eval_frames=args.eval_frames)
         sys.exit(1)
