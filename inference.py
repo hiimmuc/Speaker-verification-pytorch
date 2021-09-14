@@ -68,10 +68,10 @@ def inference(args):
                 best_sum_rate = sum_rate
                 best_tfa = result[0][i]
         print(f'Best sum rate {best_sum_rate} at {best_tfa}')
-        print(f'EER {result[1]} at threshold {result[2]}')
+        print(f'EER {result[1]}% at threshold {result[2]}')
         print(f'AUC {result[3]}')
         score_file.write(
-            f"Evaluation result on {args.tes_list}:\n\
+            f"Evaluation result on:\n\
             Best sum rate {best_sum_rate} at {best_tfa}\n\
             EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
         score_file.close()
