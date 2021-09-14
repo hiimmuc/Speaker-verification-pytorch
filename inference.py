@@ -2,6 +2,7 @@ import glob
 import os
 import random
 import sys
+import time
 from math import fabs
 from pathlib import Path
 
@@ -17,6 +18,22 @@ from utils import tuneThresholdfromScore
 def inference(args):
     model = SpeakerNet(args, **vars(args))
     model_save_path = args.save_path + f"/{args.model}/model"
+    result_save_path = args.save_path + f"/{args.model}/result"
+    # Write args to score_file
+    settings_file = open(result_save_path + '/settings.txt', 'a+')
+    score_file = open(result_save_path + "/scores.txt", "a+")
+    # summary settings
+    settings_file.write(
+        f'\n[INFER]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+    score_file.write(
+        f'\n[INFER]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+    # write the settings to settings file
+    for items in vars(args):
+        print(items, vars(args)[items])
+        settings_file.write('%s %s\n' % (items, vars(args)[items]))
+    settings_file.flush()
+    settings_file.close()
+
     # if weight is not select
     if args.initial_model_infer:
         chosen_model_state = args.initial_model_infer
@@ -52,6 +69,11 @@ def inference(args):
         print(f'Best sum rate {best_sum_rate} at {best_tfa}')
         print(f'EER {result[1]} at threshold {result[2]}')
         print(f'AUC {result[3]}')
+        score_file.write(
+            f"Evaluation result on {args.tes_list}:\n\
+            Best sum rate {best_sum_rate} at {best_tfa}\n\
+            EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
+        score_file.close()
         sys.exit(1)
 
     # Test code

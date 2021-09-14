@@ -62,9 +62,9 @@ def train(args):
     score_file = open(result_save_path + "/scores.txt", "a+")
     # summary settings
     settings_file.write(
-        f'\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+        f'\n[TRAIN]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
     score_file.write(
-        f'\n------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
+        f'\n[TRAIN]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
     # write the settings to settings file
     for items in vars(args):
         print(items, vars(args)[items])
