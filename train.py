@@ -4,9 +4,10 @@ import sys
 import time
 
 from callbacks.earlyStopping import *
+from dataloader import get_data_loader
 from model import SpeakerNet
 from plot_loss import *
-from utils import get_data_loader, tuneThresholdfromScore
+from utils import tuneThresholdfromScore
 
 
 def train(args):
@@ -67,7 +68,7 @@ def train(args):
         f'\n[TRAIN]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
     # write the settings to settings file
     for items in vars(args):
-        print(items, vars(args)[items])
+        # print(items, vars(args)[items])
         settings_file.write('%s %s\n' % (items, vars(args)[items]))
     settings_file.flush()
 

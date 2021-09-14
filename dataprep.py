@@ -1,4 +1,5 @@
 import argparse
+import enum
 import glob
 import hashlib
 import os
@@ -129,6 +130,7 @@ def prepare_augmentation(args):
         args ([type]): [description]
     """
     if not os.path.exists(args.augment_path):
+        print('Downloading augmentation dataset...')
         with open('dataset/augment.txt', 'r') as f:
             augfiles = f.readlines()
         download(args, augfiles)
@@ -141,6 +143,8 @@ def prepare_augmentation(args):
         full_extract(args, os.path.join(args.augment_path, 'musan.tar.gz'))
 
         split_musan(args)
+    else:
+        print('Augmentation dataset already exists in', args.augment_path)
 
     if not os.path.exists(args.raw_dataset):
         raise "Raw dataset is empty"
@@ -158,39 +162,62 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
     rir_path = Path(args.augment_path, 'RIRS_NOISES')
     print('Start augmenting data with', musan_path, 'and', rir_path)
 
-    num_aug = int(aug_rate * len(audio_paths))
-    print('Number of augmented data: {}/{}'.format(num_aug, len(audio_paths)))
+    if aug_rate == -1:
+        print('Augment Full')
+        num_aug = len(audio_paths)
+    else:
+        num_aug = int(aug_rate * len(audio_paths))
 
-    random_indices = random.sample(range(len(audio_paths)), num_aug)
-    augment_audio_paths = [audio_paths[i] for i in random_indices]
+    print('Number of augmented data: {}/{}'.format(num_aug, len(audio_paths)))
+    if aug_rate > 0:
+        random_indices = random.sample(range(len(audio_paths)), num_aug)
+        augment_audio_paths = [audio_paths[i] for i in random_indices]
+    else:
+        augment_audio_paths = audio_paths
+
     augment_engine = AugmentWAV(musan_path, rir_path, max_frames)
 
     list_audio = []
-    for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc='Augmented process')):
+    c = 0
+    for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc=f"Augmented process")):
         audio, sr = loadWAV(fpath, max_frames=max_frames,
                             evalmode=False, sr=16000)
+        if aug_rate > 0:
+            aug_type = random.randint(1, 4)
 
-        aug_type = random.randint(0, 3)
+            if aug_type == 1:
+                audio = augment_engine.reverberate(audio)
+            elif aug_type == 2:
+                audio = augment_engine.additive_noise('music', audio)
+            elif aug_type == 3:
+                audio = augment_engine.additive_noise('speech', audio)
+            elif aug_type == 4:
+                audio = augment_engine.additive_noise('noise', audio)
 
-        if aug_type == 0:
-            audio = augment_engine.reverberate(audio)
-        elif aug_type == 1:
-            audio = augment_engine.additive_noise('music', audio)
-        elif aug_type == 2:
-            audio = augment_engine.additive_noise('speech', audio)
-        elif aug_type == 3:
-            audio = augment_engine.additive_noise('noise', audio)
+            list_audio.append([audio, aug_type])
+        else:
+            aug_audio1 = augment_engine.reverberate(audio)
+            aug_audio2 = augment_engine.additive_noise('music', audio)
+            aug_audio3 = augment_engine.additive_noise('speech', audio)
+            aug_audio4 = augment_engine.additive_noise('noise', audio)
+            aug_audio = [aug_audio1, aug_audio2, aug_audio3, aug_audio4]
 
-        list_audio.append([audio, aug_type])
+            for i, audio_ in enumerate(aug_audio):
+                list_audio.append([audio_, i + 1])
+
         roots = [os.path.split(fpath)[0] for fpath in augment_audio_paths]
         audio_names = [os.path.split(fpath)[1]
                        for fpath in augment_audio_paths]
+        # save list of augment audio each step = save_step (default 500)
+        # TODO: fix i here, i 0-> 2000 not appropriate with index of audio_names
+        if (idx + 1) % step_save == 0 or (idx == len(augment_audio_paths) - 1):
+            ii = ((idx + 1) // step_save - 1) * \
+                step_save if idx + 1 >= step_save else 0
 
-        if (idx + 1) % step_save == 0 or idx == len(augment_audio_paths) - 1:
-            ii = ((idx + 1) // step_save - 1) * step_save
             for i, (audio, aug_t) in enumerate(tqdm(list_audio, unit='file', desc=f'Save augmented files {ii} -> {idx}')):
+                # 4 types of augmentation for the same audio
                 save_path = os.path.join(
-                    roots[i + ii], f"{audio_names[i + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
+                    roots[i//4 + ii], f"{audio_names[i//4 + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
                 if os.path.exists(save_path):
                     continue
                 audio = np.asanyarray(audio)
@@ -360,8 +387,8 @@ class DataGenerator():
         return data_paths
 
     def convert(self):
-        # TODO: for what?
-        files = list(Path(self.args.save_dir).glob('*/*/*.wav'))
+        # convert data to one form 16000Hz, only works on Linux
+        files = list(Path(self.args.raw_dataset).glob('*/*/*.wav'))
         files.sort()
         print('Converting files, Total:', len(files))
         for fpath in tqdm(files):
@@ -402,7 +429,7 @@ class DataGenerator():
                 val_num = int(self.args.split_ratio * len(non_augment_path))
 
             val_filepaths = non_augment_path[:val_num]
-            train_filepaths = non_augment_path[val_num:] + augment_path
+            train_filepaths = non_augment_path[val_num:]
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')
@@ -475,14 +502,14 @@ if __name__ == '__main__':
                         help='Directory include augmented data')
     parser.add_argument('--aug_rate',
                         type=float,
-                        default=0.5,
+                        default=-1,
                         help='')
 
     args = parser.parse_args()
 
     data_generator = DataGenerator(args)
     if args.augment:
-        augmentation(args, data_generator.data_paths)
+        augmentation(args, data_generator.data_paths[:], step_save=500)
     if args.convert:
         data_generator.convert()
     if args.generate:

@@ -142,6 +142,10 @@ if __name__ == '__main__':
                         help='Path for model and logs')
 
     # Training and test data
+    parser.add_argument('--augment',
+                        action='store_true',
+                        default=False,
+                        help="decide wether to train with augment data")
     parser.add_argument('--train_list',
                         type=str,
                         default="dataset/train.def.txt",
@@ -221,7 +225,7 @@ if __name__ == '__main__':
                         help='Cohorts path')
     parser.add_argument('--test_threshold',
                         type=float,
-                        default=1.7206447124481201,
+                        default=1.81120,
                         help='Test threshold')
 
     args = parser.parse_args()
