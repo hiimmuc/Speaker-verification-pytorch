@@ -23,7 +23,7 @@ python dataprep.py  --convert
 3. Prepare the augment data
 
 ```python
-python dataprep.py --augment --aug_rate 0.5
+python dataprep.py --augment --aug_rate -1
 ```
 
 3. Generate train, validate list
@@ -46,28 +46,53 @@ Pretrained models and corresponding cohorts can be downloaded from [here](https:
 
 ## Training
 
-to train model, run:
+**Phase 1**: Train with classification loss (softmax, amsoftmax, aamsoftmax)
 
 ```python
 !python main.py --do_train \
                 --train_list dataset/train.txt \
                 --test_list dataset/val.txt \
-                --model ResNetSE34Half \
+                --model ResNetSE34V2 \
                 --max_epoch 500 \
                 --batch_size 128 \
                 --nDataLoaderThread 2 \
-                --trainfunc amsoftmaxproto \
+                --trainfunc amsoftmax \
                 --margin 0.1\
                 --scale 30\
-                --nPerSpeaker 2
+                --nPerSpeaker 1
                 --initial_model checkpoints/baseline_v2_ap.model
 ```
 
-plot loss and accuracy:
+**Phase 2**: Train with metric loss (angle, proto, angleproto, triplet, metric)
 
 ```python
-python plot_loss.py --model ResNetSE34v2
+!python main.py --do_train \
+                --train_list dataset/train.txt \
+                --test_list dataset/val.txt \
+                --model ResNetSE34V2 \
+                --max_epoch 600 \
+                --batch_size 128 \
+                --nDataLoaderThread 2 \
+                --trainfunc angleproto \
+                --nPerSpeaker 2
 ```
+
+**Or**, train with combined loss(softmaxproto, amsoftmaxproto)
+
+```python
+!python main.py --do_train \
+                --train_list dataset/train.txt \
+                --test_list dataset/val.txt \
+                --model ResNetSE34V2 \
+                --max_epoch 500 \
+                --batch_size 128 \
+                --nDataLoaderThread 2 \
+                --trainfunc softmaxproto \
+                --nPerSpeaker 2 \
+                --initial_model checkpoints/baseline_v2_ap.model
+```
+
+Note: the best model is automaticly saved during the training process, if the initial_model is not provided, automaticly load from the best_state weight if possible.
 
 ## Inference
 
@@ -75,7 +100,7 @@ python plot_loss.py --model ResNetSE34v2
 
 ```python
 !python main.py --do_infer --prepare \
-                --model ResNetSE34v2 \
+                --model ResNetSE34V2 \
                 --test_list dataset/val.txt \
                 --save_path checkpoints/cohorts_resnet34v2.npy \
                 --initial_model_infer exp/ResNetSE34v2/model/best_state.model
