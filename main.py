@@ -142,10 +142,6 @@ if __name__ == '__main__':
                         help='Path for model and logs')
 
     # Training and test data
-    parser.add_argument('--augment',
-                        action='store_true',
-                        default=False,
-                        help="decide wether to train with augment data")
     parser.add_argument('--train_list',
                         type=str,
                         default="dataset/train.def.txt",

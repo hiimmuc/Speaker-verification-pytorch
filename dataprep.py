@@ -1,12 +1,11 @@
+# run on linux only
 import argparse
-import enum
 import glob
 import hashlib
 import os
 import random
 import shutil
 import subprocess
-import sys
 import tarfile
 import time
 from pathlib import Path
@@ -22,8 +21,6 @@ from tqdm.auto import tqdm
 
 import config as cfg
 from utils import *
-
-# TODO: load data, apply augmentation, and extract MFCCs, save as npy files
 
 
 def get_audio_path(folder):
@@ -195,6 +192,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
                 audio = augment_engine.additive_noise('noise', audio)
 
             list_audio.append([audio, aug_type])
+            s = 1
         else:
             aug_audio1 = augment_engine.reverberate(audio)
             aug_audio2 = augment_engine.additive_noise('music', audio)
@@ -204,6 +202,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
 
             for i, audio_ in enumerate(aug_audio):
                 list_audio.append([audio_, i + 1])
+            s = 4
 
         roots = [os.path.split(fpath)[0] for fpath in augment_audio_paths]
         audio_names = [os.path.split(fpath)[1]
@@ -217,7 +216,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
             for i, (audio, aug_t) in enumerate(tqdm(list_audio, unit='file', desc=f'Save augmented files {ii} -> {idx}')):
                 # 4 types of augmentation for the same audio
                 save_path = os.path.join(
-                    roots[i//4 + ii], f"{audio_names[i//4 + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
+                    roots[i//s + ii], f"{audio_names[i//s + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
                 if os.path.exists(save_path):
                     continue
                 audio = np.asanyarray(audio)
@@ -388,7 +387,7 @@ class DataGenerator():
 
     def convert(self):
         # convert data to one form 16000Hz, only works on Linux
-        files = list(Path(self.args.raw_dataset).glob('*/*/*.wav'))
+        files = list(Path(self.args.raw_dataset).glob('*/*.wav'))
         files.sort()
         print('Converting files, Total:', len(files))
         for fpath in tqdm(files):
@@ -509,7 +508,7 @@ if __name__ == '__main__':
 
     data_generator = DataGenerator(args)
     if args.augment:
-        augmentation(args, data_generator.data_paths[:], step_save=500)
+        augmentation(args, data_generator.data_paths[:], step_save=200)
     if args.convert:
         data_generator.convert()
     if args.generate:
