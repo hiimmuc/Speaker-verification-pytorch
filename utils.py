@@ -4,13 +4,12 @@ import random
 from argparse import Namespace
 
 import numpy as np
+import soundfile as sf
 import torch
 import torch.nn.functional as F
 import yaml
 from scipy import signal
-from scipy.io import wavfile
 from sklearn import metrics
-from torch.utils.data import DataLoader, Dataset
 
 
 def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
@@ -18,8 +17,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
 
-    # Read wav file and convert to torch tensor
-    sample_rate, audio = wavfile.read(filename)
+    audio, sample_rate = sf.read(filename)
 
     audiosize = audio.shape[0]
 
@@ -77,7 +75,10 @@ class AugmentWAV(object):
                 self.noiselist[file.split('/')[-4]] = []
             self.noiselist[file.split('/')[-4]].append(file)
 
-        self.rir_files = glob.glob(os.path.join(rir_path, '*/*/*/*.wav'))
+        self.rir_files = glob.glob(os.path.join(
+            rir_path, '*/*/*/*.wav'))
+        print(
+            f"Total {len(augment_files)} musan noise files, {len(self.rir_files)} rirs noise files")
 
     def additive_noise(self, noisecat, audio):
         clean_db = 10 * np.log10(np.mean(audio ** 2) + 1e-4)
@@ -96,18 +97,19 @@ class AugmentWAV(object):
             noises.append(
                 np.sqrt(10 ** ((clean_db - noise_db - noise_snr) / 10)) *
                 noiseaudio)
-
-        return np.sum(np.concatenate(noises, axis=0), axis=0,
-                      keepdims=True) + audio
+        aug_audio = np.sum(np.concatenate(noises, axis=0),
+                           axis=0, keepdims=True) + audio
+        return aug_audio
 
     def reverberate(self, audio):
         rir_file = random.choice(self.rir_files)
 
-        fs, rir = wavfile.read(rir_file)
+        rir, fs = sf.read(rir_file)
         rir = np.expand_dims(rir.astype(np.float), 0)
         rir = rir / np.sqrt(np.sum(rir ** 2))
-
-        return signal.convolve(audio, rir, mode='full')[:, :self.max_audio]
+        aug_audio = signal.convolve(audio, rir, mode='full')[
+            :, :self.max_audio]
+        return aug_audio
 
 
 def accuracy(output, target, topk=(1,)):

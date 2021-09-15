@@ -218,11 +218,12 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
                 save_path = os.path.join(
                     roots[i//s + ii], f"{audio_names[i//s + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
                 if os.path.exists(save_path):
+                    print(f"overwrite {idx} to id {i//s + ii}")
                     continue
-                audio = np.asanyarray(audio)
+                # audio = np.asanyarray(audio)
                 audio = audio.T  # -> (frames, channels)
 
-                sf.write(str(save_path), audio, sr)
+                # sf.write(str(save_path), audio, sr)
             list_audio = []  # refresh list to avoid memory overload
     print('Done!')
 
@@ -402,6 +403,7 @@ class DataGenerator():
                 raise ValueError('Conversion failed %s.' % fpath)
             subprocess.call('rm %s' % (fpath), shell=True)
             subprocess.call('mv %s %s' % (outpath, fpath), shell=True)
+        print('Done!')
 
     def generate_lists(self):
         """
@@ -429,6 +431,7 @@ class DataGenerator():
 
             val_filepaths = non_augment_path[:val_num]
             train_filepaths = non_augment_path[val_num:]
+
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')
@@ -507,6 +510,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data_generator = DataGenerator(args)
+    print('Start processing...')
+
     if args.augment:
         augmentation(args, data_generator.data_paths[:], step_save=200)
     if args.convert:
@@ -515,3 +520,5 @@ if __name__ == '__main__':
         data_generator.generate_lists()
     if args.transform:
         data_generator.transform()
+
+# TODO: 10 ddiem du lieu bij loi luu tru 10601 -> 10601

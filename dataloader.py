@@ -1,25 +1,22 @@
-import glob
-import os
+
+import argparse
 import random
-from argparse import Namespace
+import time
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-import yaml
-from scipy import signal
-from scipy.io import wavfile
-from sklearn import metrics
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from utils import *
 
 
 class Loader(Dataset):
-    def __init__(self, dataset_file_name, max_frames):
+    def __init__(self, dataset_file_name, augment, max_frames):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
+        self.augment = augment
 
         # Read Training Files...
         with open(dataset_file_name) as dataset_file:
@@ -123,9 +120,9 @@ class Sampler(torch.utils.data.Sampler):
         return len(self.data_source)
 
 
-def get_data_loader(dataset_file_name, batch_size, max_frames, max_seg_per_spk, nDataLoaderThread,
+def get_data_loader(dataset_file_name, batch_size, augment, max_frames, max_seg_per_spk, nDataLoaderThread,
                     nPerSpeaker, **kwargs):
-    train_dataset = Loader(dataset_file_name, max_frames)
+    train_dataset = Loader(dataset_file_name, augment, max_frames)
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
                             max_seg_per_spk, batch_size)
@@ -141,3 +138,50 @@ def get_data_loader(dataset_file_name, batch_size, max_frames, max_seg_per_spk, 
     )
 
     return train_loader
+
+
+# Test Data Loader
+parser = argparse.ArgumentParser(description="Data loader")
+if __name__ == '__main__':
+    # Test for data loader
+    parser.add_argument('--augment',
+                        type=bool,
+                        default=True,
+                        help='decide whether use augment data')
+    parser.add_argument('--train_list',
+                        type=str,
+                        default="dataset/train.txt",
+                        help='Directory to save files(parent root)')
+    parser.add_argument('--batch_size',
+                        type=int,
+                        default=128,
+                        help='Batch size, number of speakers per batch')
+    parser.add_argument('--max_seg_per_spk',
+                        type=int,
+                        default=100,
+                        help='Maximum number of utterances per speaker per epoch')
+    parser.add_argument('--nDataLoaderThread',
+                        type=int,
+                        default=2,
+                        help='Number of loader threads')
+    parser.add_argument('--nPerSpeaker',
+                        type=int,
+                        default=2,
+                        help='Number of utterances per speaker per batch, only for metric learning based losses'
+                        )
+    parser.add_argument('--max_frames',
+                        type=int,
+                        default=100,
+                        help='Input length to the network for training')
+    args = parser.parse_args()
+    t = time.time()
+    train_loader = get_data_loader(args.train_list, **vars(args))
+
+    print("Delay: ", time.time() - t)
+    for (sample, label) in tqdm(train_loader):
+        # train_sample = np.array(train_sample)
+        sample = sample.transpose(0, 1)
+        for inp in sample:
+            inp = inp.unsqueeze(0).transpose(0, 1)
+            print(inp.size())
+        print(sample.size(), label.size())
