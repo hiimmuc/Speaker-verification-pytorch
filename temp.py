@@ -1,12 +1,10 @@
 
+from models.RepVGG import *
 import csv
 import glob
 import os
 
 import pandas as pd
-
-
-
 
 csv1 = pd.read_csv(
     "exp/dump/submission_list_test11091050.csv")  # 86.55%
@@ -93,3 +91,5 @@ print(f"similarity: {similarity.count(1)/len(data1)}")
 #     loss, prec1 = loss(feats, labels)
 #     print(loss)
 #     print(prec1)
+
+print(MainModel())

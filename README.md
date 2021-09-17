@@ -102,7 +102,7 @@ Note: the best model is automaticly saved during the training process, if the in
 !python main.py --do_infer --prepare \
                 --model ResNetSE34V2 \
                 --test_list dataset/val.txt \
-                --save_path checkpoints/cohorts_resnet34v2.npy \
+                --cohorts_path checkpoints/cohorts_resnet34v2.npy \
                 --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
 
@@ -112,7 +112,7 @@ Note: the best model is automaticly saved during the training process, if the in
 !python main.py --do_infer --eval \
                 --model ResNetSE34v2 \
                 --test_list dataset/val.txt \
-                --save_path checkpoints/cohorts_resnet34v2.npy \
+                --cohorts_path checkpoints/cohorts_resnet34v2.npy \
                 --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
 
