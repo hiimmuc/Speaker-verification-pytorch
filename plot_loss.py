@@ -17,6 +17,7 @@ def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', 
     plt.savefig(save_path)
     if show:
         plt.show()
+    plt.close()
 
 
 def plot_from_file(model, show=False):
