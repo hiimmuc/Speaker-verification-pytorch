@@ -9,10 +9,7 @@ try:
 except:
     from models.ResNetBlocks import SEBlock
 
-import torchaudio
 from torchsummary import summary
-
-# from utils import PreEmphasis
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -75,7 +72,6 @@ class RepVGGBlock(nn.Module):
     #   for example, apply some penalties or constraints during training, just like you do to the other models.
 #   May be useful for quantization or pruning.
 
-
     def get_equivalent_kernel_bias(self):
         kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
         kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
@@ -137,17 +133,11 @@ class RepVGGBlock(nn.Module):
 
 class RepVGG(nn.Module):
 
-    def __init__(self, num_blocks,
-                 encoder_type='SAP',
-                 n_mels=40,
-                 nOut=1000,
-                 width_multiplier=None,
-                 override_groups_map=None,
-                 deploy=False, use_se=False):
+    def __init__(self, num_blocks, nOut=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
         super(RepVGG, self).__init__()
 
         assert len(width_multiplier) == 4
-        self.encoder_type = encoder_type
+
         self.deploy = deploy
         self.override_groups_map = override_groups_map or dict()
         self.use_se = use_se
@@ -169,38 +159,6 @@ class RepVGG(nn.Module):
             int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
         self.linear = nn.Linear(int(512 * width_multiplier[3]), nOut)
-        # copy below
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            # PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
-
-        outmap_size = int(n_mels / 8)
-
-        self.attention = nn.Sequential(
-            nn.Conv1d(
-                int(512 * width_multiplier[3]) * outmap_size, 128, kernel_size=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
-            nn.Conv1d(
-                128, int(512 * width_multiplier[3]) * outmap_size, kernel_size=1),
-            nn.Softmax(dim=2),
-        )
-
-        if self.encoder_type == "SAP":
-            out_dim = int(512 * width_multiplier[3]) * outmap_size
-        elif self.encoder_type == "ASP":
-            out_dim = int(512 * width_multiplier[3]) * outmap_size * 2
-        else:
-            raise ValueError('Undefined encoder')
-
-        self.fc = nn.Linear(out_dim, nOut)
 
     def _make_stage(self, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -214,31 +172,14 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.torchfb(x) + 1e-6
-            x = self.instancenorm(x).unsqueeze(1)
-
         out = self.stage0(x)
         out = self.stage1(out)
         out = self.stage2(out)
         out = self.stage3(out)
         out = self.stage4(out)
-        # out = self.gap(out)
-        # out = out.view(out.size(0), -1)
-        x = x.reshape(x.size()[0], -1, x.size()[-1])
-
-        w = self.attention(x)
-
-        if self.encoder_type == "SAP":
-            x = torch.sum(x * w, dim=2)
-        elif self.encoder_type == "ASP":
-            mu = torch.sum(x * w, dim=2)
-            sg = torch.sqrt((torch.sum(
-                (x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
-            x = torch.cat((mu, sg), 1)
-
-        x = x.view(x.size()[0], -1)
-        out = self.fc(out)
+        out = self.gap(out)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
         return out
 
 
@@ -375,5 +316,5 @@ def MainModel(nOut=256, **kwargs):
 if __name__ == '__main__':
     # print(MainModel())
     model = MainModel(model='RepVGG-B0')
-    summary(model, (16240, 1), batch_size=128)
+    summary(model, (1, 64, 400), batch_size=128)
     pass
