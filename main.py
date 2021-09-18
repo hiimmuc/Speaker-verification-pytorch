@@ -200,7 +200,7 @@ if __name__ == '__main__':
                         help='Test only')
     parser.add_argument('--initial_model_infer',
                         type=str,
-                        default="checkpoints/final_500.model",
+                        default=None,
                         help='Initial model weights')
     parser.add_argument('--prepare',
                         dest='prepare',

@@ -34,7 +34,7 @@ def inference(args):
     settings_file.flush()
     settings_file.close()
 
-    # if weight is not select
+    # priority: define weight -> best weight -> last weight
     if args.initial_model_infer:
         chosen_model_state = args.initial_model_infer
     elif os.path.exists(f'{model_save_path}/best_state.model'):
@@ -43,12 +43,15 @@ def inference(args):
         model_files = glob.glob(os.path.join(
             model_save_path, 'model_state_*.model'))
         chosen_model_state = model_files[-1]
+
     print(f'Loading model from {chosen_model_state}')
     model.loadParameters(chosen_model_state)
+
     model.eval()
     # set defalut threshold
     threshold = args.test_threshold
     num_eval = 10
+    
     # Evaluation code
     if args.eval is True:
         sc, lab, trials = model.evaluateFromList(

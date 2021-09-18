@@ -147,7 +147,7 @@ def prepare_augmentation(args):
         raise "Raw dataset is empty"
 
 
-def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step_save=500):
+def augmentation(args, audio_paths, mode='train', max_frames=cfg.mfcc_config.max_samples, step_save=500):
     """
     Perfrom augmentation on the raw dataset
     """
@@ -159,18 +159,18 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
     rir_path = Path(args.augment_path, 'RIRS_NOISES')
     print('Start augmenting data with', musan_path, 'and', rir_path)
 
-    if aug_rate == -1:
+    if mode == 'train':
         print('Augment Full')
         num_aug = len(audio_paths)
-    else:
+        augment_audio_paths = audio_paths
+    elif mode == 'test':
         num_aug = int(aug_rate * len(audio_paths))
-
-    print('Number of augmented data: {}/{}'.format(num_aug, len(audio_paths)))
-    if aug_rate > 0:
         random_indices = random.sample(range(len(audio_paths)), num_aug)
         augment_audio_paths = [audio_paths[i] for i in random_indices]
     else:
-        augment_audio_paths = audio_paths
+        raise ValueError('mode should be train or test')
+
+    print('Number of augmented data: {}/{}'.format(num_aug, len(audio_paths)))
 
     augment_engine = AugmentWAV(musan_path, rir_path, max_frames)
 
@@ -179,7 +179,7 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc=f"Augmented process")):
         audio, sr = loadWAV(fpath, max_frames=max_frames,
                             evalmode=False, sr=16000)
-        if aug_rate > 0:
+        if mode == 'test':
             aug_type = random.randint(1, 4)
 
             if aug_type == 1:
@@ -205,25 +205,30 @@ def augmentation(args, audio_paths, max_frames=cfg.mfcc_config.max_samples, step
             s = 4
 
         roots = [os.path.split(fpath)[0] for fpath in augment_audio_paths]
+        # change_path to test folder
+        if mode == 'test':
+            roots = [path.replace('wavs', 'test') for path in roots]
         audio_names = [os.path.split(fpath)[1]
                        for fpath in augment_audio_paths]
+
         # save list of augment audio each step = save_step (default 500)
-        # TODO: fix i here, i 0-> 2000 not appropriate with index of audio_names
         if (idx + 1) % step_save == 0 or (idx == len(augment_audio_paths) - 1):
             ii = ((idx + 1) // step_save - 1) * \
                 step_save if idx + 1 >= step_save else 0
 
             for i, (audio, aug_t) in enumerate(tqdm(list_audio, unit='file', desc=f'Save augmented files {ii} -> {idx}')):
-                # 4 types of augmentation for the same audio
                 save_path = os.path.join(
                     roots[i//s + ii], f"{audio_names[i//s + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
+
                 if os.path.exists(save_path):
                     print(f"overwrite {idx} to id {i//s + ii}")
                     continue
-                # audio = np.asanyarray(audio)
-                audio = audio.T  # -> (frames, channels)
+                else:
+                    os.makedirs(os.path.split(save_path)[0], exist_ok=True)
 
-                # sf.write(str(save_path), audio, sr)
+                # shape: (channel, frames) -> (frames, channels)
+                audio = audio.T
+                sf.write(str(save_path), audio, sr)
             list_audio = []  # refresh list to avoid memory overload
     print('Done!')
 
@@ -419,8 +424,7 @@ class DataGenerator():
             filepaths = list(classpath.glob('*.wav'))
 
             random.shuffle(filepaths)
-            augment_path = list(
-                filter(lambda x: 'augment' in str(x), filepaths))
+
             non_augment_path = list(
                 filter(lambda x: 'augment' not in str(x), filepaths))
 
@@ -498,13 +502,17 @@ if __name__ == '__main__':
                         default=False,
                         action='store_true',
                         help='Download and extract augmentation files')
+    parser.add_argument('--augment_mode',
+                        type=str,
+                        default='train',
+                        help='')
     parser.add_argument('--augment_path',
                         type=str,
                         default='dataset/augment_data',
                         help='Directory include augmented data')
     parser.add_argument('--aug_rate',
                         type=float,
-                        default=-1,
+                        default=0.5,
                         help='')
 
     args = parser.parse_args()
@@ -513,7 +521,8 @@ if __name__ == '__main__':
     print('Start processing...')
 
     if args.augment:
-        augmentation(args, data_generator.data_paths[:], step_save=200)
+        augmentation(
+            args=args, audio_paths=data_generator.data_paths[:], step_save=200, mode=args.augment_mode)
     if args.convert:
         data_generator.convert()
     if args.generate:
@@ -521,4 +530,4 @@ if __name__ == '__main__':
     if args.transform:
         data_generator.transform()
 
-# TODO: 10 ddiem du lieu bij loi luu tru 10601 -> 10601
+# TODO: 10 ddiem du lieu bij loi luu tru 10601 -> 10610
