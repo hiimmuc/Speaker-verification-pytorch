@@ -132,7 +132,7 @@ class SpeakerNet(nn.Module):
         setfiles = list(set(files))
         setfiles.sort()
 
-        # Save all features to file
+        # Save all features to dictionary
         for idx, file in enumerate(setfiles):
             inp1 = torch.FloatTensor(
                 loadWAV(file, eval_frames, evalmode=True,
@@ -249,7 +249,7 @@ class SpeakerNet(nn.Module):
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2', 'label'])
+            spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
             for idx, data in enumerate(lines):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -258,14 +258,21 @@ class SpeakerNet(nn.Module):
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
                     com_feat = F.normalize(com_feat, p=2, dim=1)
 
-                score = score_normalization(ref_feat,
-                                            com_feat,
-                                            cohorts,
-                                            top=200)
+                if cohorts_path is None:
+                    dist = F.pairwise_distance(
+                        ref_feat.unsqueeze(-1),
+                        com_feat.unsqueeze(-1).transpose(
+                            0, 2)).detach().cpu().numpy()
+                    score = -1 * np.mean(dist)
+                else:
+                    score = score_normalization(ref_feat,
+                                                com_feat,
+                                                cohorts,
+                                                top=200)
                 pred = '0'
                 if score >= thre_score:
                     pred = '1'
-                spamwriter.writerow([data[0], data[1], pred])
+                spamwriter.writerow([data[0], data[1], pred, score])
 
                 if idx % print_interval == 0:
                     telapsed = time.time() - tstart
@@ -424,9 +431,6 @@ class SpeakerNet(nn.Module):
                                                 eval_frames=eval_frames,
                                                 num_eval=num_eval,
                                                 normalize=False).detach().cpu().to(self.device)
-
-                # ref_feat = feats[data[0]].to(self.device)
-                # com_feat = feats[data[1]].to(self.device)
 
                 if self.__L__.test_normalize:
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)

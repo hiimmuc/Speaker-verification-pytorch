@@ -1,0 +1,7 @@
+1. code for new backbone rep vgg, bỏ phần attention đi có khi chạy
+
+2. generate test file
+
+3. add save last weight để sau chỉ giữ lại best và last thôi
+
+4. train thêm vài model

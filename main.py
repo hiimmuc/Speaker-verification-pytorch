@@ -217,7 +217,7 @@ if __name__ == '__main__':
                         help='Predict')
     parser.add_argument('--cohorts_path',
                         type=str,
-                        default="checkpoints/cohorts_final_500_f100.npy",
+                        default=None,
                         help='Cohorts path')
     parser.add_argument('--test_threshold',
                         type=float,

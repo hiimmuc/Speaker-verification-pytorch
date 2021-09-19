@@ -13,6 +13,18 @@ from sklearn import metrics
 
 
 def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
+    '''Load audio form .wav file and return as the np arra
+
+    Args:
+        filename (str): [description]
+        max_frames ([type]): [description]
+        evalmode (bool, optional): [description]. Defaults to True.
+        num_eval (int, optional): [description]. Defaults to 10.
+        sr ([type], optional): [description]. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    '''
     # Maximum audio length
     # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
@@ -167,9 +179,10 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
         tunedThreshold.append([thresholds[idx], fpr[idx], fnr[idx]])
 
     idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr
-    eer = max(fpr[idxE], fnr[idxE]) / 100
+    eer = np.mean(fpr[idxE], fnr[idxE]) / 100  # EER in % = (fpr + fnr) /2
+    optimal_threshold = thresholds[idxE]
 
-    return (tunedThreshold, eer, thresholds[idxE], metrics.auc(fpr, tpr))
+    return (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr))
 
 
 def score_normalization(ref, com, cohorts, top=-1):

@@ -116,9 +116,9 @@ def train(args):
                 % (it, max(clr), trainer, loss, result[1], min(min_eer)))
 
             score_file.flush()
-
+            # TODO: check here, consider save last state only or not
             s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
-
+            s.saveParameters(model_save_path + "/last_state.model")
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
 
