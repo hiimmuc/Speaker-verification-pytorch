@@ -168,7 +168,7 @@ class SpeakerNet(nn.Module):
                 ref_feat = F.normalize(ref_feat, p=2, dim=1)
                 com_feat = F.normalize(com_feat, p=2, dim=1)
 
-            # NOTE: distance for training, normalized score for evaluating and testing
+            # NOTE: distance(cohort = None) for training, normalized score for evaluating and testing
             if cohorts_path is None:
                 dist = F.pairwise_distance(
                     ref_feat.unsqueeze(-1),
@@ -192,7 +192,8 @@ class SpeakerNet(nn.Module):
                 sys.stdout.flush()
 
         print('\n')
-
+        # normalize scores by the largest value
+        all_scores = [float(score) / max(all_scores) for score in all_scores]
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -210,7 +211,9 @@ class SpeakerNet(nn.Module):
         tstart = time.time()
 
         # Cohorts
-        cohorts = np.load(cohorts_path)
+        cohorts = None
+        if cohorts_path is not None:
+            cohorts = np.load(cohorts_path)
         save_root = self.args.save_path + f"/{self.args.model}/result"
         # Read all lines
         data_root = Path(root, 'public_test/data_test')
@@ -250,6 +253,7 @@ class SpeakerNet(nn.Module):
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
+            all_scores = []
             for idx, data in enumerate(lines):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -269,6 +273,11 @@ class SpeakerNet(nn.Module):
                                                 com_feat,
                                                 cohorts,
                                                 top=200)
+                all_scores.append(score)
+            # thresholding and write to score file
+            all_scores = [float(score) / max(all_scores)
+                          for score in all_scores]
+            for score in all_scores:
                 pred = '0'
                 if score >= thre_score:
                     pred = '1'
@@ -436,10 +445,17 @@ class SpeakerNet(nn.Module):
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
                     com_feat = F.normalize(com_feat, p=2, dim=1)
 
-                score = score_normalization(ref_feat,
-                                            com_feat,
-                                            cohorts,
-                                            top=200)
+                if cohorts_path is None:
+                    dist = F.pairwise_distance(
+                        ref_feat.unsqueeze(-1),
+                        com_feat.unsqueeze(-1).transpose(
+                            0, 2)).detach().cpu().numpy()
+                    score = -1 * np.mean(dist)
+                else:
+                    score = score_normalization(ref_feat,
+                                                com_feat,
+                                                cohorts,
+                                                top=200)
                 pred = '0'
                 if score >= thre_score:
                     pred = '1'

@@ -51,7 +51,7 @@ def inference(args):
     # set defalut threshold
     threshold = args.test_threshold
     num_eval = 10
-    
+
     # Evaluation code
     if args.eval is True:
         sc, lab, trials = model.evaluateFromList(
@@ -78,7 +78,7 @@ def inference(args):
             Best sum rate {best_sum_rate} at {best_tfa}\n\
             EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
         score_file.close()
-        # threshold = result[2]
+
         sys.exit(1)
 
     # Test code

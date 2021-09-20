@@ -20,7 +20,7 @@ def train(args):
 
     it = 1
     min_loss = float("inf")
-    min_eer = [100]
+    min_eer = float("inf")
 
     # Load model weights
     model_files = glob.glob(os.path.join(
@@ -105,15 +105,15 @@ def train(args):
                                             eval_frames=args.eval_frames)
             result = tuneThresholdfromScore(sc, lab, [1, 0.1])
 
-            min_eer.append(result[1])
+            min_eer = min(min_eer, result[1])
 
             print(
                 time.strftime("%Y-%m-%d %H:%M:%S"),
                 "LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f" %
-                (max(clr), trainer, loss, result[1], min(min_eer)))
+                (max(clr), trainer, loss, result[1], min_eer))
             score_file.write(
                 "IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f\n"
-                % (it, max(clr), trainer, loss, result[1], min(min_eer)))
+                % (it, max(clr), trainer, loss, result[1], min_eer))
 
             score_file.flush()
             # TODO: check here, consider save last state only or not
