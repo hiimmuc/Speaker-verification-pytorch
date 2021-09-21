@@ -15,7 +15,7 @@ from utils import *
 # from models.ResNetSE34V2 import *
 def calcualte_similarity_of_test_result():
     test = pd.read_csv(
-        "exp\dump\submission_backbone_amsoftmax.csv")  # 86.55%
+        "exp\dump\submission_backbone_softmax_normthres.csv")  # 86.55%
 
     ref = pd.read_csv(
         "exp/dump/submission_model_pretrain_resnet34v2_rawcode.csv")  # 87.38%
@@ -28,7 +28,7 @@ def calcualte_similarity_of_test_result():
     print(f"similarity: {similarity.count(1)/len(data1)}")
 
 
-# calcualte_similarity_of_test_result()
+calcualte_similarity_of_test_result()
 # pdist = torch.nn.PairwiseDistance(p=2, keepdim=True)
 # in1 = torch.randn(100, 128)
 # in2 = torch.randn(100, 128)
@@ -38,10 +38,11 @@ def calcualte_similarity_of_test_result():
 # print(output)
 # x = -1 * np.mean(output)
 # print(x)
-ref = pd.read_csv(
-    "exp/dump/submission_backbone_amsoftmax.csv")  # 87.38%
-# similarity accepted: 74% -> 100%
-data1 = list(ref['score'])
-data1 = [float(i) for i in data1]
-data1 = [float(i)/max(data1) for i in data1]
-print(data1[:20])
+
+# ref = pd.read_csv(
+#     "exp/dump/submission_backbone_amsoftmax.csv")  # 87.38%
+# # similarity accepted: 74% -> 100%
+# data1 = list(ref['score'])
+# data1 = [float(i) for i in data1]
+# data1 = [float(i)/max(data1) for i in data1]
+# print(data1[:20])

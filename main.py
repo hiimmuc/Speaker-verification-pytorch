@@ -66,6 +66,10 @@ if __name__ == '__main__':
                         type=str,
                         default="aamsoftmax",
                         help='Loss function')
+    parser.add_argument('--save_model_last',
+                        type=bool,
+                        default=True,
+                        help='Save only last checkpoint')
 
     # Optimizer
     parser.add_argument('--optimizer',

@@ -23,21 +23,24 @@ def train(args):
     min_eer = float("inf")
 
     # Load model weights
-    model_files = glob.glob(os.path.join(
-        model_save_path, 'model_state_*.model'))
-
+    model_files = glob.glob(os.path.join(model_save_path, 'model_state_*.model'))
     model_files.sort()
+
+    eerfile = glob.glob(os.path.join(model_save_path, 'model_state_*.eer'))
+    eerfile.sort()
 
     # if exists best model load from it
     if len(model_files) > 0:
         if os.path.exists(f'{model_save_path}/best_state.model'):
             prev_model_state = f'{model_save_path}/best_state.model'
+        elif args.save_model_last:
+            prev_model_state = f'{model_save_path}/last_state.model'
         else:
             prev_model_state = model_files[-1]
 
-        # model_state_xxxxxx.model, so 12 is index of number sequence
+        # get the last stopped iteration, model_state_xxxxxx.eer, so 12 is index of number sequence
         start_it = int(os.path.splitext(
-            os.path.basename(model_files[-1]))[0][12:]) + 1
+            os.path.basename(eerfile[-1]))[0][12:]) + 1
 
         if args.max_epoch > start_it:
             it = start_it
@@ -55,7 +58,8 @@ def train(args):
     else:
         print("Train model from scratch!")
 
-    for ii in range(0, it - 1):
+    # schedule the learning rate to stopped epoch
+    for _ in range(0, it - 1):
         s.__scheduler__.step()
 
     # Write args to score_file
@@ -116,9 +120,14 @@ def train(args):
                 % (it, max(clr), trainer, loss, result[1], min_eer))
 
             score_file.flush()
-            # TODO: check here, consider save last state only or not
-            s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
-            s.saveParameters(model_save_path + "/last_state.model")
+
+            # NOTE: consider save last state only or not
+            if args.save_model_last:
+                s.saveParameters(model_save_path + "/last_state.model")
+            else:
+                s.saveParameters(model_save_path +
+                                 "/model_state_%06d.model" % it)
+
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
 

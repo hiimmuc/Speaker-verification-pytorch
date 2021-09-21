@@ -192,8 +192,8 @@ class SpeakerNet(nn.Module):
                 sys.stdout.flush()
 
         print('\n')
-        # normalize scores by the largest value
-        all_scores = [float(score) / max(all_scores) for score in all_scores]
+        # # normalize scores by the largest value
+        # all_scores = [float(score) / max(all_scores) for score in all_scores]
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -274,6 +274,13 @@ class SpeakerNet(nn.Module):
                                                 cohorts,
                                                 top=200)
                 all_scores.append(score)
+
+                if idx % print_interval == 0:
+                    telapsed = time.time() - tstart
+                    sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
+                                     (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
+                    sys.stdout.flush()
+
             # thresholding and write to score file
             all_scores = [float(score) / max(all_scores)
                           for score in all_scores]
@@ -282,12 +289,6 @@ class SpeakerNet(nn.Module):
                 if score >= thre_score:
                     pred = '1'
                 spamwriter.writerow([data[0], data[1], pred, score])
-
-                if idx % print_interval == 0:
-                    telapsed = time.time() - tstart
-                    sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
-                                     (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-                    sys.stdout.flush()
 
         print('\n')
 
