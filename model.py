@@ -281,10 +281,11 @@ class SpeakerNet(nn.Module):
                                      (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
                     sys.stdout.flush()
 
-            # thresholding and write to score file
-            all_scores = [float(score) / max(all_scores)
-                          for score in all_scores]
-            for score in all_scores:
+            # # thresholding and write to score file
+            # all_scores = [float(score) / max(all_scores)
+            #               for score in all_scores]
+            print('Write answers...')
+            for score in tqdm(all_scores):
                 pred = '0'
                 if score >= thre_score:
                     pred = '1'
