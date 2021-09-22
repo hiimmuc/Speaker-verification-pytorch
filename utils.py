@@ -214,6 +214,10 @@ def score_normalization(ref, com, cohorts, top=-1):
     return S_norm(ref, com, top=top)
 
 
+def cosine_simialrity(ref, com):
+    return abs(F.cosine_similarity(ref, com, dim=1))
+
+
 def read_config(config_path, args=None):
     if args is None:
         args = Namespace()

@@ -9,10 +9,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsummary import summary
 from tqdm.auto import tqdm
 
-from utils import loadWAV, score_normalization
+from utils import *
 
 
 class SpeakerNet(nn.Module):
@@ -181,6 +180,7 @@ class SpeakerNet(nn.Module):
                                             cohorts,
                                             top=200)
 
+            score = cosine_simialrity(ref_feat, com_feat)
             all_scores.append(score)
             all_labels.append(int(data[0]))
             all_trials.append(data[1] + " " + data[2])
@@ -274,6 +274,7 @@ class SpeakerNet(nn.Module):
                                                 com_feat,
                                                 cohorts,
                                                 top=200)
+                score = cosine_simialrity(ref_feat, com_feat)
                 all_scores.append(score)
 
                 if idx % print_interval == 0:

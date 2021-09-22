@@ -29,14 +29,15 @@ def calcualte_similarity_of_test_result():
 
 
 calcualte_similarity_of_test_result()
-# pdist = torch.nn.PairwiseDistance(p=2, keepdim=True)
-# in1 = torch.randn(100, 128)
-# in2 = torch.randn(100, 128)
-# # print(in1)
-# output = pdist(in1, in2)
+pdist = torch.nn.PairwiseDistance(p=2)
+in1 = torch.randn(1, 512)
+in2 = torch.randn(1, 512)
+print(in1)
+print(in2)
+output = F.cosine_similarity(in1, in2)
 # output = F.normalize(output, p=2, dim=1).detach().numpy()
-# print(output)
-# x = -1 * np.mean(output)
+print(output)
+# x = -1 * np.mean([output])
 # print(x)
 
 # ref = pd.read_csv(
