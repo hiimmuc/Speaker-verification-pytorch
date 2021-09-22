@@ -285,11 +285,9 @@ class SpeakerNet(nn.Module):
             # # thresholding and write to score file
             # all_scores = [float(score) / max(all_scores)
             #               for score in all_scores]
-            print('Write answers...')
-            for score in tqdm(all_scores):
-                pred = '0'
-                if score >= thre_score:
-                    pred = '1'
+
+            for score in tqdm(all_scores, desc="Writing answer"):
+                pred = '1' if score >= thre_score else '0'
                 spamwriter.writerow([data[0], data[1], pred, score])
 
         print('\n')

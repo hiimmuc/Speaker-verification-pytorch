@@ -189,7 +189,7 @@ if __name__ == '__main__':
                         default=512,
                         help='Embedding size in the last FC layer')
 
-    # For test only
+    # Infer mode
     parser.add_argument('--eval',
                         dest='eval',
                         action='store_true',
@@ -202,6 +202,8 @@ if __name__ == '__main__':
                         dest='test_by_pair',
                         action='store_true',
                         help='Test only')
+
+    # For test only
     parser.add_argument('--initial_model_infer',
                         type=str,
                         default=None,
