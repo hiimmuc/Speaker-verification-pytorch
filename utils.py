@@ -179,7 +179,7 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
         tunedThreshold.append([thresholds[idx], fpr[idx], fnr[idx]])
 
     idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr
-    eer = max(fpr[idxE], fnr[idxE]) / 100  # EER in % = (fpr + fnr) /2
+    eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
     optimal_threshold = thresholds[idxE]
 
     return (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr))

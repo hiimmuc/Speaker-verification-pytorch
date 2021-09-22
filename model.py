@@ -133,14 +133,14 @@ class SpeakerNet(nn.Module):
         setfiles.sort()
 
         # Save all features to dictionary
-        for idx, file in enumerate(setfiles):
+        for idx, filename in enumerate(setfiles):
             inp1 = torch.FloatTensor(
-                loadWAV(file, eval_frames, evalmode=True,
+                loadWAV(filename, eval_frames, evalmode=True,
                         num_eval=num_eval)).to(self.device)
 
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
-            feats[file] = ref_feat
+            feats[filename] = ref_feat
             telapsed = time.time() - tstart
             if idx % print_interval == 0:
                 sys.stdout.write(
@@ -215,10 +215,11 @@ class SpeakerNet(nn.Module):
         if cohorts_path is not None:
             cohorts = np.load(cohorts_path)
         save_root = self.args.save_path + f"/{self.args.model}/result"
-        # Read all lines
+
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
         write_file = Path(save_root, 'submission_list_test.csv')
+        # Read all lines from testfile (read_file)
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
@@ -230,16 +231,16 @@ class SpeakerNet(nn.Module):
         setfiles = list(set(files))
         setfiles.sort()
 
-        # Save all features to file
-        for idx, file in enumerate(setfiles):
+        # Save all features to feat dictionary
+        for idx, filename in enumerate(setfiles):
             inp1 = torch.FloatTensor(
-                loadWAV(Path(data_root, file),
+                loadWAV(Path(data_root, filename),
                         eval_frames,
                         evalmode=True,
                         num_eval=num_eval)).to(self.device)
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
-            feats[file] = ref_feat
+            feats[filename] = ref_feat
             telapsed = time.time() - tstart
             if idx % print_interval == 0:
                 sys.stdout.write(

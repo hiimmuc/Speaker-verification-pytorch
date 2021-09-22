@@ -96,13 +96,13 @@ def train(args):
             print(
                 f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
             s.saveParameters(model_save_path + "/best_state.model")
+
         min_loss = min(min_loss, loss)
 
         # Validate and save
         if it % args.test_interval == 0:
 
-            print(time.strftime("%Y-%m-%d %H:%M:%S"),
-                  it, "[INFO] Evaluating...")
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
 
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
@@ -121,12 +121,11 @@ def train(args):
 
             score_file.flush()
 
-            # NOTE: consider save last state only or not
+            # NOTE: consider save last state only or not, save only eer as the checkpoint for iterations
             if args.save_model_last:
                 s.saveParameters(model_save_path + "/last_state.model")
             else:
-                s.saveParameters(model_save_path +
-                                 "/model_state_%06d.model" % it)
+                s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])

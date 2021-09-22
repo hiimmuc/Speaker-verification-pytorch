@@ -21,6 +21,12 @@ def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', 
 
 
 def plot_from_file(model, show=False):
+    '''Plot graph from score file
+
+    Args:
+        model (str): model name
+        show (bool, optional): Whether to show the graph. Defaults to False.
+    '''
     model_name = model
     with open(f"exp/{model_name}/result/scores.txt") as f:
         line_data = f.readlines()
