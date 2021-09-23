@@ -186,7 +186,6 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
 
 
 def score_normalization(ref, com, cohorts, top=-1):
-    # docstring ctrl shift 2
     """
     Adaptive symmetric score normalization using cohorts from eval data
     """

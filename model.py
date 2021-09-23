@@ -107,8 +107,9 @@ class SpeakerNet(nn.Module):
         files = []
         feats = {}
         tstart = time.time()
-        cohorts = None
+
         # Cohorts
+        cohorts = None
         if cohorts_path is not None:
             cohorts = np.load(cohorts_path)
 
@@ -133,14 +134,14 @@ class SpeakerNet(nn.Module):
 
         # Save all features to dictionary
         for idx, filename in enumerate(setfiles):
-            inp1 = torch.FloatTensor(
-                loadWAV(filename, eval_frames, evalmode=True,
-                        num_eval=num_eval)).to(self.device)
+            inp1 = torch.FloatTensor(loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)).to(self.device)
 
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
+
             feats[filename] = ref_feat
             telapsed = time.time() - tstart
+
             if idx % print_interval == 0:
                 sys.stdout.write(
                     "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
@@ -180,7 +181,7 @@ class SpeakerNet(nn.Module):
                                             cohorts,
                                             top=200)
 
-            score = cosine_simialrity(ref_feat, com_feat)
+            # score = cosine_simialrity(ref_feat, com_feat)
             all_scores.append(score)
             all_labels.append(int(data[0]))
             all_trials.append(data[1] + " " + data[2])
@@ -254,7 +255,6 @@ class SpeakerNet(nn.Module):
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
-            all_scores = []
             for idx, data in enumerate(lines):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -274,8 +274,9 @@ class SpeakerNet(nn.Module):
                                                 com_feat,
                                                 cohorts,
                                                 top=200)
-                score = cosine_simialrity(ref_feat, com_feat)
-                all_scores.append(score)
+                # score = cosine_simialrity(ref_feat, com_feat)
+                pred = '1' if score >= thre_score else '0'
+                spamwriter.writerow([data[0], data[1], pred, score])
 
                 if idx % print_interval == 0:
                     telapsed = time.time() - tstart
@@ -286,11 +287,89 @@ class SpeakerNet(nn.Module):
             # # thresholding and write to score file
             # all_scores = [float(score) / max(all_scores)
             #               for score in all_scores]
+        print('\n')
 
-            for score in tqdm(all_scores, desc="Writing answer"):
-                pred = '1' if score >= thre_score else '0'
-                spamwriter.writerow([data[0], data[1], pred, score])
+    def test_each_pair(self,
+                       root,
+                       thre_score=0.5,
+                       cohorts_path='data/zalo/cohorts.npy',
+                       print_interval=100,
+                       num_eval=10,
+                       eval_frames=None):
+        self.eval()
+        lines = []
+        files = []
+        pairs = []
+        tstart = time.time()
 
+        # Cohorts
+        cohorts = np.load(cohorts_path)
+
+        # Read all lines
+        save_root = self.args.save_path + f"/{self.args.model}/result"
+        data_root = Path(root, 'public_test/data_test')
+        read_file = Path(root, 'public-test.csv')
+        write_file = Path(save_root, 'submission_pair_test.csv')
+        with open(read_file, newline='') as rf:
+            spamreader = csv.reader(rf, delimiter=',')
+            next(spamreader, None)
+            for row in tqdm(spamreader):
+                files.append(row[0])
+                files.append(row[1])
+                lines.append(row)
+                pairs.append([row[0], row[1]])
+
+        setfiles = list(set(files))
+        setfiles.sort()
+        print("Delay time", (time.time() - tstart))
+        pred_time_list = []
+        # Read files and compute all scores
+        with open(write_file, 'w', newline='') as wf:
+            spamwriter = csv.writer(wf, delimiter=',')
+            spamwriter.writerow(
+                ['audio_1', 'audio_2', 'label', 'inference_time'])
+
+            for idx, pair in enumerate(pairs):
+                t0 = time.time()
+                path_ref = Path(data_root, pair[0])
+                path_com = Path(data_root, pair[1])
+                ref_feat = self.embed_utterance(path_ref,
+                                                eval_frames=eval_frames,
+                                                num_eval=num_eval,
+                                                normalize=False).detach().cpu().to(self.device)
+                com_feat = self.embed_utterance(path_com,
+                                                eval_frames=eval_frames,
+                                                num_eval=num_eval,
+                                                normalize=False).detach().cpu().to(self.device)
+
+                if self.__L__.test_normalize:
+                    ref_feat = F.normalize(ref_feat, p=2, dim=1)
+                    com_feat = F.normalize(com_feat, p=2, dim=1)
+
+                if cohorts_path is None:
+                    dist = F.pairwise_distance(
+                        ref_feat.unsqueeze(-1),
+                        com_feat.unsqueeze(-1).transpose(
+                            0, 2)).detach().cpu().numpy()
+                    score = -1 * np.mean(dist)
+                else:
+                    score = score_normalization(ref_feat,
+                                                com_feat,
+                                                cohorts,
+                                                top=200)
+                pred = '0'
+                if score >= thre_score:
+                    pred = '1'
+                pred_time = time.time() - t0
+                pred_time_list.append(pred_time)
+                spamwriter.writerow([pair[0], pair[1], pred, pred_time])
+
+                if idx % print_interval == 0:
+                    telapsed = time.time() - tstart
+                    sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
+                                     (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
+                    sys.stdout.flush()
+        print('Done, avg pred time:', np.mean(pred_time_list))
         print('\n')
 
     def prepare(self,
@@ -389,89 +468,6 @@ class SpeakerNet(nn.Module):
             np.save(str(Path(save_path, 'classes.npy')), classes)
         else:
             raise NotImplementedError
-
-    def test_each_pair(self,
-                       root,
-                       thre_score=0.5,
-                       cohorts_path='data/zalo/cohorts.npy',
-                       print_interval=100,
-                       num_eval=10,
-                       eval_frames=None):
-        self.eval()
-        lines = []
-        files = []
-        pairs = []
-        tstart = time.time()
-
-        # Cohorts
-        cohorts = np.load(cohorts_path)
-
-        # Read all lines
-        save_root = self.args.save_path + f"/{self.args.model}/result"
-        data_root = Path(root, 'public_test/data_test')
-        read_file = Path(root, 'public-test.csv')
-        write_file = Path(save_root, 'submission_pair_test.csv')
-        with open(read_file, newline='') as rf:
-            spamreader = csv.reader(rf, delimiter=',')
-            next(spamreader, None)
-            for row in tqdm(spamreader):
-                files.append(row[0])
-                files.append(row[1])
-                lines.append(row)
-                pairs.append([row[0], row[1]])
-
-        setfiles = list(set(files))
-        setfiles.sort()
-        print("Delay time", (time.time() - tstart))
-        pred_time_list = []
-        # Read files and compute all scores
-        with open(write_file, 'w', newline='') as wf:
-            spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(
-                ['audio_1', 'audio_2', 'label', 'inference_time'])
-
-            for idx, pair in enumerate(pairs):
-                t0 = time.time()
-                path_ref = Path(data_root, pair[0])
-                path_com = Path(data_root, pair[1])
-                ref_feat = self.embed_utterance(path_ref,
-                                                eval_frames=eval_frames,
-                                                num_eval=num_eval,
-                                                normalize=False).detach().cpu().to(self.device)
-                com_feat = self.embed_utterance(path_com,
-                                                eval_frames=eval_frames,
-                                                num_eval=num_eval,
-                                                normalize=False).detach().cpu().to(self.device)
-
-                if self.__L__.test_normalize:
-                    ref_feat = F.normalize(ref_feat, p=2, dim=1)
-                    com_feat = F.normalize(com_feat, p=2, dim=1)
-
-                if cohorts_path is None:
-                    dist = F.pairwise_distance(
-                        ref_feat.unsqueeze(-1),
-                        com_feat.unsqueeze(-1).transpose(
-                            0, 2)).detach().cpu().numpy()
-                    score = -1 * np.mean(dist)
-                else:
-                    score = score_normalization(ref_feat,
-                                                com_feat,
-                                                cohorts,
-                                                top=200)
-                pred = '0'
-                if score >= thre_score:
-                    pred = '1'
-                pred_time = time.time() - t0
-                pred_time_list.append(pred_time)
-                spamwriter.writerow([pair[0], pair[1], pred, pred_time])
-
-                if idx % print_interval == 0:
-                    telapsed = time.time() - tstart
-                    sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
-                                     (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-                    sys.stdout.flush()
-        print('Done, avg pred time:', np.mean(pred_time_list))
-        print('\n')
 
     def embed_utterance(self,
                         fpath,
