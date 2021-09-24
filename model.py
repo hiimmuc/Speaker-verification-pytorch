@@ -135,7 +135,7 @@ class SpeakerNet(nn.Module):
 
         # Save all features to dictionary
         for idx, filename in enumerate(setfiles):
-            audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval, augment=True)
+            audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
