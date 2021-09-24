@@ -59,7 +59,7 @@ def inference(args):
             cohorts_path=args.cohorts_path,
             print_interval=10,
             eval_frames=args.eval_frames)
-        target_fa = np.linspace(10, 0, num=50)
+        target_fa = np.linspace(100, 0, num=100)
         result = tuneThresholdfromScore(sc, lab, target_fa)
         print('tfa [thre, fpr, fnr]')
         best_sum_rate = 999
