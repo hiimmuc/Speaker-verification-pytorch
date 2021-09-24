@@ -173,6 +173,5 @@ if __name__ == '__main__':
         # train_sample = np.array(train_sample)
         sample = sample.transpose(0, 1)
         for inp in sample:
-            inp = inp.unsqueeze(0).transpose(0, 1)
             print(inp.size())
-        print(sample.size(), label.size())
+        # print(sample.size(), label.size())

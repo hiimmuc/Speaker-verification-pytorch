@@ -7,12 +7,13 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from torchsummary import summary
 from tqdm.auto import tqdm
 
+from models.RepVGG import *
 from utils import *
 
 
-# from models.ResNetSE34V2 import *
 def calcualte_similarity_of_test_result():
     test_path = Path("exp/dump/submission_backbone_softmax_normthres.csv")  # 86.55%
 
@@ -33,14 +34,14 @@ def calcualte_similarity_of_test_result():
 
 # calcualte_similarity_of_test_result()
 # pdist = torch.nn.PairwiseDistance(p=2)
-in1 = torch.randn(10, 2).cpu().numpy()
-in2 = torch.randn(10, 2).cpu().numpy()
-print(in1)
-print(in2)
-# output = abs(1-cosine(in1, in2))
-output = F.cosine_similarity(torch.tensor(in1).float(), torch.tensor(in2).float(), dim=1)
-# # output = F.normalize(output, p=2, dim=1).detach().numpy()
-print(np.mean(abs(output).cpu().numpy()))
+# in1 = torch.randn(10, 2).cpu().numpy()
+# in2 = torch.randn(10, 2).cpu().numpy()
+# print(in1)
+# print(in2)
+# # output = abs(1-cosine(in1, in2))
+# output = F.cosine_similarity(torch.tensor(in1).float(), torch.tensor(in2).float(), dim=1)
+# # # output = F.normalize(output, p=2, dim=1).detach().numpy()
+# print(np.mean(abs(output).cpu().numpy()))
 # x = -1 * np.mean([output])
 # print(x)
 
@@ -73,3 +74,5 @@ def overwirte():
 
 
 # overwirte()
+# print(MainModel())
+summary(MainModel(model='RepVGG-D2se'), (16240,), 2)

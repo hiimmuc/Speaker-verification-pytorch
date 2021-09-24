@@ -50,11 +50,11 @@ class SpeakerNet(nn.Module):
 
         tstart = time.time()
 
-        for i, (data, data_label) in enumerate(loader):
+        for (data, data_label) in loader:
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
-
+            # forward n utterances per speaker and stack the output
             for inp in data:
                 outp = self.__S__(inp.to(self.device))
                 feat.append(outp)

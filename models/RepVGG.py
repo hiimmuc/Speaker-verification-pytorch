@@ -3,13 +3,17 @@ import copy
 import numpy as np
 import torch
 import torch.nn as nn
+from utils import PreEmphasis
 
 try:
     from ResNetBlocks import SEBlock
 except:
     from models.ResNetBlocks import SEBlock
 
+import torchaudio
 from torchsummary import summary
+
+# TODO: se block for sse
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -38,7 +42,7 @@ class RepVGGBlock(nn.Module):
 
         if use_se:
             self.se = SEBlock(
-                out_channels, internal_neurons=out_channels // 16)
+                out_channels, internal_neurons=out_channels // 8)
         else:
             self.se = nn.Identity()
 
@@ -71,6 +75,7 @@ class RepVGGBlock(nn.Module):
 #   You can get the equivalent kernel and bias at any time and do whatever you want,
     #   for example, apply some penalties or constraints during training, just like you do to the other models.
 #   May be useful for quantization or pruning.
+
 
     def get_equivalent_kernel_bias(self):
         kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
@@ -133,7 +138,7 @@ class RepVGGBlock(nn.Module):
 
 class RepVGG(nn.Module):
 
-    def __init__(self, num_blocks, nOut=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
+    def __init__(self, num_blocks, nOut=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False, n_mels=64):
         super(RepVGG, self).__init__()
 
         assert len(width_multiplier) == 4
@@ -159,6 +164,18 @@ class RepVGG(nn.Module):
             int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
         self.linear = nn.Linear(int(512 * width_multiplier[3]), nOut)
+        #
+
+        self.instancenorm = nn.InstanceNorm1d(n_mels)
+        self.torchfb = torch.nn.Sequential(
+            PreEmphasis(),
+            torchaudio.transforms.MelSpectrogram(
+                sample_rate=16000,
+                n_fft=512,
+                win_length=400,
+                hop_length=160,
+                window_fn=torch.hamming_window,
+                n_mels=n_mels))
 
     def _make_stage(self, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -172,6 +189,10 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
+        with torch.no_grad():
+            x = self.torchfb(x) + 1e-6
+            x = self.instancenorm(x).unsqueeze(1)
+        print(x.size())
         out = self.stage0(x)
         out = self.stage1(out)
         out = self.stage2(out)
@@ -313,8 +334,9 @@ def MainModel(nOut=256, **kwargs):
     return get_RepVGG_func_by_name(model)(nOut=nOut, deploy=False)
 
 
+# NOTE: done for non se model
 if __name__ == '__main__':
     # print(MainModel())
-    model = MainModel(model='RepVGG-B0')
-    summary(model, (1, 64, 400), batch_size=128)
+    model = MainModel(model='RepVGG-D2se')
+    summary(model, (1, 224, 224), batch_size=2)
     pass

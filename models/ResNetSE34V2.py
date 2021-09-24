@@ -14,7 +14,7 @@ class ResNetSE(nn.Module):
                  num_filters,
                  nOut,
                  encoder_type='SAP',
-                 n_mels=40,
+                 n_mels=64,
                  log_input=True,
                  **kwargs):
         super(ResNetSE, self).__init__()
