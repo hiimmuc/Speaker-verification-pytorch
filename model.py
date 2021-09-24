@@ -99,7 +99,8 @@ class SpeakerNet(nn.Module):
                          cohorts_path='dataset/cohorts.npy',
                          print_interval=100,
                          num_eval=10,
-                         eval_frames=None):
+                         eval_frames=None,
+                         scoring_mode='norm'):
 
         self.eval()
 
@@ -134,7 +135,8 @@ class SpeakerNet(nn.Module):
 
         # Save all features to dictionary
         for idx, filename in enumerate(setfiles):
-            inp1 = torch.FloatTensor(loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)).to(self.device)
+            audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval, augment=True)
+            inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
@@ -176,12 +178,14 @@ class SpeakerNet(nn.Module):
                         0, 2)).detach().cpu().numpy()
                 score = -1 * np.mean(dist)
             else:
-                score = score_normalization(ref_feat,
-                                            com_feat,
-                                            cohorts,
-                                            top=200)
+                if scoring_mode == 'norm':
+                    score = score_normalization(ref_feat,
+                                                com_feat,
+                                                cohorts,
+                                                top=200)
+                elif scoring_mode == 'cosine':
+                    score = cosine_simialrity(ref_feat, com_feat)
 
-            # score = cosine_simialrity(ref_feat, com_feat)
             all_scores.append(score)
             all_labels.append(int(data[0]))
             all_trials.append(data[1] + " " + data[2])
@@ -193,8 +197,6 @@ class SpeakerNet(nn.Module):
                 sys.stdout.flush()
 
         print('\n')
-        # # normalize scores by the largest value
-        # all_scores = [float(score) / max(all_scores) for score in all_scores]
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -203,7 +205,8 @@ class SpeakerNet(nn.Module):
                      cohorts_path='data/zalo/cohorts.npy',
                      print_interval=100,
                      num_eval=10,
-                     eval_frames=None):
+                     eval_frames=None,
+                     scoring_mode='norm'):
         self.eval()
 
         lines = []
@@ -262,7 +265,7 @@ class SpeakerNet(nn.Module):
                 if self.__L__.test_normalize:
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
                     com_feat = F.normalize(com_feat, p=2, dim=1)
-
+                print(ref_feat.size())
                 if cohorts_path is None:
                     dist = F.pairwise_distance(
                         ref_feat.unsqueeze(-1),
@@ -270,11 +273,14 @@ class SpeakerNet(nn.Module):
                             0, 2)).detach().cpu().numpy()
                     score = -1 * np.mean(dist)
                 else:
-                    score = score_normalization(ref_feat,
-                                                com_feat,
-                                                cohorts,
-                                                top=200)
-                # score = cosine_simialrity(ref_feat, com_feat)
+                    if scoring_mode == 'norm':
+                        score = score_normalization(ref_feat,
+                                                    com_feat,
+                                                    cohorts,
+                                                    top=200)
+                    elif scoring_mode == 'cosine':
+                        score = cosine_simialrity(ref_feat, com_feat)
+
                 pred = '1' if score >= thre_score else '0'
                 spamwriter.writerow([data[0], data[1], pred, score])
 
@@ -284,9 +290,6 @@ class SpeakerNet(nn.Module):
                                      (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
                     sys.stdout.flush()
 
-            # # thresholding and write to score file
-            # all_scores = [float(score) / max(all_scores)
-            #               for score in all_scores]
         print('\n')
 
     def test_each_pair(self,
@@ -295,7 +298,8 @@ class SpeakerNet(nn.Module):
                        cohorts_path='data/zalo/cohorts.npy',
                        print_interval=100,
                        num_eval=10,
-                       eval_frames=None):
+                       eval_frames=None,
+                       scoring_mode='norm'):
         self.eval()
         lines = []
         files = []
@@ -353,13 +357,16 @@ class SpeakerNet(nn.Module):
                             0, 2)).detach().cpu().numpy()
                     score = -1 * np.mean(dist)
                 else:
-                    score = score_normalization(ref_feat,
-                                                com_feat,
-                                                cohorts,
-                                                top=200)
-                pred = '0'
-                if score >= thre_score:
-                    pred = '1'
+                    if scoring_mode == 'norm':
+                        score = score_normalization(ref_feat,
+                                                    com_feat,
+                                                    cohorts,
+                                                    top=200)
+                    elif scoring_mode == 'cosine':
+                        score = cosine_simialrity(ref_feat, com_feat)
+
+                pred = '1' if score >= thre_score else '0'
+
                 pred_time = time.time() - t0
                 pred_time_list.append(pred_time)
                 spamwriter.writerow([pair[0], pair[1], pred, pred_time])

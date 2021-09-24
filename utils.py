@@ -12,7 +12,7 @@ from scipy import signal
 from sklearn import metrics
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, augment=False):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -28,6 +28,13 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     # Maximum audio length
     # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
+    # Load audio
+    if augment:
+        aug_type = random.randint(0, 4)
+        if aug_type == 0:
+            pass
+        else:
+            filename = f"{filename.replace('.wav', '')}_augmented_{aug_type}.wav"
 
     audio, sample_rate = sf.read(filename)
 
@@ -39,6 +46,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
         audiosize = audio.shape[0]
 
     if evalmode:
+        # get 10 of audio and stack together
         startframe = np.linspace(0, audiosize - max_audio, num=num_eval)
     else:
         startframe = np.array(
@@ -163,6 +171,7 @@ class PreEmphasis(torch.nn.Module):
 
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
+
     fnr = 1 - tpr
 
     fnr = fnr * 100
@@ -214,7 +223,7 @@ def score_normalization(ref, com, cohorts, top=-1):
 
 
 def cosine_simialrity(ref, com):
-    return abs(F.cosine_similarity(ref, com, dim=1))
+    return np.mean(abs(F.cosine_similarity(ref, com, dim=1)).cpu().numpy())
 
 
 def read_config(config_path, args=None):
