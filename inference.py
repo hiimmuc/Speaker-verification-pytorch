@@ -50,6 +50,7 @@ def inference(args):
     model.eval()
     # set defalut threshold
     threshold = args.test_threshold
+    scoring_mode = args.scoring_mode
     num_eval = 10
 
     # Evaluation code
@@ -58,7 +59,8 @@ def inference(args):
             args.test_list,
             cohorts_path=args.cohorts_path,
             print_interval=10,
-            eval_frames=args.eval_frames)
+            eval_frames=args.eval_frames,
+            scoring_mode=scoring_mode)
         target_fa = np.linspace(20, 0, num=100)
         result = tuneThresholdfromScore(sc, lab, target_fa)
         print('tfa [thre, fpr, fnr]')
@@ -87,7 +89,8 @@ def inference(args):
                            cohorts_path=args.cohorts_path,
                            thre_score=threshold,
                            print_interval=100,
-                           eval_frames=args.eval_frames)
+                           eval_frames=args.eval_frames,
+                           scoring_mode=scoring_mode)
         sys.exit(1)
 
     if args.test_by_pair is True:
@@ -95,7 +98,8 @@ def inference(args):
                              cohorts_path=args.cohorts_path,
                              thre_score=threshold,
                              print_interval=100,
-                             eval_frames=args.eval_frames)
+                             eval_frames=args.eval_frames,
+                             scoring_mode=scoring_mode)
         sys.exit(1)
 
     # Prepare embeddings for cohorts/verification

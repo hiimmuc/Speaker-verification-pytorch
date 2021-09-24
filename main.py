@@ -229,6 +229,10 @@ if __name__ == '__main__':
                         type=float,
                         default=1.81120,
                         help='Test threshold')
+    parser.add_argument('--scoring_mode',
+                        type=str,
+                        default='norm',
+                        help='norm or cosine for scoring')
 
     args = parser.parse_args()
     # Initialise directories
