@@ -265,7 +265,7 @@ class SpeakerNet(nn.Module):
                 if self.__L__.test_normalize:
                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
                     com_feat = F.normalize(com_feat, p=2, dim=1)
-                print(ref_feat.size())
+
                 if cohorts_path is None:
                     dist = F.pairwise_distance(
                         ref_feat.unsqueeze(-1),
