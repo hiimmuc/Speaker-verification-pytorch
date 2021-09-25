@@ -49,10 +49,17 @@ class Loader(Dataset):
         feat = []
 
         for index in indices:
-            audio = loadWAV(self.data_list[index],
+            # Load audio
+            if self.augment:
+                aug_type = random.randint(0, 4)
+                if aug_type == 0:
+                    audio_file = self.data_list[index]
+                else:
+                    audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
+
+            audio = loadWAV(audio_file,
                             self.max_frames,
-                            evalmode=False,
-                            augment=self.augment)
+                            evalmode=False,)
             feat.append(audio)
 
         feat = np.concatenate(feat, axis=0)

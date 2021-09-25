@@ -12,7 +12,7 @@ from scipy import signal
 from sklearn import metrics
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, augment=False):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -28,13 +28,6 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, augment=F
     # Maximum audio length
     # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
     max_audio = max_frames * 160 + 240
-    # Load audio
-    if augment:
-        aug_type = random.randint(0, 4)
-        if aug_type == 0:
-            pass
-        else:
-            filename = f"{filename.replace('.wav', '')}_augmented_{aug_type}.wav"
 
     audio, sample_rate = sf.read(filename)
 
