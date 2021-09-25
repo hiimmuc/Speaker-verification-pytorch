@@ -30,6 +30,7 @@ def train(args):
     eerfile.sort()
 
     # if exists best model load from it
+    prev_model_state = None
     if len(eerfile) > 0:
         if os.path.exists(f'{model_save_path}/best_state.model'):
             prev_model_state = f'{model_save_path}/best_state.model'
@@ -52,7 +53,7 @@ def train(args):
         print("Model %s loaded!" % args.initial_model)
         if 'checkpoints' in args.initial_model:
             it = 1
-    elif len(model_files) >= 1:
+    elif prev_model_state:
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
