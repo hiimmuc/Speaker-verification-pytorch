@@ -30,7 +30,7 @@ def train(args):
     eerfile.sort()
 
     # if exists best model load from it
-    if len(model_files) > 0:
+    if len(eerfile) > 0:
         if os.path.exists(f'{model_save_path}/best_state.model'):
             prev_model_state = f'{model_save_path}/best_state.model'
         elif args.save_model_last:
