@@ -81,7 +81,7 @@ def train(args):
     train_loader = get_data_loader(args.train_list, **vars(args))
 
     if args.early_stop:
-        early_stopping = EarlyStopping()
+        early_stopping = EarlyStopping(patience=args.es_patience)
 
     # Training loop
     while True:

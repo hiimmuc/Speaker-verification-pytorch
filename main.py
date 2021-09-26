@@ -58,6 +58,10 @@ if __name__ == '__main__':
                         type=int,
                         default=10,
                         help='Test and save every [test_interval] epochs')
+    parser.add_argument('--model',
+                        type=str,
+                        default="ResNetSE34V2",
+                        help='Name of model definition')
     parser.add_argument('--max_epoch',
                         type=int,
                         default=50,
@@ -84,6 +88,10 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='Early stopping')
+    parser.add_argument('--es_patience',
+                        type=int,
+                        default=20,
+                        help='Early stopping patience')
     parser.add_argument('--lr',
                         type=float,
                         default=0.001,
@@ -176,10 +184,6 @@ if __name__ == '__main__':
                         type=bool,
                         default=True,
                         help='Log input features')
-    parser.add_argument('--model',
-                        type=str,
-                        default="ResNetSE34V2",
-                        help='Name of model definition')
     parser.add_argument('--encoder_type',
                         type=str,
                         default="ASP",

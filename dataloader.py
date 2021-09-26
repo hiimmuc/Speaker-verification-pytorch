@@ -165,8 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--nPerSpeaker',
                         type=int,
                         default=2,
-                        help='Number of utterances per speaker per batch, only for metric learning based losses'
-                        )
+                        help='Number of utterances per speaker per batch, only for metric learning based losses')
     parser.add_argument('--max_frames',
                         type=int,
                         default=100,
