@@ -97,6 +97,7 @@ def train(args):
             print(
                 f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
             s.saveParameters(model_save_path + "/best_state.model")
+            early_stopping.counter = 0  # reset counter of early stopping
 
         min_loss = min(min_loss, loss)
 
