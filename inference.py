@@ -61,7 +61,7 @@ def inference(args):
             print_interval=10,
             eval_frames=args.eval_frames,
             scoring_mode=scoring_mode)
-        target_fa = np.linspace(20, 0, num=100)
+        target_fa = np.linspace(5, 0, num=50)
         result = tuneThresholdfromScore(sc, lab, target_fa)
         print('tfa [thre, fpr, fnr]')
         best_sum_rate = 999
