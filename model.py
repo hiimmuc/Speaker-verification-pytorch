@@ -38,7 +38,16 @@ class SpeakerNet(nn.Module):
             self.__optimizer__, **kwargs)
         assert self.lr_step in ['epoch', 'iteration']
 
-    def train_network(self, loader, epoch=0):
+    def fit(self, loader, epoch=0):
+        '''Train
+
+        Args:
+            loader (Dataloader): dataloader of training data
+            epoch (int, optional): [description]. Defaults to 0.
+
+        Returns:
+            tuple: loss and precision
+        '''
         self.train()
 
         stepsize = loader.batch_size
@@ -61,6 +70,7 @@ class SpeakerNet(nn.Module):
 
             feat = torch.stack(feat, dim=1).squeeze()
             label = torch.LongTensor(data_label).to(self.device)
+
             nloss, prec1 = self.__L__.forward(feat, label)
 
             loss += nloss.detach().cpu()

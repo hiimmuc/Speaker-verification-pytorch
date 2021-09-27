@@ -91,7 +91,7 @@ def train(args):
               "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
-        loss, trainer = s.train_network(loader=train_loader, epoch=it)
+        loss, trainer = s.fit(loader=train_loader, epoch=it)
         # save best model
         if loss == min(min_loss, loss):
             print(

@@ -183,9 +183,9 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     # G-mean
     gmean = np.sqrt(tpr * (1 - fpr))
     idxG = np.argmax(gmean)
-    print(f"G-mean: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
+    print(f"G-mean at {idxG}: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
     pt = np.sqrt(fpr)/(np.sqrt(tpr) + np.sqrt(fpr))
-    print(f"P-value: {pt}")
+    print(f"P-value: {np.mean(pt)}, {max(pt)}")
 
     idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr = fpr + tpr - 1
     eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
