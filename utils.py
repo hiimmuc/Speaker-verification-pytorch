@@ -164,6 +164,10 @@ class PreEmphasis(torch.nn.Module):
 
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
+    # G-mean
+    gmean = np.sqrt(tpr * (1 - fpr))
+    idxG = np.argmax(gmean)
+    print(f"G-mean at {idxG}: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
 
     fnr = 1 - tpr
 
@@ -179,13 +183,6 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     for tfa in target_fa:
         idx = np.nanargmin(np.absolute((tfa - fpr)))
         tunedThreshold.append([thresholds[idx], fpr[idx], fnr[idx]])
-
-    # G-mean
-    gmean = np.sqrt(tpr * (1 - fpr))
-    idxG = np.nanargmax(gmean)
-    print(f"G-mean at {idxG}: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
-    pt = np.sqrt(fpr)/(np.sqrt(tpr) + np.sqrt(fpr))
-    print(f"P-value: {np.nanmean(pt)}, {np.nanmax(pt)}")
 
     idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr = fpr + tpr - 1
     eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
