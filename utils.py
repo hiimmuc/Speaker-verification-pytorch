@@ -180,7 +180,12 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
         idx = np.nanargmin(np.absolute((tfa - fpr)))
         tunedThreshold.append([thresholds[idx], fpr[idx], fnr[idx]])
 
-    idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr
+    # G-mean
+    gmean = np.sqrt(tpr * (1 - fpr))
+    idxG = np.argmax(gmean)
+    print(f"G-mean: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
+
+    idxE = np.nanargmin(np.absolute((fnr - fpr)))  # index of min fpr - fnr = fpr + tpr - 1
     eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
     optimal_threshold = thresholds[idxE]
 
