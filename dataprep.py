@@ -126,6 +126,7 @@ def prepare_augmentation(args):
     Args:
         args ([type]): [description]
     """
+    #TODO: check if the augmentation dataset is already downloaded -> extract only
     if not os.path.exists(args.augment_path):
         print('Downloading augmentation dataset...')
         with open('dataset/augment.txt', 'r') as f:

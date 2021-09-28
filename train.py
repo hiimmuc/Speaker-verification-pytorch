@@ -35,7 +35,8 @@ def train(args):
         if os.path.exists(f'{model_save_path}/best_state.model'):
             prev_model_state = f'{model_save_path}/best_state.model'
         elif args.save_model_last:
-            prev_model_state = f'{model_save_path}/last_state.model'
+            if os.path.exists(f'{model_save_path}/last_state.model'):
+                prev_model_state = f'{model_save_path}/last_state.model'
         else:
             prev_model_state = model_files[-1]
 
@@ -58,6 +59,7 @@ def train(args):
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
+        it = 1
 
     # schedule the learning rate to stopped epoch
     for _ in range(0, it - 1):
@@ -97,7 +99,8 @@ def train(args):
             print(
                 f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
             s.saveParameters(model_save_path + "/best_state.model")
-            early_stopping.counter = 0  # reset counter of early stopping
+            if args.early_stop:
+                early_stopping.counter = 0  # reset counter of early stopping
 
         min_loss = min(min_loss, loss)
 
