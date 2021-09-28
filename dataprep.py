@@ -126,7 +126,7 @@ def prepare_augmentation(args):
     Args:
         args ([type]): [description]
     """
-    #TODO: check if the augmentation dataset is already downloaded -> extract only
+    # TODO: check if the augmentation dataset is already downloaded -> extract only
     if not os.path.exists(args.augment_path):
         print('Downloading augmentation dataset...')
         with open('dataset/augment.txt', 'r') as f:
@@ -176,7 +176,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=cfg.mfcc_config.max
     augment_engine = AugmentWAV(musan_path, rir_path, max_frames)
 
     list_audio = []
-    c = 0
+
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc=f"Augmented process")):
         audio, sr = loadWAV(fpath, max_frames=max_frames,
                             evalmode=False, sr=16000)
@@ -226,7 +226,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=cfg.mfcc_config.max
                     continue
                 else:
                     os.makedirs(os.path.split(save_path)[0], exist_ok=True)
-
+                # NOTE: still have error, duplicate files
                 # shape: (channel, frames) -> (frames, channels)
                 audio = audio.T
                 sf.write(str(save_path), audio, sr)
@@ -378,19 +378,25 @@ class DataGenerator():
 
     def get_data_paths(self):
         raw_data_dir = self.args.raw_dataset
+
         data_paths = []
         for fdir in os.listdir(raw_data_dir):
             data_paths.extend(
                 glob.glob(os.path.join(raw_data_dir, f'{fdir}/*.wav')))
+
         with open(os.path.join(self.args.save_dir, 'data.txt'), 'w') as f:
             for path in data_paths:
                 f.write(f'{path}\n')
         data_folder = list(set([os.path.split(path)[0]
                            for path in data_paths]))
+
         with open(os.path.join(self.args.save_dir, 'data_folders.txt'), 'w') as f:
             for path in data_folder:
                 f.write(f'{path}\n')
-        return data_paths
+        non_augment_path = list(
+            filter(lambda x: 'augment' not in str(x), data_paths))
+        augment_data_paths = list(filter(lambda x: 'augment' in str(x), data_paths))
+        return non_augment_path, augment_data_paths
 
     def convert(self):
         # convert data to one form 16000Hz, only works on Linux
@@ -523,7 +529,7 @@ if __name__ == '__main__':
 
     if args.augment:
         augmentation(
-            args=args, audio_paths=data_generator.data_paths[:], step_save=200, mode=args.augment_mode)
+            args=args, audio_paths=data_generator.data_paths[0][:], step_save=200, mode=args.augment_mode)
     if args.convert:
         data_generator.convert()
     if args.generate:
