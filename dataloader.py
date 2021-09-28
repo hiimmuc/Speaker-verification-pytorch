@@ -50,13 +50,14 @@ class Loader(Dataset):
 
         for index in indices:
             # Load audio
+            audio_file = self.data_list[index]
             if self.augment:
                 aug_type = random.randint(0, 4)
                 if aug_type == 0:
-                    audio_file = self.data_list[index]
+                    pass
                 else:
+                    # for type 1 -> 4
                     audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
-
             audio = loadWAV(audio_file,
                             self.max_frames,
                             evalmode=False,)
