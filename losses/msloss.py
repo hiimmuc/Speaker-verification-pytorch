@@ -21,6 +21,11 @@ class LossFunction(nn.Module):
     def forward(self, feats, labels):
         assert feats.size(0) == labels.size(0), \
             f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
+                
+        labels = labels.repeat_interleave(feats.size()[1])
+        feats = feats.reshape(-1, feats.size()[-1])
+        
+        batch_size = feats.size(0)
         batch_size = feats.size(0)
         # feat: batch_size x outdim
 
