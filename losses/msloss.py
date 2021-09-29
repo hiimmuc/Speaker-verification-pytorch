@@ -21,8 +21,10 @@ class LossFunction(nn.Module):
     def forward(self, feats, labels):
         assert feats.size(0) == labels.size(0), \
             f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
-                
+        
+        # batchxn -> batch.n n: nPerSpeaker ; size [64] -> [640], repeat by number of utterances
         labels = labels.repeat_interleave(feats.size()[1])
+        # batchxnxd -> batch.n x d; [64, 5, 128] -> [640, 128]
         feats = feats.reshape(-1, feats.size()[-1])
         
         batch_size = feats.size(0)
