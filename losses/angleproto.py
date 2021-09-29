@@ -26,19 +26,21 @@ class LossFunction(nn.Module):
 
     def forward(self, x, label=None):
 
-        assert x.size()[1] >= 2
+		assert x.size()[1] >= 2
 
-        out_anchor = torch.mean(x[:, 1:, :], 1)
-        out_positive = x[:, 0, :]
-        stepsize = out_anchor.size()[0]
+		device = x.get_device()
 
-        cos_sim_matrix = F.cosine_similarity(
-            out_positive.unsqueeze(-1), out_anchor.unsqueeze(-1).transpose(0, 2))
-        torch.clamp(self.w, 1e-6)
-        cos_sim_matrix = cos_sim_matrix * self.w + self.b
+		out_anchor = torch.mean(x[:, 1:, :], 1)
+		out_positive = x[:, 0, :]
+		stepsize = out_anchor.size()[0]
 
-        label = torch.from_numpy(numpy.asarray(range(0, stepsize))).cuda()
-        nloss = self.criterion(cos_sim_matrix, label)
-        prec1 = accuracy(cos_sim_matrix.detach(), label.detach(), topk=(1,))[0]
+		cos_sim_matrix = F.cosine_similarity(
+			out_positive.unsqueeze(-1), out_anchor.unsqueeze(-1).transpose(0, 2))
+		torch.clamp(self.w, 1e-6)
+		cos_sim_matrix = cos_sim_matrix * self.w + self.b
 
-        return nloss, prec1
+		label = torch.from_numpy(numpy.asarray(range(0, stepsize))).cuda(device=device)
+		nloss = self.criterion(cos_sim_matrix, label)
+		prec1 = accuracy(cos_sim_matrix.detach(), label.detach(), topk=(1,))[0]
+
+		return nloss, prec1
