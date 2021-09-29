@@ -7,9 +7,10 @@ Created on Mon Jun 15 17:32:03 2020
 
 import torch
 import torch.nn as nn
+import torchaudio
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-
+from utils import PreEmphasis
 
 # TODO: add option block, layers, filter, ... to block
 def conv3x3(in_planes, out_planes, stride=1):
@@ -48,7 +49,7 @@ class BasicBlock3x3(nn.Module):
 
 
 class RawNet(nn.Module):
-    def __init__(self, input_channel, nOut=512):
+    def __init__(self, input_channel, nOut=512, n_mels=64, **kwargs):
         self.inplanes3 = 128
         super(RawNet, self).__init__()
         self.conv1 = nn.Conv1d(input_channel, 128, kernel_size=3, stride=3, padding=0,
@@ -75,6 +76,19 @@ class RawNet(nn.Module):
         self.spk_emb = nn.Linear(1024, 128)
         # self.drop = nn.Dropout(p=0.2)
         self.output_layer = nn.Linear(128, nOut)
+        # ##########################################################################
+        self.n_mels = n_mels
+        self.instancenorm = nn.InstanceNorm1d(n_mels)
+        self.torchfb = torch.nn.Sequential(
+            PreEmphasis(),
+            torchaudio.transforms.MelSpectrogram(
+                sample_rate=16000,
+                n_fft=512,
+                win_length=400,
+                hop_length=160,
+                window_fn=torch.hamming_window,
+                n_mels=n_mels))
+
 
     def _make_layer3(self, block, planes, blocks, stride=1):
         downsample = None
@@ -94,6 +108,12 @@ class RawNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, inputs):
+        with torch.no_grad():
+            inputs = self.torchfb(inputs) + 1e-6
+            if self.log_input:
+                inputs = inputs.log()
+            inputs = self.instancenorm(inputs).unsqueeze(1)
+
         out = self.conv1(inputs)
         out = self.bn1(out)
         out = self.relu(out)
@@ -120,3 +140,7 @@ class RawNet(nn.Module):
         preds = self.output_layer(spk_embeddings)
 
         return preds
+
+def MainModel(nOut=512, **kwargs):
+    model = RawNet(1, nOut)
+    return model
