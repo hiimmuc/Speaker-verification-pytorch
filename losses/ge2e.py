@@ -30,6 +30,8 @@ class LossFunction(nn.Module):
 
         assert x.size()[1] >= 2
 
+        device = x.get_device()
+
         gsize = x.size()[1]
         centroids = torch.mean(x, 1)
         stepsize = x.size()[0]
@@ -51,9 +53,9 @@ class LossFunction(nn.Module):
         torch.clamp(self.w, 1e-6)
         cos_sim_matrix = cos_sim_matrix * self.w + self.b
 
-        label = torch.from_numpy(numpy.asarray(range(0, stepsize))).cuda()
+        label = torch.from_numpy(numpy.asarray(range(0, stepsize))).cuda(device=device)
         nloss = self.criterion(cos_sim_matrix.view(-1, stepsize),
-                               torch.repeat_interleave(label, repeats=gsize, dim=0).cuda())
+                               torch.repeat_interleave(label, repeats=gsize, dim=0).cuda(device=device))
         prec1 = accuracy(cos_sim_matrix.view(-1, stepsize).detach(),
                          torch.repeat_interleave(label, repeats=gsize, dim=0).detach(), topk=(1,))[0]
 
