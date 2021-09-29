@@ -45,7 +45,11 @@ In addition to the Python dependencies, `wget` and `ffmpeg` must be installed on
 Pretrained models and corresponding cohorts can be downloaded from [here](https://drive.google.com/drive/folders/15FYmgHGKlF_JSyPGKfJzBRhQpBY5JcBw?usp=sharing).
 
 ## Training
-
+**Set cuda usage**
+```
+!export CUDA_VISIBLE_DEVICES=5
+```
+then add the device="cuda:5" to args
 **Phase 1**: Train with classification loss (softmax, amsoftmax, aamsoftmax)
 
 ```python
