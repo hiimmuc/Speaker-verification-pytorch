@@ -29,21 +29,25 @@ class LossFunction(nn.Module):
         print('Initialised AMSoftmax m=%.3f s=%.3f' % (self.m, self.s))
 
     def forward(self, x, label=None):
-        # x, label = x.reshape(-1, x.size()[-1]), label.repeat_interleave(2)
         assert x.size()[0] == label.size()[0]
         assert x.size()[1] == self.in_feats
+
+        device = x.get_device()
 
         x_norm = torch.norm(x, p=2, dim=1, keepdim=True).clamp(min=1e-12)
         x_norm = torch.div(x, x_norm)
         w_norm = torch.norm(self.W, p=2, dim=0, keepdim=True).clamp(min=1e-12)
         w_norm = torch.div(self.W, w_norm)
         costh = torch.mm(x_norm, w_norm)
+
         label_view = label.view(-1, 1)
         if label_view.is_cuda:
             label_view = label_view.cpu()
+
         delt_costh = torch.zeros(costh.size()).scatter_(1, label_view, self.m)
         if x.is_cuda:
-            delt_costh = delt_costh.cuda()
+            delt_costh = delt_costh.cuda(device=device)
+
         costh_m = costh - delt_costh
         costh_m_s = self.s * costh_m
         loss = self.ce(costh_m_s, label)
