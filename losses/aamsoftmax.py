@@ -38,7 +38,6 @@ class LossFunction(nn.Module):
         print('Initialised AAMSoftmax margin %.3f scale %.3f' % (self.m, self.s))
 
     def forward(self, x, label=None):
-        # x, label = x.reshape(-1, x.size()[-1]), label.repeat_interleave(2)
         assert x.size()[0] == label.size()[0]
         assert x.size()[1] == self.in_feats
 
@@ -53,7 +52,6 @@ class LossFunction(nn.Module):
         else:
             phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
 
-        #one_hot = torch.zeros(cosine.size(), device='cuda' if torch.cuda.is_available() else 'cpu')
         one_hot = torch.zeros_like(cosine)
         one_hot.scatter_(1, label.view(-1, 1), 1)
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
