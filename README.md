@@ -27,7 +27,7 @@ python dataprep.py --augment --aug_rate -1
 ```
 
 3. Generate train, validate list
-
+(if ratio == -1, take 3 files for each speaker for validate)
 ```python
 python dataprep.py --generate --split_ratio -1
 ```
@@ -107,7 +107,7 @@ Note: the best model is automaticly saved during the training process, if the in
                 --model ResNetSE34V2 \
                 --test_list dataset/val.txt \
                 --cohorts_path checkpoints/cohorts_resnet34v2.npy \
-                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
+                --initial_model_infer exp/ResNetSE34V2/model/best_state.model
 ```
 
 2. Evaluate and tune thresholds
@@ -117,7 +117,7 @@ Note: the best model is automaticly saved during the training process, if the in
                 --model ResNetSE34V2 \
                 --test_list dataset/val.txt \
                 --cohorts_path checkpoints/cohorts_resnet34v2.npy \
-                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
+                --initial_model_infer exp/ResNetSE34V2/model/best_state.model
 ```
 
 3. Run on Test set
@@ -128,7 +128,7 @@ Note: the best model is automaticly saved during the training process, if the in
                 --cohorts_path checkpoints/cohorts_resnet34v2.npy \
                 --test_threshold 1.7206447124481201 \
                 --test_path dataset \
-                --initial_model_infer exp/ResNetSE34v2/model/best_state.model
+                --initial_model_infer exp/ResNetSE34V2/model/best_state.model
 ```
 
 4. test each pair(to get the predict time of each pair):
