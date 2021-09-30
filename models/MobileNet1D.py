@@ -1,5 +1,7 @@
 import torch
+import torchaudio
 from torch import nn
+from utils import PreEmphasis
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -154,7 +156,7 @@ class MobileNetV2(nn.Module):
                 nn.init.zeros_(m.bias)
         ######################################################################
         self.n_mels = n_mels
-        self.log_input = log_input\
+        self.log_input = log_input
         self.instancenorm = nn.InstanceNorm1d(n_mels)
         self.torchfb = torch.nn.Sequential(
             PreEmphasis(),
@@ -166,9 +168,8 @@ class MobileNetV2(nn.Module):
                 window_fn=torch.hamming_window,
                 n_mels=n_mels))
 
-
     def forward(self, x):
-        
+
         with torch.no_grad():
             x = self.torchfb(x) + 1e-6
             if self.log_input:
@@ -185,6 +186,7 @@ class MobileNetV2(nn.Module):
         x = self.classifier(x)
         return x
 
+
 def MainModel(nOut=256, **kwargs):
-    model =MobileNetV2(num_classes=nOut)
+    model = MobileNetV2(num_classes=nOut)
     return model
