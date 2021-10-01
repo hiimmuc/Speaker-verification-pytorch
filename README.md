@@ -27,7 +27,8 @@ python dataprep.py --augment --aug_rate -1
 ```
 
 3. Generate train, validate list
-(if ratio == -1, take 3 files for each speaker for validate)
+   (if ratio == -1, take 3 files for each speaker for validate)
+
 ```python
 python dataprep.py --generate --split_ratio -1
 ```
@@ -45,10 +46,13 @@ In addition to the Python dependencies, `wget` and `ffmpeg` must be installed on
 Pretrained models and corresponding cohorts can be downloaded from [here](https://drive.google.com/drive/folders/15FYmgHGKlF_JSyPGKfJzBRhQpBY5JcBw?usp=sharing).
 
 ## Training
+
 **Set cuda usage**
+
 ```
 !export CUDA_VISIBLE_DEVICES=5
 ```
+
 then add the device="cuda:5" to args
 **Phase 1**: Train with classification loss (softmax, amsoftmax, aamsoftmax)
 
@@ -60,7 +64,7 @@ then add the device="cuda:5" to args
                 --max_epoch 500 \
                 --batch_size 128 \
                 --nDataLoaderThread 2 \
-                --trainfunc amsoftmax \
+                --criterion amsoftmax \
                 --margin 0.1\
                 --scale 30\
                 --nPerSpeaker 1
@@ -77,7 +81,7 @@ then add the device="cuda:5" to args
                 --max_epoch 600 \
                 --batch_size 128 \
                 --nDataLoaderThread 2 \
-                --trainfunc angleproto \
+                --criterion angleproto \
                 --nPerSpeaker 2
 ```
 
@@ -91,7 +95,7 @@ then add the device="cuda:5" to args
                 --max_epoch 500 \
                 --batch_size 128 \
                 --nDataLoaderThread 2 \
-                --trainfunc softmaxproto \
+                --criterion softmaxproto \
                 --nPerSpeaker 2 \
                 --initial_model checkpoints/baseline_v2_ap.model
 ```
@@ -141,9 +145,11 @@ Note: the best model is automaticly saved during the training process, if the in
                 --test_path dataset \
                 --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
+
 ## Citation
 
 [1] _In defence of metric learning for speaker recognition_
+
 ```
 @inproceedings{chung2020in,
     title={In defence of metric learning for speaker recognition},
@@ -154,6 +160,7 @@ Note: the best model is automaticly saved during the training process, if the in
 ```
 
 [2] _Clova baseline system for the VoxCeleb Speaker Recognition Challenge 2020_
+
 ```
 @article{heo2020clova,
     title={Clova baseline system for the {VoxCeleb} Speaker Recognition Challenge 2020},
@@ -164,6 +171,7 @@ Note: the best model is automaticly saved during the training process, if the in
 ```
 
 [3] _Analysis of score normalization in multilingual speaker recognition_
+
 ```
 @inproceedings{inproceedings,
     title = {Analysis of Score Normalization in Multilingual Speaker Recognition},

@@ -29,14 +29,14 @@ if __name__ == '__main__':
     parser.add_argument('--max_frames',
                         type=int,
                         default=100,
-                        help='Input length to the network for training')
+                        help='Input length to the network for training, 1s ~ 100 frame')
     parser.add_argument('--eval_frames',
                         type=int,
                         default=100,
                         help='Input length to the network for testing; 0 for whole files')
     parser.add_argument('--batch_size',
                         type=int,
-                        default=320,
+                        default=128,
                         help='Batch size, number of speakers per batch')
     parser.add_argument('--max_seg_per_spk',
                         type=int,
@@ -52,8 +52,10 @@ if __name__ == '__main__':
                         help='Augment input')
 
     # Training details
-    parser.add_argument('--device', type=str,
-                        default="cuda", help='cuda or cpu')
+    parser.add_argument('--device',
+                        type=str,
+                        default="cuda",
+                        help='cuda or cpu')
     parser.add_argument('--test_interval',
                         type=int,
                         default=10,
@@ -66,9 +68,9 @@ if __name__ == '__main__':
                         type=int,
                         default=50,
                         help='Maximum number of epochs')
-    parser.add_argument('--trainfunc',
+    parser.add_argument('--criterion',
                         type=str,
-                        default="aamsoftmax",
+                        default="amsoftmax",
                         help='Loss function')
     parser.add_argument('--save_model_last',
                         type=bool,
@@ -109,13 +111,11 @@ if __name__ == '__main__':
     parser.add_argument("--hard_prob",
                         type=float,
                         default=0.5,
-                        help='Hard negative mining probability, otherwise random, only for some loss functions'
-                        )
+                        help='Hard negative mining probability, otherwise random, only for some loss functions')
     parser.add_argument("--hard_rank",
                         type=int,
                         default=10,
-                        help='Hard negative mining rank in the batch, only for some loss functions'
-                        )
+                        help='Hard negative mining rank in the batch, only for some loss functions')
     parser.add_argument('--margin',
                         type=float,
                         default=0.2,
@@ -132,12 +132,10 @@ if __name__ == '__main__':
                         type=float,
                         default=30.0,
                         help='Loss scale, only for some loss functions')
-
     parser.add_argument('--nPerSpeaker',
                         type=int,
                         default=2,
-                        help='Number of utterances per speaker per batch, only for metric learning based losses'
-                        )
+                        help='Number of utterances per speaker per batch, only for metric learning based losses')
     parser.add_argument('--nClasses',
                         type=int,
                         default=400,
@@ -168,12 +166,12 @@ if __name__ == '__main__':
                         help='Absolute path to the test set')
     parser.add_argument('--musan_path',
                         type=str,
-                        default="dataset/musan_split",
-                        help='Absolute path to the test set')
+                        default="dataset/augment_data/musan_split",
+                        help='Absolute path to the augment set')
     parser.add_argument('--rir_path',
                         type=str,
-                        default="dataset/RIRS_NOISES/simulated_rirs",
-                        help='Absolute path to the test set')
+                        default="dataset/augment_data/RIRS_NOISES/simulated_rirs",
+                        help='Absolute path to the augment set')
 
     # Model definition for MFCCs
     parser.add_argument('--n_mels',

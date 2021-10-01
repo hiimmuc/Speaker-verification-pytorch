@@ -10,13 +10,26 @@ from tqdm.auto import tqdm
 
 from utils import *
 
+# TODO: add a option to load audio with augmentation, not with the existed ones
+
 
 class Loader(Dataset):
-    def __init__(self, dataset_file_name, augment, max_frames):
+    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, aug_folder='together'):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
         self.augment = augment
+
+        # augmented folder files
+        self.aug_folder = aug_folder
+        self.musan_path = musan_path
+        self.rir_path = rir_path
+        if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
+            self.augment_engine = AugmentWAV(musan_path=musan_path,
+                                             rir_path=rir_path,
+                                             max_frames=max_frames)
+        else:
+            self.augment_engine = None
 
         # Read Training Files...
         with open(dataset_file_name) as dataset_file:
@@ -34,15 +47,12 @@ class Loader(Dataset):
             data = line.strip().split()
 
             speaker_label = dictkeys[data[0]]
-            # filename = os.path.join(train_path, data[1])
 
             if not (speaker_label in self.label_dict):
                 self.label_dict[speaker_label] = []
 
             self.label_dict[speaker_label].append(lidx)
-
             self.data_label.append(speaker_label)
-            # self.data_list.append(filename)
             self.data_list.append(data[1])
 
     def __getitem__(self, indices):
@@ -51,16 +61,29 @@ class Loader(Dataset):
         for index in indices:
             # Load audio
             audio_file = self.data_list[index]
-            if self.augment:
+            if self.augment and self.aug_folder == 'together':  # if aug audio files and raw audio files is in the same folder
                 aug_type = random.randint(0, 4)
                 if aug_type == 0:
                     pass
                 else:
                     # for type 1 -> 4
                     audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
-            audio = loadWAV(audio_file,
-                            self.max_frames,
-                            evalmode=False,)
+
+            audio = loadWAV(audio_file, self.max_frames, evalmode=False)
+
+            if self.augment and self.aug_folder == 'separated':  # if exists augmented folder(30GB) separately
+                augtype = random.randint(0, 4)
+                if augtype == 1:
+                    audio = self.augment_engine.reverberate(audio)
+                elif augtype == 2:
+                    audio = self.augment_engine.additive_noise('music', audio)
+                elif augtype == 3:
+                    audio = self.augment_engine.additive_noise('speech', audio)
+                elif augtype == 4:
+                    audio = self.augment_engine.additive_noise('noise', audio)
+                else:
+                    pass
+
             feat.append(audio)
 
         feat = np.concatenate(feat, axis=0)
@@ -119,9 +142,11 @@ class Sampler(torch.utils.data.Sampler):
         return len(self.data_source)
 
 
-def get_data_loader(dataset_file_name, batch_size, augment, max_frames, max_seg_per_spk, nDataLoaderThread,
+def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
+                    rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
                     nPerSpeaker, **kwargs):
-    train_dataset = Loader(dataset_file_name, augment, max_frames)
+    train_dataset = Loader(dataset_file_name, augment, musan_path,
+                           rir_path, max_frames, aug_folder='separated')
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
                             max_seg_per_spk, batch_size)
@@ -170,7 +195,16 @@ if __name__ == '__main__':
     parser.add_argument('--max_frames',
                         type=int,
                         default=100,
-                        help='Input length to the network for training')
+                        help='Input length to the network for training, 1s ~ 100 frames')
+    parser.add_argument('--musan_path',
+                        type=str,
+                        default="dataset/augment_data/musan_split",
+                        help='Absolute path to the augment set')
+    parser.add_argument('--rir_path',
+                        type=str,
+                        default="dataset/augment_data/RIRS_NOISES/simulated_rirs",
+                        help='Absolute path to the augment set')
+
     args = parser.parse_args()
     t = time.time()
     train_loader = get_data_loader(args.train_list, **vars(args))

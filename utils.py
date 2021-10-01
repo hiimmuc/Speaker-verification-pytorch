@@ -26,7 +26,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
         [type]: [description]
     '''
     # Maximum audio length
-    # hoplength is 160, winlength is 400 total length  = winlength- hop_length + max_frames*hop_length
+    # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
     max_audio = max_frames * 160 + 240
 
     audio, sample_rate = sf.read(filename)
@@ -42,6 +42,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
         # get 10 of audio and stack together
         startframe = np.linspace(0, audiosize - max_audio, num=num_eval)
     else:
+        # get randomly initial index of frames, not always from 0
         startframe = np.array(
             [np.int64(random.random() * (audiosize - max_audio))])
 
@@ -90,8 +91,6 @@ class AugmentWAV(object):
 
         self.rir_files = glob.glob(os.path.join(
             rir_path, '*/*/*/*.wav'))
-        print(
-            f"Total {len(augment_files)} musan noise files, {len(self.rir_files)} rirs noise files")
 
     def additive_noise(self, noisecat, audio):
         clean_db = 10 * np.log10(np.mean(audio ** 2) + 1e-4)
@@ -117,7 +116,7 @@ class AugmentWAV(object):
     def reverberate(self, audio):
         rir_file = random.choice(self.rir_files)
 
-        rir, fs = sf.read(rir_file)
+        rir, _ = sf.read(rir_file)
         rir = np.expand_dims(rir.astype(np.float), 0)
         rir = rir / np.sqrt(np.sum(rir ** 2))
         aug_audio = signal.convolve(audio, rir, mode='full')[

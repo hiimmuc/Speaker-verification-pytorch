@@ -15,7 +15,7 @@ from utils import *
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, args, model, optimizer, callbacks, trainfunc, device, **kwargs):
+    def __init__(self, args, model, optimizer, callbacks, criterion, device, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
         self.args = args
@@ -25,7 +25,7 @@ class SpeakerNet(nn.Module):
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
 
         LossFunction = importlib.import_module(
-            'losses.' + trainfunc).__getattribute__('LossFunction')
+            'losses.' + criterion).__getattribute__('LossFunction')
         self.__L__ = LossFunction(**kwargs).to(self.device)
 
         Optimizer = importlib.import_module(
