@@ -90,7 +90,7 @@ class AugmentWAV(object):
             self.noiselist[file.split('/')[-4]].append(file)
 
         self.rir_files = glob.glob(os.path.join(
-            rir_path, '*/*/*/*.wav'))
+            rir_path, '*/*/*.wav'))
 
     def additive_noise(self, noisecat, audio):
         clean_db = 10 * np.log10(np.mean(audio ** 2) + 1e-4)

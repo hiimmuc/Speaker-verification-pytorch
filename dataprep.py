@@ -157,7 +157,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=cfg.mfcc_config.max
 
     aug_rate = args.aug_rate
     musan_path = Path(args.augment_path, 'musan_split')
-    rir_path = Path(args.augment_path, 'RIRS_NOISES')
+    rir_path = Path(args.augment_path, 'RIRS_NOISES/simulated_rirs')
     print('Start augmenting data with', musan_path, 'and', rir_path)
 
     if mode == 'train':
