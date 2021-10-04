@@ -1,3 +1,0 @@
-1. code for new backbone rep vgg, bỏ phần attention đi có khi chạy
-
-2. thêm phần x.get_device() để lấy device rồi cho vào cuda(device=device)
