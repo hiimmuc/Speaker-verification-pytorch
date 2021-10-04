@@ -55,7 +55,7 @@ def frame_generator(frame_duration_ms, audio, sample_rate):
         offset += n
 
 def vad_collector(sample_rate, frame_duration_ms,
-                  padding_duration_ms, vad, frames):
+                  padding_duration_ms, vad, frames, show=False):
     """Filters out non-voiced audio frames.
     Given a webrtcvad.Vad and a source of audio frames, yields only
     the voiced audio.
@@ -85,8 +85,8 @@ def vad_collector(sample_rate, frame_duration_ms,
     voiced_frames = []
     for frame in frames:
         is_speech = vad.is_speech(frame.bytes, sample_rate)
-
-#         sys.stdout.write('1' if is_speech else '0')
+        if show:
+            sys.stdout.write('1' if is_speech else '_')
         if not triggered:
             ring_buffer.append((frame, is_speech))
             num_voiced = len([f for f, speech in ring_buffer if speech])
@@ -95,7 +95,8 @@ def vad_collector(sample_rate, frame_duration_ms,
             # TRIGGERED state.
             if num_voiced > 0.9 * ring_buffer.maxlen:
                 triggered = True
-#                 sys.stdout.write('+(%s)' % (ring_buffer[0][0].timestamp,))
+                if show:
+                    sys.stdout.write('+(%s)' % (ring_buffer[0][0].timestamp,))
                 # We want to yield all the audio we see from now until
                 # we are NOTTRIGGERED, but we have to start with the
                 # audio that's already in the ring buffer.
@@ -112,39 +113,40 @@ def vad_collector(sample_rate, frame_duration_ms,
             # unvoiced, then enter NOTTRIGGERED and yield whatever
             # audio we've collected.
             if num_unvoiced > 0.9 * ring_buffer.maxlen:
-#                 sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+                if show:
+                    sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+                    
                 triggered = False
                 yield b''.join([f.bytes for f in voiced_frames])
                 ring_buffer.clear()
                 voiced_frames = []
     if triggered:
-#         sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
-        pass
-#     sys.stdout.write('\n')
+        if show:
+            sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+    if show:
+        sys.stdout.write('\n')
     # If we have any leftover voiced audio when we run out of input,
     # yield it.
     if voiced_frames:
         yield b''.join([f.bytes for f in voiced_frames])
 
 def main(args):
+    """for running on  terminal only"""
     if len(args) != 2:
         sys.stderr.write(
             'Usage: example.py <aggressiveness> <path to wav file>\n')
         sys.exit(1)
     audio, sample_rate = read_wave(args[1])
-#     print(audio.shape)
     vad = webrtcvad.Vad(int(args[0]))
     frames = frame_generator(30, audio, sample_rate)
-#     print(frames.shape)
     frames = list(frames)
     segments = vad_collector(sample_rate, 30, 300, vad, frames)
     for i, segment in enumerate(segments):
         path = 'chunk-%002d.wav' % (i,)
         print(' Writing %s' % (path,))
-#         print(segment.shape)
         write_wave(path, segment, sample_rate)
 
-def vad_transform(audio_path, mode=3, frame_duration=30, win_length=300, write=True):
+def vad_transform(audio_path, mode=3, frame_duration=30, win_length=300, write=True, show=False):
     if not os.path.exists(audio_path):
         raise "Path is not existed"
     audio, sample_rate = read_wave(audio_path)
@@ -153,7 +155,7 @@ def vad_transform(audio_path, mode=3, frame_duration=30, win_length=300, write=T
     frames = frame_generator(frame_duration, audio, sample_rate)
     frames = list(frames)
     
-    segments = vad_collector(sample_rate, frame_duration, win_length, vad, frames)
+    segments = vad_collector(sample_rate, frame_duration, win_length, vad, frames, show=show)
     
     if write:
         for i, segment in enumerate(segments):
@@ -178,11 +180,11 @@ def perform_vad():
     
     for audio_path in tqdm(raw_paths):
         vad_transform(audio_path, frame_duration=30,win_length=400)
-    print("done!")
+    print("Done!")
     pass
 
 if __name__ == '__main__':
     # ex: python vad.py 1 path_to_wav_file.wav
     path = str("dataset/wavs/716-M-35/716-15.wav")
-    perform_vad()
+    vad_transform(path, frame_duration=30,win_length=400, show=True)
 
