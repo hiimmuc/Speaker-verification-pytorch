@@ -19,8 +19,9 @@ class MultiSimilarityLoss(nn.Module):
         self.scale_neg = 50
         self.hard_mining = True
 
-    def forward(self, inputs_col, targets_col, inputs_row, target_row):
+    def forward(self, feats, labels):
         batch_size = inputs_col.size(0)
+        inputs_col, targets_col, inputs_row, target_row = feats, labels, feats, labels
         sim_mat = torch.matmul(inputs_col, inputs_row.t())
 
         epsilon = 1e-5
