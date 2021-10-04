@@ -4,8 +4,8 @@ import sys
 import wave
 import soundfile as sf
 import os
-from tqdm import tqdm
-import glob
+import numpy as np
+
 import webrtcvad
 
 def read_wave(path):
@@ -144,21 +144,27 @@ def main(args):
 #         print(segment.shape)
         write_wave(path, segment, sample_rate)
 
-def vad_transform(audio_path, mode=3, frame_duration=25, win_length=400):
+def vad_transform(audio_path, mode=3, frame_duration=30, win_length=300, write=True):
     if not os.path.exists(audio_path):
         raise "Path is not existed"
     audio, sample_rate = read_wave(audio_path)
-
     vad = webrtcvad.Vad(int(mode))
     
     frames = frame_generator(frame_duration, audio, sample_rate)
     frames = list(frames)
     
     segments = vad_collector(sample_rate, frame_duration, win_length, vad, frames)
-    for i, segment in enumerate(segments):
-        path = f"{audio_path.replace('.wav', '')}_vad_{i}.wav"
-        write_wave(path, segment, sample_rate)
+    
+    if write:
+        for i, segment in enumerate(segments):
+            path = f"{audio_path.replace('.wav', '')}_vad_{i}.wav"
+            write_wave(path, segment, sample_rate)
+            
+    segments= [np.frombuffer(seg) for seg in segments]
+    return segments
 
+from tqdm import tqdm
+import glob
 def perform_vad():
     raw_data_dir = "dataset/wavs"
 
@@ -171,13 +177,12 @@ def perform_vad():
         filter(lambda x: 'augment' not in str(x) and 'vad' not in str(x), data_paths))
     
     for audio_path in tqdm(raw_paths):
-        vad_transform(audio_path, frame_duration=30,win_length=300)
+        vad_transform(audio_path, frame_duration=30,win_length=400)
     print("done!")
     pass
 
 if __name__ == '__main__':
     # ex: python vad.py 1 path_to_wav_file.wav
     path = str("dataset/wavs/716-M-35/716-15.wav")
-#     print(path)
     perform_vad()
 
