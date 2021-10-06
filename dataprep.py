@@ -475,7 +475,30 @@ class DataGenerator():
         data = feat_extract_engine.process_raw_dataset()
         feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
 
+def restore_dataset(raw_dataset):
+    raw_data_dir = raw_dataset
 
+    data_paths = []
+    for fdir in os.listdir(raw_data_dir):
+        data_paths.extend(
+            glob.glob(os.path.join(raw_data_dir, f'{fdir}/*.wav')))
+
+    raw_paths = list(
+        filter(lambda x: 'augment' not in str(x) and 'vad' not in str(x), data_paths))
+    extended_paths = list(filter(lambda x: x not in raw_paths, data_paths))
+    augment_paths = list(filter(lambda x: 'augmented' in str(x), data_paths))
+    vad_paths = list(filter(lambda x: 'vad' in str(x), data_paths))
+    
+    print(len(raw_paths), '/', len(extended_paths))
+    print(len(augment_paths), '/', len(vad_paths))
+    
+    for audio_path in tqdm(extended_paths):
+        if os.path.isfile(audio_path):
+            os.remove(audio_path)
+            pass
+        else:
+            pass
+        
 parser = argparse.ArgumentParser(description="Data preparation")
 if __name__ == '__main__':
     parser.add_argument('--save_dir',
