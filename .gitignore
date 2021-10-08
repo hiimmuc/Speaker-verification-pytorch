@@ -6,4 +6,4 @@ exp/
 dataset/
 venv/
 .venv/
-temp.py
+dumpscript.py
