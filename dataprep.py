@@ -19,7 +19,6 @@ from scipy.io import wavfile
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
-import config as cfg
 from utils import *
 
 
@@ -148,7 +147,7 @@ def prepare_augmentation(args):
         raise "Raw dataset is empty"
 
 
-def augmentation(args, audio_paths, mode='train', max_frames=cfg.mfcc_config.max_samples, step_save=500):
+def augmentation(args, audio_paths, mode='train', max_frames=100, step_save=500):
     """
     Perfrom augmentation on the raw dataset
     """
@@ -262,7 +261,6 @@ def clean_dump_files(args):
 
 class FeatureExtraction:
     def __init__(self, args):
-        self.config = cfg.mfcc_config
         self.data_files = []
         self.args = args
         self.save_dir = args.save_dir
@@ -292,15 +290,15 @@ class FeatureExtraction:
         try:
 
             audio, sample_rate = librosa.load(
-                audio_path, sr=self.config.sampling_rate)
+                audio_path, sr=16000)
             y = audio
 
             # calculate by avg time length / time overlap - 1 for st :v
-            max_pad_length = self.config.max_pad_length
-            win_length = self.config.max_pad_length
-            n_fft = self.config.n_fft
-            hop_length = self.config.hop_length
-            n_mels = self.config.n_mels
+            max_pad_length = 400
+            win_length = 400
+            n_fft = 512
+            hop_length = 160
+            n_mels = 64
             window = scipy.signal.hamming(win_length, sym=False)
 
             mfccs = librosa.feature.melspectrogram(y=y, sr=sample_rate,
@@ -317,7 +315,7 @@ class FeatureExtraction:
 
         except Exception as e:
             print("Error encountered while parsing file: ", e)
-            return None, self.config.sampling_rate
+            return None, 0
         return mfccs, sample_rate
 
     def process_raw_dataset(self):
@@ -475,6 +473,7 @@ class DataGenerator():
         data = feat_extract_engine.process_raw_dataset()
         feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
 
+
 def restore_dataset(raw_dataset):
     raw_data_dir = raw_dataset
 
@@ -488,17 +487,18 @@ def restore_dataset(raw_dataset):
     extended_paths = list(filter(lambda x: x not in raw_paths, data_paths))
     augment_paths = list(filter(lambda x: 'augmented' in str(x), data_paths))
     vad_paths = list(filter(lambda x: 'vad' in str(x), data_paths))
-    
+
     print(len(raw_paths), '/', len(extended_paths))
     print(len(augment_paths), '/', len(vad_paths))
-    
+
     for audio_path in tqdm(extended_paths):
         if os.path.isfile(audio_path):
             os.remove(audio_path)
             pass
         else:
             pass
-        
+
+
 parser = argparse.ArgumentParser(description="Data preparation")
 if __name__ == '__main__':
     parser.add_argument('--save_dir',
@@ -527,6 +527,10 @@ if __name__ == '__main__':
                         default=False,
                         action='store_true',
                         help='Enable transformation')
+    parser.add_argument('--restore',
+                        default=False,
+                        action='store_true',
+                        help='Restore dataset to origin(del augment and vad)')
     # augmentation
     parser.add_argument('--augment',
                         default=False,
@@ -559,5 +563,6 @@ if __name__ == '__main__':
         data_generator.generate_lists()
     if args.transform:
         data_generator.transform()
-
+    if args.restore:
+        restore_dataset(args.raw_dataset)
 # TODO: 10 ddiem du lieu bij loi luu tru 10601 -> 10610
