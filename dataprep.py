@@ -499,6 +499,24 @@ def restore_dataset(raw_dataset):
             pass
 
 
+def vad_on_dataset(raw_dataset, save_dir):
+    raw_data_dir = raw_dataset
+    vad_engine = VAD()
+
+    data_paths = []
+    for fdir in os.listdir(raw_data_dir):
+        data_paths.extend(
+            glob.glob(os.path.join(raw_data_dir, f'{fdir}/*.wav')))
+
+    # filters audiopaths
+    raw_paths = list(
+        filter(lambda x: 'augment' not in str(x) and 'vad' not in str(x), data_paths))
+
+    for audio_path in tqdm(raw_paths):
+        vad_engine.detect(audio_path)
+    print("Done!")
+
+
 parser = argparse.ArgumentParser(description="Data preparation")
 if __name__ == '__main__':
     parser.add_argument('--save_dir',
