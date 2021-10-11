@@ -415,6 +415,18 @@ class DataGenerator():
             subprocess.call('mv %s %s' % (outpath, fpath), shell=True)
         print('Done!')
 
+        # rename all files
+        print('Rename all files, Total:', len(files))
+        for f in tqdm(glob.glob('dataset/dataset/*')[:]):
+            audio_files = os.listdir(f)
+            for i, af in enumerate(audio_files):
+                new_name = f"{af.replace('.wav', '').split('-')[0]}_{i}.wav"
+                if os.path.exists(os.path.join(f, new_name)):
+                    continue
+                else:
+                    os.rename(os.path.join(f, af), os.path.join(f, new_name))
+        print('Done!')
+
     def generate_lists(self):
         """
         Generate train test lists for zalo data
