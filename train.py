@@ -6,8 +6,7 @@ import time
 from callbacks.earlyStopping import *
 from dataloader import get_data_loader
 from model import SpeakerNet
-from plot_loss import *
-from utils import tuneThresholdfromScore
+from utils import *
 
 
 def train(args):
