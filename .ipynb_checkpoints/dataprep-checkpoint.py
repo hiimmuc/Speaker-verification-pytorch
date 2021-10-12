@@ -403,8 +403,8 @@ class DataGenerator():
         print('Converting files, Total:', len(files))
         for fpath in tqdm(files):
             fpath = str(fpath).replace('(', '\(')
-            fpath = fpath.replace(')', '\)')
-            outpath = fpath[:-4] + '_conv' + fpath[-4:]
+            fpath = str(Path(fpath.replace(')', '\)')))
+            outpath = str(Path(fpath[:-4] + '_conv' + fpath[-4:]))
             out = subprocess.call(
                 'ffmpeg -y -i %s -ac 1 -vn -acodec pcm_s16le -ar 16000 %s >/dev/null 2>/dev/null'
                 % (fpath, outpath),
@@ -421,6 +421,7 @@ class DataGenerator():
             audio_files = os.listdir(f)
             for i, af in enumerate(audio_files):
                 new_name = f"{af.replace('.wav', '').split('-')[0]}_{i}.wav"
+                # TODO: chinh cho nay theo form id/id_index.wav cho thong nhat
                 if os.path.exists(os.path.join(f, new_name)):
                     continue
                 else:
