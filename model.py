@@ -348,11 +348,16 @@ class SpeakerNet(nn.Module):
             for idx, pair in enumerate(pairs):
                 t0 = time.time()
 
-                score = self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
+                score = self.pair_test(pair[0], pair[1],
+                                       eval_frames,
+                                       num_eval,
+                                       data_root,
+                                       scoring_mode,
+                                       cohorts)
 
                 pred_time = time.time() - t0
                 pred_time_list.append(pred_time)
-                
+
                 pred = '1' if score >= thre_score else '0'
 
                 spamwriter.writerow([pair[0], pair[1], pred, pred_time])
@@ -365,7 +370,7 @@ class SpeakerNet(nn.Module):
         print('Done, avg pred time:', np.mean(pred_time_list))
         print('\n')
 
-    def pair_test(self, audio_1, audio_2, scoring_mode=='norm', cohorts=None):
+    def pair_test(self, audio_1, audio_2, eval_frames, num_eval, data_root, scoring_mode='norm', cohorts=None):
         assert isinstance(audio_1, str)
         assert isinstance(audio_2, str)
 
@@ -384,7 +389,7 @@ class SpeakerNet(nn.Module):
             ref_feat = F.normalize(ref_feat, p=2, dim=1)
             com_feat = F.normalize(com_feat, p=2, dim=1)
 
-        if cohorts_path is None:
+        if cohorts is None:
             dist = F.pairwise_distance(
                 ref_feat.unsqueeze(-1),
                 com_feat.unsqueeze(-1).transpose(
@@ -544,7 +549,7 @@ class SpeakerNet(nn.Module):
     def export_onnx(self, state_path, check=True):
         save_root = self.args.save_path + f"/{self.args.model}/model"
         save_path = os.path.join(save_root, f"model_{self.args.model}.onnx")
-        
+
         input_names = ["input"]
         output_names = ["output"]
         dummy_input = torch.randn(16240, 1)
@@ -553,21 +558,21 @@ class SpeakerNet(nn.Module):
         self.__S__.eval()
 
         torch.onnx.export(self.__S__,
-                        dummy_input,
-                        save_path,
-                        verbose=False,
-                        input_names=input_names,
-                        output_names=output_names,
-                        export_params=True)
+                          dummy_input,
+                          save_path,
+                          verbose=False,
+                          input_names=input_names,
+                          output_names=output_names,
+                          export_params=True)
 
         # double check
         if os.path.exists(save_path) and check:
             model = onnx.load(save_path)
             onnx.checker.check_model(model)
             onnx.helper.printable_graph(model.graph)
-            
+
     def onnx_inference(self, model_path, inp):
         onnx_session = onnxrt.InferenceSession(model_path)
-        onnx_inputs = {onnx_session.get_inputs()[0].name:torch.to_numpy(inp)}
+        onnx_inputs = {onnx_session.get_inputs()[0].name: torch.to_numpy(inp)}
         onnx_output = onnx_session.run(None, onnx_inputs)
         return onnx_output

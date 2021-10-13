@@ -7,3 +7,6 @@ dataset/
 venv/
 .venv/
 dumpscript.py
+.idea/
+.ipynb_checkpoints/
+*.ipynb
