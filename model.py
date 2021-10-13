@@ -346,10 +346,13 @@ class SpeakerNet(nn.Module):
             for idx, pair in enumerate(pairs):
                 t0 = time.time()
 
-                score, pred = self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
+                score = self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
 
                 pred_time = time.time() - t0
                 pred_time_list.append(pred_time)
+                
+                pred = '1' if score >= thre_score else '0'
+
                 spamwriter.writerow([pair[0], pair[1], pred, pred_time])
 
                 if idx % print_interval == 0:
@@ -394,8 +397,7 @@ class SpeakerNet(nn.Module):
             elif scoring_mode == 'cosine':
                 score = cosine_simialrity(ref_feat, com_feat)
 
-        pred = '1' if score >= thre_score else '0'
-        return score, pred
+        return score
 
     def prepare(self,
                 from_path='../data/test',
