@@ -10,3 +10,4 @@ dumpscript.py
 .idea/
 .ipynb_checkpoints/
 *.ipynb
+error.txt

@@ -237,10 +237,12 @@ def clean_dump_files(args):
     """check whether the structure is not correct"""
     data_files = []
     raw_path = args.raw_dataset
+    
     with open(os.path.join(args.save_dir, 'data_folders.txt'), 'r') as f:
         data_files = f.readlines()
         data_files = list(
             map(lambda x: x.replace('\n', ''), data_files))
+        
     for path in tqdm(data_files):
         for invalid in os.listdir(path):
             path_invalid = os.path.join(path, invalid)
@@ -254,6 +256,7 @@ def clean_dump_files(args):
                     if os.path.isdir(os.path.join(raw_path, invalid)):
                         for audio in os.listdir(path_invalid):
                             if audio not in os.listdir(os.path.join(raw_path, invalid)):
+                                audio = audio.replace('.wav', '') +'_add_'+'.wav'
                                 shutil.move(src=os.path.join(path_invalid, audio),
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
@@ -415,18 +418,18 @@ class DataGenerator():
             subprocess.call('mv %s %s' % (outpath, fpath), shell=True)
         print('Done!')
 
-        # rename all files
-        print('Rename all files, Total:', len(files))
-        for f in tqdm(glob.glob('dataset/dataset/*')[:]):
-            audio_files = os.listdir(f)
-            for i, af in enumerate(audio_files):
-                new_name = f"{af.replace('.wav', '').split('-')[0]}_{i}.wav"
-                # TODO: chinh cho nay theo form id/id_index.wav cho thong nhat
-                if os.path.exists(os.path.join(f, new_name)):
-                    continue
-                else:
-                    os.rename(os.path.join(f, af), os.path.join(f, new_name))
-        print('Done!')
+        # # rename all files
+        # print('Rename all files, Total:', len(files))
+        # for f in tqdm(glob.glob('dataset/dataset/*')[:]):
+        #     audio_files = os.listdir(f)
+        #     for i, af in enumerate(audio_files):
+        #         new_name = f"{af.replace('.wav', '').split('-')[0]}_{i}.wav"
+        #         # TODO: chinh cho nay theo form id/id_index.wav cho thong nhat
+        #         if os.path.exists(os.path.join(f, new_name)):
+        #             continue
+        #         else:
+        #             os.rename(os.path.join(f, af), os.path.join(f, new_name))
+        # print('Done!')
 
     def generate_lists(self):
         """
