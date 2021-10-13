@@ -346,7 +346,7 @@ class SpeakerNet(nn.Module):
             for idx, pair in enumerate(pairs):
                 t0 = time.time()
 
-                self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
+                score, pred = self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
 
                 pred_time = time.time() - t0
                 pred_time_list.append(pred_time)
