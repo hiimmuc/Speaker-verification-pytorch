@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 
 import numpy as np
+import onnx
+import onnxruntime as onnxrt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -538,3 +540,34 @@ class SpeakerNet(nn.Module):
                 continue
 
             self_state[name].copy_(param)
+
+    def export_onnx(self, state_path, check=True):
+        save_root = self.args.save_path + f"/{self.args.model}/model"
+        save_path = os.path.join(save_root, f"model_{self.args.model}.onnx")
+        
+        input_names = ["input"]
+        output_names = ["output"]
+        dummy_input = torch.randn(16240, 1)
+
+        self.loadParameters(state_path)
+        self.__S__.eval()
+
+        torch.onnx.export(self.__S__,
+                        dummy_input,
+                        save_path,
+                        verbose=False,
+                        input_names=input_names,
+                        output_names=output_names,
+                        export_params=True)
+
+        # double check
+        if os.path.exists(save_path) and check:
+            model = onnx.load(save_path)
+            onnx.checker.check_model(model)
+            onnx.helper.printable_graph(model.graph)
+            
+    def onnx_inference(self, model_path, inp):
+        onnx_session = onnxrt.InferenceSession(model_path)
+        onnx_inputs = {onnx_session.get_inputs()[0].name:torch.to_numpy(inp)}
+        onnx_output = onnx_session.run(None, onnx_inputs)
+        return onnx_output
