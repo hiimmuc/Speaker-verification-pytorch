@@ -345,37 +345,8 @@ class SpeakerNet(nn.Module):
 
             for idx, pair in enumerate(pairs):
                 t0 = time.time()
-                path_ref = Path(data_root, pair[0])
-                path_com = Path(data_root, pair[1])
-                ref_feat = self.embed_utterance(path_ref,
-                                                eval_frames=eval_frames,
-                                                num_eval=num_eval,
-                                                normalize=False).detach().cpu().to(self.device)
-                com_feat = self.embed_utterance(path_com,
-                                                eval_frames=eval_frames,
-                                                num_eval=num_eval,
-                                                normalize=False).detach().cpu().to(self.device)
 
-                if self.__L__.test_normalize:
-                    ref_feat = F.normalize(ref_feat, p=2, dim=1)
-                    com_feat = F.normalize(com_feat, p=2, dim=1)
-
-                if cohorts_path is None:
-                    dist = F.pairwise_distance(
-                        ref_feat.unsqueeze(-1),
-                        com_feat.unsqueeze(-1).transpose(
-                            0, 2)).detach().cpu().numpy()
-                    score = -1 * np.mean(dist)
-                else:
-                    if scoring_mode == 'norm':
-                        score = score_normalization(ref_feat,
-                                                    com_feat,
-                                                    cohorts,
-                                                    top=200)
-                    elif scoring_mode == 'cosine':
-                        score = cosine_simialrity(ref_feat, com_feat)
-
-                pred = '1' if score >= thre_score else '0'
+                self.pair_test(pair[0], pair[1], scoring_mode, cohorts)
 
                 pred_time = time.time() - t0
                 pred_time_list.append(pred_time)
@@ -388,6 +359,43 @@ class SpeakerNet(nn.Module):
                     sys.stdout.flush()
         print('Done, avg pred time:', np.mean(pred_time_list))
         print('\n')
+
+    def pair_test(self, audio_1, audio_2, scoring_mode=='norm', cohorts=None):
+        assert isinstance(audio_1, str)
+        assert isinstance(audio_2, str)
+
+        path_ref = Path(data_root, audio_1)
+        path_com = Path(data_root, audio_2)
+        ref_feat = self.embed_utterance(path_ref,
+                                        eval_frames=eval_frames,
+                                        num_eval=num_eval,
+                                        normalize=False).detach().cpu().to(self.device)
+        com_feat = self.embed_utterance(path_com,
+                                        eval_frames=eval_frames,
+                                        num_eval=num_eval,
+                                        normalize=False).detach().cpu().to(self.device)
+
+        if self.__L__.test_normalize:
+            ref_feat = F.normalize(ref_feat, p=2, dim=1)
+            com_feat = F.normalize(com_feat, p=2, dim=1)
+
+        if cohorts_path is None:
+            dist = F.pairwise_distance(
+                ref_feat.unsqueeze(-1),
+                com_feat.unsqueeze(-1).transpose(
+                    0, 2)).detach().cpu().numpy()
+            score = -1 * np.mean(dist)
+        else:
+            if scoring_mode == 'norm':
+                score = score_normalization(ref_feat,
+                                            com_feat,
+                                            cohorts,
+                                            top=200)
+            elif scoring_mode == 'cosine':
+                score = cosine_simialrity(ref_feat, com_feat)
+
+        pred = '1' if score >= thre_score else '0'
+        return score, pred
 
     def prepare(self,
                 from_path='../data/test',
