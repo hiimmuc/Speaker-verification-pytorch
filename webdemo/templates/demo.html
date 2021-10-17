@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <div align="center">
+        <title>Final Project</title>
+    </div>
+    <style>
+        article,
+        aside,
+        figure,
+        footer,
+        header,
+        hgroup,
+        menu,
+        nav,
+        section {
+            display: block;
+        }
+    </style>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"> </script>
+  <script type="text/x-mathjax-config">
+   MathJax.Hub.Config({
+      tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },
+      "HTML-CSS": {
+        linebreaks: { automatic: true, width: "container" }          
+      }              
+   });
+</script>
+</head>
+
+<body>
+    <style>
+        body {
+            background-image: url('https://media.istockphoto.com/vectors/biometric-voice-recognition-vector-id483768989?k=20&m=483768989&s=612x612&w=0&h=ye6FGQ9MXUfKEpolYcJmRTBtmBxfW4WMjcDLrFC3r8o=');
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: 100% 100%;
+        }
+    </style>
+    <p>\
+    <nav>
+    </nav>
+    </p>
+    <div align="center" style="background:rgb(61, 59, 59); width: 600px; height: 600px; margin: 0 auto">
+        <strong>
+            <nav>
+                <h1>User voice verification demo</h1>
+            </nav>
+        </strong>
+        <form method="post" action="/" enctype="multipart/form-data">
+            <dl>
+                <p><label for="com" style="cursor: pointer;">Voice 1</label></p>
+                <p><input type="file" name="com" autocomplete="off" required></p>
+                <p><img id="output" width="200" /></p>
+                <input type="submit" value="add">
+            </dl>
+            <br></br>
+            <dl>
+                <p><label for="ref" style="cursor: pointer;">Voice 2</label></p>
+                <p><input type="file" name="ref" autocomplete="off" required></p>
+                <p><img id="output" width="200" /></p>
+                <input type="submit" value="add">
+            </dl>
+            <!-- calculate button -->
+            <p>
+                <input type="submit" value="Compare">
+            </p>
+
+            <p style="background-color: rgb(32, 60, 85); width: 200px; height: 50px; margin: 0 auto">%if result %</p>
+            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">%if inference_time %</p>
+
+            
+        </form>
+    </div>
+</body>
+
+</html>

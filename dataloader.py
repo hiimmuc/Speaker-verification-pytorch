@@ -61,7 +61,7 @@ class Loader(Dataset):
         for index in indices:
             # Load audio
             audio_file = self.data_list[index]
-            if self.augment and self.aug_folder == 'together':  # if aug audio files and raw audio files is in the same folder
+            if self.augment and self.aug_folder == 'offline':  # if aug audio files and raw audio files is in the same folder
                 aug_type = random.randint(0, 4)
                 if aug_type == 0:
                     pass
@@ -71,7 +71,7 @@ class Loader(Dataset):
 
             audio = loadWAV(audio_file, self.max_frames, evalmode=False)
 
-            if self.augment and self.aug_folder == 'separated':  # if exists augmented folder(30GB) separately
+            if self.augment and self.aug_folder == 'online':  # if exists augmented folder(30GB) separately
                 augtype = random.randint(0, 4)
                 if augtype == 1:
                     audio = self.augment_engine.reverberate(audio)
@@ -146,7 +146,7 @@ def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
                     rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
                     nPerSpeaker, **kwargs):
     train_dataset = Loader(dataset_file_name, augment, musan_path,
-                           rir_path, max_frames, aug_folder='separated')
+                           rir_path, max_frames, aug_folder='online')
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
                             max_seg_per_spk, batch_size)
