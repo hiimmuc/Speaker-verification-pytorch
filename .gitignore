@@ -10,4 +10,5 @@ dumpscript.py
 .idea/
 .ipynb_checkpoints/
 *.ipynb
+*.zip
 error.txt
