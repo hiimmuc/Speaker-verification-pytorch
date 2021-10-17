@@ -11,4 +11,5 @@ dumpscript.py
 .ipynb_checkpoints/
 *.ipynb
 *.zip
+*.db
 error.txt
