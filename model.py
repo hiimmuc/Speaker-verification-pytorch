@@ -17,13 +17,15 @@ from utils import *
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, args, model, optimizer, callbacks, criterion, device, **kwargs):
+    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
-        self.args = args
+        self.save_path = save_path
+        self.model_name = model
+        self.max_epoch = max_epoch
 
         SpeakerNetModel = importlib.import_module(
-            'models.' + model).__getattribute__('MainModel')
+            'models.' + self.model_name).__getattribute__('MainModel')
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
 
         LossFunction = importlib.import_module(
@@ -87,7 +89,7 @@ class SpeakerNet(nn.Module):
             tstart = time.time()
 
             sys.stdout.write(
-                f"\rEpoch [{epoch}/{self.args.max_epoch}] - Processing ({index}) :")
+                f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}) :")
             sys.stdout.write(
                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
                 (loss / counter, top1 / counter, stepsize / telapsed))
@@ -230,7 +232,7 @@ class SpeakerNet(nn.Module):
         cohorts = None
         if cohorts_path is not None:
             cohorts = np.load(cohorts_path)
-        save_root = self.args.save_path + f"/{self.args.model}/result"
+        save_root = self.save_path + f"/{self.model}/result"
 
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
@@ -322,7 +324,7 @@ class SpeakerNet(nn.Module):
         cohorts = np.load(cohorts_path)
 
         # Read all lines
-        save_root = self.args.save_path + f"/{self.args.model}/result"
+        save_root = self.save_path + f"/{self.model}/result"
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
         write_file = Path(save_root, 'submission_pair_test.csv')
@@ -525,7 +527,7 @@ class SpeakerNet(nn.Module):
 
     def loadParameters(self, path):
         self_state = self.state_dict()
-        if self.device == 'cpu':
+        if self.device == torch.device('cpu'):
             loaded_state = torch.load(path, map_location=torch.device('cpu'))
         else:
             loaded_state = torch.load(path)
@@ -547,12 +549,15 @@ class SpeakerNet(nn.Module):
             self_state[name].copy_(param)
 
     def export_onnx(self, state_path, check=True):
-        save_root = self.args.save_path + f"/{self.args.model}/model"
-        save_path = os.path.join(save_root, f"model_{self.args.model}.onnx")
+        save_root = self.save_path + f"/{self.model}/model"
+        save_path = os.path.join(save_root, f"model_{self.model}.onnx")
 
         input_names = ["input"]
         output_names = ["output"]
-        dummy_input = torch.randn(16240, 1)
+        # NOTE: because using torch.audio -> cant export onnx
+        dummy_input = torch.FloatTensor(
+            loadWAV(r"dataset\wavs\5-F-27\5-3.wav", 100, evalmode=True,
+                    num_eval=10)).to(self.device)
 
         self.loadParameters(state_path)
         self.__S__.eval()

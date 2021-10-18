@@ -187,3 +187,6 @@ def inference(args):
         print(f'same_smallest_score: {same_smallest_score}')
         print(f'diff_biggest_score: {diff_biggest_score}')
         sys.exit(1)
+    # export onnx
+    if args.export:
+        model.export_onnx(chosen_model_state)

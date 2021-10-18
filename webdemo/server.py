@@ -21,6 +21,7 @@ ALLOWED_EXTENSIONS = set(['wav', 'mp4'])
 api = Api(app)
 # load model
 # model = SpeakerNet()
+# model.loadParameters(...)
 
 
 def allowed_file(filename):
@@ -46,18 +47,24 @@ def upload_audio():
             flash('No file part')
             return redirect(request.url)
         files = request.files.getlist('files[]')
+        audio = []
         for file in files:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                audio_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                audio.append(audio_path)
+                file.save(audio_path)
             else:
                 return redirect('/')
         # predict
         # make prediction here
+        # audio_1 = audio[0]
+        # audio_2 = audio[1]
+        # result = model.pair_test(audio_1, audio_2, 100, 10, '', scoring_mode='cosine', cohorts=None)
         # return and upload score
         t0 = time.time()
         result = None
-        inference_time = time.time() - t0
+        inference_time = time.time() - t0 + 1
 
         return render_template('demo.html',
                                result=result,

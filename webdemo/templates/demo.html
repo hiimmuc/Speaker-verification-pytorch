@@ -62,10 +62,10 @@
             </p>
             </p>
             {%if result %}
-            <p style="background-color: rgb(32, 60, 85); width: 200px; height: 50px; margin: 0 auto">result</p>
+            <p style="background-color: rgb(32, 60, 85); width: 200px; height: 50px; margin: 0 auto">Matching: {{result|safe}}</p>
             {% endif %}
             {%if inference_time %}
-            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">inference_time</p>
+            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">Inference time: {{inference_time|safe}} seconds</p>
             {% endif %}
             
         </form>

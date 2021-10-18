@@ -15,7 +15,7 @@ def train(args):
     result_save_path = args.save_path + f"/{args.model}/result"
 
     # Load models
-    s = SpeakerNet(args, **vars(args))
+    s = SpeakerNet(**vars(args))
 
     it = 1
     min_loss = float("inf")

@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Training details
     parser.add_argument('--device',
                         type=str,
-                        default="cuda",
+                        default="cpu",
                         help='cuda or cpu')
     parser.add_argument('--test_interval',
                         type=int,
@@ -204,6 +204,10 @@ if __name__ == '__main__':
                         dest='test_by_pair',
                         action='store_true',
                         help='Test only')
+    parser.add_argument('--export',
+                        dest='export',
+                        action='store_true',
+                        help='export onnx format')
 
     # For test only
     parser.add_argument('--initial_model_infer',
