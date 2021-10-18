@@ -44,34 +44,29 @@
     <nav>
     </nav>
     </p>
-    <div align="center" style="background:rgb(61, 59, 59); width: 600px; height: 600px; margin: 0 auto">
+    <div align="center" style="background:rgb(255, 255, 255); width: 600px; height: 400px; margin: 0 auto">
         <strong>
             <nav>
                 <h1>User voice verification demo</h1>
             </nav>
         </strong>
+        <h2>Select 2 audio files to upload</h2>
         <form method="post" action="/" enctype="multipart/form-data">
             <dl>
-                <p><label for="com" style="cursor: pointer;">Voice 1</label></p>
-                <p><input type="file" name="com" autocomplete="off" required></p>
-                <p><img id="output" width="200" /></p>
-                <input type="submit" value="add">
+                <p>
+                    <input type="file" name="files[]" multiple="true" autocomplete="off" required>
+                </p>
             </dl>
-            <br></br>
-            <dl>
-                <p><label for="ref" style="cursor: pointer;">Voice 2</label></p>
-                <p><input type="file" name="ref" autocomplete="off" required></p>
-                <p><img id="output" width="200" /></p>
-                <input type="submit" value="add">
-            </dl>
-            <!-- calculate button -->
             <p>
-                <input type="submit" value="Compare">
+                <input type="submit" value="Submit">
             </p>
-
-            <p style="background-color: rgb(32, 60, 85); width: 200px; height: 50px; margin: 0 auto">%if result %</p>
-            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">%if inference_time %</p>
-
+            </p>
+            {%if result %}
+            <p style="background-color: rgb(32, 60, 85); width: 200px; height: 50px; margin: 0 auto">result</p>
+            {% endif %}
+            {%if inference_time %}
+            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">inference_time</p>
+            {% endif %}
             
         </form>
     </div>

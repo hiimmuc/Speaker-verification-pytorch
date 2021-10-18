@@ -13,3 +13,4 @@ dumpscript.py
 *.zip
 *.db
 error.txt
+*.wav
