@@ -1,4 +1,3 @@
-
 import math
 from collections import OrderedDict
 
@@ -8,12 +7,12 @@ import torch.cuda.amp as amp
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
+from numpy.core.fromnumeric import transpose
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.utils import data
 from torchsummary import summary
 from utils import *
-from utils import PreEmphasis
 
 
 class RawNetBasicBlock(nn.Module):
@@ -89,6 +88,7 @@ class AFMS(nn.Module):
 
         x = x + self.alpha
         x = x * y
+        return x
 
 
 class RawNet2(nn.Module):
@@ -116,7 +116,11 @@ class RawNet2(nn.Module):
         # first layers before residual blocks
         #####
         self.conv1 = nn.Conv1d(
-            in_channels, nb_filters[0], kernel_size=3, stride=3, padding=0
+            in_channels,
+            nb_filters[0],
+            kernel_size=3,
+            stride=3,
+            padding=0
         )
 
         #####
@@ -164,16 +168,16 @@ class RawNet2(nn.Module):
         #####
         # Mel spectrograms
         #####
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
+        # self.instancenorm = nn.InstanceNorm1d(n_mels)
+        # self.torchfb = torch.nn.Sequential(
+        #     PreEmphasis(),
+        #     torchaudio.transforms.MelSpectrogram(
+        #         sample_rate=16000,
+        #         n_fft=512,
+        #         win_length=400,
+        #         hop_length=160,
+        #         window_fn=torch.hamming_window,
+        #         n_mels=n_mels))
 
     def _make_layer(self, block, planes, nb_layer, downsample_all=False):
         if downsample_all:
@@ -193,8 +197,10 @@ class RawNet2(nn.Module):
         #     x = self.torchfb(x) + 1e-6
         #     if self.log_input:
         #         x = x.log()
-        #     # x = self.instancenorm(x)
+        #     x = self.instancenorm(x).unsqueeze(1)
         # print(x.shape)
+
+        x = x.unsqueeze(1)
         #####
         # first layers before residual blocks
         #####
@@ -250,4 +256,4 @@ if __name__ == "__main__":
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
     print("nb_params:{}".format(nb_params))
 
-    summary(model, (16240, ), device=torch.device("cpu"))
+    summary(model, (16240,), batch_size=128)
