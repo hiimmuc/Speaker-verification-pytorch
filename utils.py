@@ -4,6 +4,7 @@ import glob
 import os
 import random
 import sys
+import time
 import wave
 from argparse import Namespace
 
@@ -18,7 +19,7 @@ from scipy import signal
 from sklearn import metrics
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, vad_on=False):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -34,8 +35,12 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     # Maximum audio length
     # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
     max_audio = max_frames * 160 + 240
-
-    audio, sample_rate = sf.read(filename)
+    if vad_on:
+        segments = VAD(frame_duration=30, win_length=100).detect(filename, write=False)
+        audio = np.concatenate(segments)
+        sample_rate = sr
+    else:
+        audio, sample_rate = sf.read(filename)
 
     audiosize = audio.shape[0]
 
@@ -454,7 +459,13 @@ def plot_from_file(model, show=False):
 
 if __name__ == '__main__':
     path = r'dataset\wavs\504-F-25\504-F-25.wav'
-    vad_engine = VAD()
-    vad_engine.detect(path, write=False, show=True)
+    t = time.time()
+    # vad_engine = VAD()
+    segments = VAD(win_length=100).detect(path, write=False, show=False)
+    # print(sum([len(seg) for seg in segments]))
+    audio = np.concatenate(segments)
+    print(audio.shape, time.time() - t)
 
-    pass
+    t0 = time.time()
+    audio2 = sf.read(path)[0]
+    print(audio2.shape, time.time() - t0)

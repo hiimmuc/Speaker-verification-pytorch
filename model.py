@@ -391,20 +391,13 @@ class SpeakerNet(nn.Module):
             ref_feat = F.normalize(ref_feat, p=2, dim=1)
             com_feat = F.normalize(com_feat, p=2, dim=1)
 
-        if cohorts is None:
-            dist = F.pairwise_distance(
-                ref_feat.unsqueeze(-1),
-                com_feat.unsqueeze(-1).transpose(
-                    0, 2)).detach().cpu().numpy()
-            score = -1 * np.mean(dist)
-        else:
-            if scoring_mode == 'norm':
-                score = score_normalization(ref_feat,
-                                            com_feat,
-                                            cohorts,
-                                            top=200)
-            elif scoring_mode == 'cosine':
-                score = cosine_simialrity(ref_feat, com_feat)
+        if scoring_mode == 'norm':
+            score = score_normalization(ref_feat,
+                                        com_feat,
+                                        cohorts,
+                                        top=200)
+        elif scoring_mode == 'cosine':
+            score = cosine_simialrity(ref_feat, com_feat)
 
         return score
 
@@ -515,7 +508,7 @@ class SpeakerNet(nn.Module):
         """
         inp = torch.FloatTensor(
             loadWAV(fpath, eval_frames, evalmode=True,
-                    num_eval=num_eval)).to(self.device)
+                    num_eval=num_eval, vad_on=False)).to(self.device)
         with torch.no_grad():
             embed = self.__S__.forward(inp)
         if normalize:
