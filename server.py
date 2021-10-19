@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, url_for)
 from flask_restful import Api, Resource
-from sqlalchemy import create_engine
+# from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 
 from config import ModelParams as pr
@@ -23,7 +23,7 @@ api = Api(app)
 
 # load model
 
-model_path = r'exp\ResNetSE34V2\model\best_state.model'
+model_path = str(Path('exp/ResNetSE34V2/model/best_state.model'))
 kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95}
