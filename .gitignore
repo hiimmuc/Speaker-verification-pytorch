@@ -13,4 +13,5 @@ dumpscript.py
 *.zip
 *.db
 error.txt
+data_inequality.txt
 *.wav

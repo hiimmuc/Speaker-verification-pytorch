@@ -147,7 +147,7 @@ def prepare_augmentation(args):
         raise "Raw dataset is empty"
 
 
-def augmentation(args, audio_paths, mode='train', max_frames=100, step_save=500):
+def augmentation(args, audio_paths, mode='train', max_frames=400, step_save=500):
     """
     Perfrom augmentation on the raw dataset
     """
@@ -221,8 +221,9 @@ def augmentation(args, audio_paths, mode='train', max_frames=100, step_save=500)
                     roots[i//s + ii], f"{audio_names[i//s + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
 
                 if os.path.exists(save_path):
-                    print(f"overwrite {idx} to id {i//s + ii}")
-                    continue
+                    # print(f"overwrite {idx} to id {i//s + ii}")
+                    os.remove(save_path)
+                    # continue
                 else:
                     os.makedirs(os.path.split(save_path)[0], exist_ok=True)
                 # NOTE: still have error, duplicate files
@@ -237,12 +238,12 @@ def clean_dump_files(args):
     """check whether the structure is not correct"""
     data_files = []
     raw_path = args.raw_dataset
-    
+
     with open(os.path.join(args.save_dir, 'data_folders.txt'), 'r') as f:
         data_files = f.readlines()
         data_files = list(
             map(lambda x: x.replace('\n', ''), data_files))
-        
+
     for path in tqdm(data_files):
         for invalid in os.listdir(path):
             path_invalid = os.path.join(path, invalid)
@@ -256,7 +257,7 @@ def clean_dump_files(args):
                     if os.path.isdir(os.path.join(raw_path, invalid)):
                         for audio in os.listdir(path_invalid):
                             if audio not in os.listdir(os.path.join(raw_path, invalid)):
-                                audio = audio.replace('.wav', '') +'_add_'+'.wav'
+                                audio = audio.replace('.wav', '') + '_add_'+'.wav'
                                 shutil.move(src=os.path.join(path_invalid, audio),
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
