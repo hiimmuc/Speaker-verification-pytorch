@@ -20,21 +20,19 @@
             display: block;
         }
     </style>
-    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"> </script>
-  <script type="text/x-mathjax-config">
-   MathJax.Hub.Config({
-      tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },
-      "HTML-CSS": {
-        linebreaks: { automatic: true, width: "container" }          
-      }              
-   });
-</script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        
+    </script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },"HTML-CSS": {linebreaks: { automatic: true, width: "container" }}});
+    </script>
 </head>
 
 <body>
     <style>
         body {
-            background-image: url('https://camo.githubusercontent.com/0780682dbf97ae96be9029528b1c172413edccb05fb6554cc0920bd424dc2970/68747470733a2f2f63646e2e747467746d656469612e636f6d2f726d732f6f6e6c696e65496d616765732f6d6f62696c655f636f6d707574696e672d6d6f62696c6525323062696f6d6574726963735f30352e706e67');
+            /*background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Logo_Viettel_from_7_January_2021_Slogan.svg/1200px-Logo_Viettel_from_7_January_2021_Slogan.svg.png');*/
+            background-color: rgb(0, 191, 255);
             background-repeat: no-repeat;
             background-attachment: fixed;
             background-size: 100% 100%;
@@ -62,10 +60,11 @@
             </p>
             </p>
             {%if result %}
-            <p style="background-color: rgb(43, 78, 109); width: 200px; height: 80px; margin: 0 auto">Matching: {{matching|safe}}<br></br> score: {{result|safe}}</p>
+            <p style="background-color: rgb(220, 220, 220); width: 200px; height: 80px; margin: 0 auto" font-size: 16px >Matching: {{matching|safe}}<br></br> score: {{result|safe}}</p>
             {% endif %}
+
             {%if inference_time %}
-            <p style="background-color: rgb(70, 107, 139); width: 200px; height: 50px; margin: 0 auto">Inference time: {{inference_time|safe}} seconds</p>
+            <p style="background-color: rgb(200, 200, 200); width: 200px; height: 50px; margin: 0 auto" font-size: 16px>Inference time: {{inference_time|safe}} seconds</p>
             {% endif %}
             
         </form>
