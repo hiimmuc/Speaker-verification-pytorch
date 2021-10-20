@@ -67,7 +67,7 @@ then add the device="cuda:5" to args
                 --criterion amsoftmax \
                 --margin 0.1\
                 --scale 30\
-                --nPerSpeaker 1
+                --nPerSpeaker 1 \
                 --initial_model checkpoints/baseline_v2_ap.model
 ```
 
