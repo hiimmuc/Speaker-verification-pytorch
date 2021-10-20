@@ -1,0 +1,33 @@
+85.95 
+85.2975
+preprocessing process:
+1 filtering noise datapoints by listening all and delete noise
+2 equalize dataset by below method:
+short large : vad
+short small: augment
+long large: xoa bot
+long small: xoa bot
+
+lan 1
+Total files: 10490
+mean number of audio files each folder 26.225
+min and max of number of files: 6 67
+//===================================
+Total size: 1001.893098 MB
+mean duration of audio files each folder 2.388699288368225 MB
+min and max of duration: 1.0664291381835938 5.493934631347656 MB
+//===================================
+greater than mean in number of files: 140
+lower than mean in number of files: 170
+greater than mean in duration: 116
+lower than mean in duration: 196
+//===================================
+long_large: 83
+short_small: 127
+long_small: 57
+short_large: 43
+
+lan 2
+avg 35
+loc nhung spk co duoi avg va lay tu file aug copy sang neu so file thieu > so file trong aug thi lay het aug, lay random
+
