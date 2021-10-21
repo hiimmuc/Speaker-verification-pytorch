@@ -25,12 +25,12 @@ def train(args):
     model_files = glob.glob(os.path.join(model_save_path, 'model_state_*.model'))
     model_files.sort()
 
-    eerfile = glob.glob(os.path.join(model_save_path, 'model_state_*.eer'))
-    eerfile.sort()
+    eerfiles = glob.glob(os.path.join(model_save_path, 'model_state_*.eer'))
+    eerfiles.sort()
 
     # if exists best model load from it
     prev_model_state = None
-    if len(eerfile) > 0:
+    if len(eerfiles) > 0:
         if os.path.exists(f'{model_save_path}/best_state.model'):
             prev_model_state = f'{model_save_path}/best_state.model'
         elif args.save_model_last:
@@ -41,7 +41,7 @@ def train(args):
 
         # get the last stopped iteration, model_state_xxxxxx.eer, so 12 is index of number sequence
         start_it = int(os.path.splitext(
-            os.path.basename(eerfile[-1]))[0][12:]) + 1
+            os.path.basename(eerfiles[-1]))[0][12:]) + 1
 
         if args.max_epoch > start_it:
             it = start_it
@@ -154,6 +154,11 @@ def train(args):
             if early_stopping.early_stop:
                 score_file.close()
                 sys.exit(1)
-
+        
+        # if train from iteration 1, delete all eer checkpoints
+        if it == 1:
+            for f in eerfiles:
+                os.remove(f)
+                   
         it += 1
         print("")

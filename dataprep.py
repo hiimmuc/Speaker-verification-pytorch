@@ -447,16 +447,16 @@ class DataGenerator():
 
             random.shuffle(filepaths)
 
-            non_augment_path = list(
-                filter(lambda x: 'augment' not in str(x), filepaths))
+#             non_augment_path = list(
+#                 filter(lambda x: 'augment' not in str(x), filepaths))
 
             val_num = 3  # 3 utterances per speaker for val
 
             if self.args.split_ratio > 0:
-                val_num = int(self.args.split_ratio * len(non_augment_path))
+                val_num = int(self.args.split_ratio * len(filepaths))
 
-            val_filepaths = non_augment_path[:val_num]
-            train_filepaths = non_augment_path[val_num:]
+            val_filepaths = filepaths[:val_num]
+            train_filepaths = filepaths[val_num:]
 
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])

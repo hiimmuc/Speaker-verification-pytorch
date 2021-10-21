@@ -10,16 +10,15 @@ from tqdm.auto import tqdm
 
 from utils import *
 
-# TODO: add a option to load audio with augmentation, not with the existed ones
-
 
 class Loader(Dataset):
-    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, aug_folder='together'):
+    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, preprocess, aug_folder='offline'):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
         self.augment = augment
-
+        self.apply_preprocess = preprocess
+        
         # augmented folder files
         self.aug_folder = aug_folder
         self.musan_path = musan_path
@@ -87,6 +86,10 @@ class Loader(Dataset):
             feat.append(audio)
 
         feat = np.concatenate(feat, axis=0)
+        
+        # preprocess input with mels    
+        if self.apply_preprocess:
+            feat = mels_spec_preprocess(feat)
 
         return torch.FloatTensor(feat), self.data_label[index]
 
@@ -144,9 +147,9 @@ class Sampler(torch.utils.data.Sampler):
 
 def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
                     rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
-                    nPerSpeaker, **kwargs):
+                    nPerSpeaker, preprocess, **kwargs):
     train_dataset = Loader(dataset_file_name, augment, musan_path,
-                           rir_path, max_frames, aug_folder='online')
+                           rir_path, max_frames, preprocess, aug_folder='online')
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
                             max_seg_per_spk, batch_size)
@@ -178,7 +181,7 @@ if __name__ == '__main__':
                         help='Directory to save files(parent root)')
     parser.add_argument('--batch_size',
                         type=int,
-                        default=128,
+                        default=2,
                         help='Batch size, number of speakers per batch')
     parser.add_argument('--max_seg_per_spk',
                         type=int,
@@ -205,6 +208,11 @@ if __name__ == '__main__':
                         default="dataset/augment_data/RIRS_NOISES/simulated_rirs",
                         help='Absolute path to the augment set')
 
+    parser.add_argument('--preprocess',
+                        action='store_true',
+                        default=False,
+                        help='Apply preprocess by mels at input')
+    
     args = parser.parse_args()
     t = time.time()
     train_loader = get_data_loader(args.train_list, **vars(args))

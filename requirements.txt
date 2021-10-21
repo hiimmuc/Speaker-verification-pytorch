@@ -9,3 +9,5 @@ torchsummary>=1.5.1
 librosa>=0.8.1
 SoundFile>=0.10.3.post1
 matplotlib
+Flask
+Flask-RESTful

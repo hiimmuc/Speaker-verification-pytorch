@@ -80,7 +80,7 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    def __init__(self, num_classes=1000, width_mult=1.0, inverted_residual_setting=None, round_nearest=8, n_mels=64, log_input=True):
+    def __init__(self, num_classes=1000, width_mult=1.0, inverted_residual_setting=None, round_nearest=8):
         """
         MobileNet V2 main class
         Args:
@@ -155,27 +155,8 @@ class MobileNetV2(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.zeros_(m.bias)
         ######################################################################
-        self.n_mels = n_mels
-        self.log_input = log_input
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
 
     def forward(self, x):
-
-        with torch.no_grad():
-            x = self.torchfb(x) + 1e-6
-            if self.log_input:
-                x = x.log()
-            x = self.instancenorm(x).unsqueeze(1)
-
         if(len(x.shape) == 2):
             x = self.normalize(x)
             x = x.reshape([x.shape[0], 1, x.shape[1]])
