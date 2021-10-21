@@ -77,9 +77,9 @@ if __name__ == '__main__':
                         default=True,
                         help='Save only last checkpoint')
     parser.add_argument('--preprocess',
-                    type=bool,
-                    default=True,
-                    help='Apply preprocess by mels at input')
+                        action='store_true',
+                        default=False,
+                        help='Apply preprocess by mels at input')
 
     # Optimizer
     parser.add_argument('--optimizer',
