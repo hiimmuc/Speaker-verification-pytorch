@@ -18,17 +18,18 @@ class Loader(Dataset):
         self.max_frames = max_frames
         self.augment = augment
         self.apply_preprocess = preprocess
-        
+
         # augmented folder files
         self.aug_folder = aug_folder
         self.musan_path = musan_path
         self.rir_path = rir_path
-        if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
-            self.augment_engine = AugmentWAV(musan_path=musan_path,
-                                             rir_path=rir_path,
-                                             max_frames=max_frames)
-        else:
-            self.augment_engine = None
+        if self.augment:
+            if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
+                self.augment_engine = AugmentWAV(musan_path=musan_path,
+                                                 rir_path=rir_path,
+                                                 max_frames=max_frames)
+            else:
+                self.augment_engine = None
 
         # Read Training Files...
         with open(dataset_file_name) as dataset_file:
@@ -86,8 +87,8 @@ class Loader(Dataset):
             feat.append(audio)
 
         feat = np.concatenate(feat, axis=0)
-        
-        # preprocess input with mels    
+
+        # preprocess input with mels
         if self.apply_preprocess:
             feat = mels_spec_preprocess(feat)
 
@@ -172,8 +173,8 @@ parser = argparse.ArgumentParser(description="Data loader")
 if __name__ == '__main__':
     # Test for data loader
     parser.add_argument('--augment',
-                        type=bool,
-                        default=True,
+                        action='store_true',
+                        default=False,
                         help='decide whether use augment data')
     parser.add_argument('--train_list',
                         type=str,
@@ -212,7 +213,7 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='Apply preprocess by mels at input')
-    
+
     args = parser.parse_args()
     t = time.time()
     train_loader = get_data_loader(args.train_list, **vars(args))

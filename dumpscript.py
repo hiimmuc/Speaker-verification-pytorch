@@ -3,6 +3,7 @@ import csv
 import time
 from pathlib import Path
 
+import librosa
 import numpy as np
 import pandas as pd
 import soundfile as sf
@@ -12,7 +13,7 @@ from numpy.core.fromnumeric import argmin
 from torchsummary import summary
 from tqdm.auto import tqdm
 
-from models.RawNetv2 import *
+from models.RawNet2v2 import *
 from utils import *
 
 
@@ -95,75 +96,17 @@ def check_result(answer):
     print(count/len(comparation), '%')
 
 
-def check_inequality_data():
-    '''to check the inequality of dataset from wavs folder
-    '''
-    root = Path("dataset/wavs")
-    audio_folder_num = {}
-    for audio_folder in root.iterdir():
-        audio_folder_num[audio_folder.name] = len(os.listdir(audio_folder))
-    mean_num = np.mean(list(audio_folder_num.values()))
-    print("Total files:", sum(audio_folder_num.values()))
-    print("mean number of audio files each folder", mean_num)
-    print("min and max of number of files:", min(audio_folder_num.values()), max(audio_folder_num.values()))
-    print(list(audio_folder_num.keys())[argmin(audio_folder_num.values())])
-
-    greater_than_mean = [k for k, v in audio_folder_num.items() if v > 1.2 * mean_num]
-    lower_than_mean = [k for k, v in audio_folder_num.items() if v < 0.9 * mean_num]
-
-    print('//===================================')
-    # check for the total duration of each folder
-    audio_folder_duration = {}
-    for audio_folder in root.iterdir():
-        audio_folder_duration[audio_folder.name] = sum([audio_file.stat().st_size for audio_file in audio_folder.iterdir()])
-    mean_duration = np.mean(list(audio_folder_duration.values()))
-    print("Total size:", sum(audio_folder_duration.values())/1e6, "MB")
-    print("mean duration of audio files each folder", mean_duration/(1024*1024), "MB")
-    print("min and max of duration:", min(audio_folder_duration.values())/(1024*1024), max(audio_folder_duration.values())/(1024*1024), "MB")
-    print(list(audio_folder_duration.keys())[argmin(audio_folder_duration.values())])
-
-    greater_than_mean_duration = [k for k, v in audio_folder_duration.items() if v > 1.2 * mean_duration]
-    lower_than_mean_duration = [k for k, v in audio_folder_duration.items() if v < 0.9 * mean_duration]
-
-    print('//===================================')
-
-    common_long = np.intersect1d(greater_than_mean, greater_than_mean_duration)
-    common_short = np.intersect1d(lower_than_mean, lower_than_mean_duration)
-
-    print("greater than mean in number of files:", len(greater_than_mean))
-    print("lower than mean in number of files:", len(lower_than_mean))
-    print("greater than mean in duration:", len(greater_than_mean_duration))
-    print("lower than mean in duration:", len(lower_than_mean_duration))
-    print("common_long:", len(common_long))
-    print("common_short:", len(common_short))
-
-    with open("data_inequality.txt", 'w') as f:
-        f.write("Long folder: \n")
-        for line in common_long:
-            f.write(line + '\n')
-
-        f.write("Short folder: \n")
-        for line in common_short:
-            f.write(line + '\n')
-
-
-def create_full_augmented_dataset():
-    root = Path("dataset/aug_wavs")
-    for audio_folder in tqdm(root.iterdir()):
-        f = glob.glob(str(audio_folder) + "/*.wav")
-        non_aug = list(filter(lambda x: "augmented" not in x, f))
-        # print(non_aug[0])
-        for file in non_aug:
-            os.remove(file)
-
-
 if __name__ == '__main__':
     # check_inequality_data()
     # create_full_augmented_dataset()
     # check_result("exp\dump\submission_list_test_1310_ambase.csv")
 
-    model = MainModel()
-    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    print("nb_params:{}".format(nb_params))
-    # audio =
-    summary(model, (16240, ), batch_size=128)
+    # model = MainModel()
+    # nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
+    # print("nb_params:{}".format(nb_params))
+    # # audio =
+    # summary(model, (16240, ), batch_size=128)
+
+    audio_path = r"dataset\public_test\data_test\0a0056eec2d8de0b89e52849b1c2844e.wav"
+    mels = librosa.feature.melspectrogram(y=sf.read(audio_path)[0], sr=16000, n_fft=512, hop_length=160, win_length=400, n_mels=64)
+    print(mels.shape)

@@ -21,12 +21,9 @@ ALLOWED_EXTENSIONS = set(['wav', 'mp4'])
 api = Api(app)
 
 # load model
-<<<<<<< HEAD
-model_path = str(Path('exp/dump/best_state_d2010_8686_percent.model'))
-=======
 
-model_path = str(Path('checkpoint/final_500.model'))
->>>>>>> db3851c5e5c065f351ee953851c1cc8be8fd3a1c
+model_path = str(Path('exp/dump/best_state_d2010_8686_percent.model'))
+
 kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95}
