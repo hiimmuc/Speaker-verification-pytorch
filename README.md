@@ -14,15 +14,16 @@ pip install -r requirements.txt
 1. Download the [public dataset](https://dl.challenge.zalo.ai/voice-verification/data/Train-Test-Data_v2.zip)
    then put the training speakers data in `dataset/wavs` and public-test folder in `dataset/public-test`
    or from this [link](https://drive.google.com/drive/folders/1b_Ded7l_59IxIBz4H6Ok5l1knbNjvj04?usp=sharing)
-   
-   Structure of dataset:
-   dataset ---- wavs ---- id_00001 ---- id_00001_1.wav
-                    |             |---- id_00001_1.wav
-                    |             |---- id_00001_1.wav
-                    |             \----  ....
-                    |---- id_00002 ---- ....
-                    \---- id_....
-                    
+   <br />
+   <pre>
+   Structure of dataset: <br />
+   dataset ---- wavs ---- id_00001 ---- id_00001_1.wav <br />
+                    |             |---- id_00001_1.wav <br />
+                    |             |---- id_00001_1.wav <br />
+                    |             \----  .... <br />
+                    |---- id_00002 ---- .... <br />
+                    \---- id_.... <br />
+   </pre>            
 2. Convert data (this will overwrite original data) to have all 16kHz
 
 ```python
