@@ -49,7 +49,7 @@ class BasicBlock3x3(nn.Module):
 
 
 class RawNet(nn.Module):
-    def __init__(self, input_channel, nOut=512, n_mels=64, **kwargs):
+    def __init__(self, input_channel=1, nOut=512, n_mels=64, **kwargs):
         self.inplanes3 = 128
         super(RawNet, self).__init__()
         self.conv1 = nn.Conv1d(input_channel, 128, kernel_size=3, stride=3, padding=0,
@@ -77,17 +77,6 @@ class RawNet(nn.Module):
         # self.drop = nn.Dropout(p=0.2)
         self.output_layer = nn.Linear(128, nOut)
         # ##########################################################################
-        self.n_mels = n_mels
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
 
 
     def _make_layer3(self, block, planes, blocks, stride=1):
@@ -108,12 +97,6 @@ class RawNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, inputs):
-        with torch.no_grad():
-            inputs = self.torchfb(inputs) + 1e-6
-            if self.log_input:
-                inputs = inputs.log()
-            inputs = self.instancenorm(inputs).unsqueeze(1)
-
         out = self.conv1(inputs)
         out = self.bn1(out)
         out = self.relu(out)
@@ -142,5 +125,5 @@ class RawNet(nn.Module):
         return preds
 
 def MainModel(nOut=512, **kwargs):
-    model = RawNet(1, nOut)
+    model = RawNet(nOut=nOut)
     return model
