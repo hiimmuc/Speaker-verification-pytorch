@@ -1,4 +1,4 @@
-# Zalo AI Challenge - Voice Verification
+# Voice Verification for Zalo AI Challenge Dataset
 
 This repository contains the framework for training speaker verification model described in [2]  
 with score normalization post-processing described in [3].
