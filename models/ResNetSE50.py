@@ -52,17 +52,6 @@ class ResNetSE(nn.Module):
                                        layers[3],
                                        stride=(2, 2))
 
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
-
         if self.encoder_type == "SAP":
             self.sap_linear = nn.Linear(num_filters[3] * block.expansion,
                                         num_filters[3] * block.expansion)
@@ -115,11 +104,7 @@ class ResNetSE(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.torchfb(x) + 1e-6
-            if self.log_input:
-                x = x.log()
-            x = self.instancenorm(x).unsqueeze(1)
+        assert len(x.size()) == 4 # batch x channel x n_mels x n_frames
 
         x = self.conv1(x)
         x = self.relu(x)
@@ -150,6 +135,7 @@ class ResNetSE(nn.Module):
 
         x = x.view(x.size()[0], -1)
         x = self.fc(x)
+        return x
 
 
 def MainModel(nOut=512, **kwargs):

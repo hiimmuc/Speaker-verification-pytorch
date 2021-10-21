@@ -74,15 +74,10 @@ class ResNetSE(nn.Module):
         return out
 
     def forward(self, x):
-
-        x = torch.stft(x, 512, hop_length=int(0.01 * 16000), win_length=int(0.025 * 16000),
-                       window=torch.hann_window(int(0.025 * 16000)), center=False, normalized=False, onesided=True)
-        x = (x[:, :, :, 0].pow(2) + x[:, :, :, 1].pow(2)).pow(0.5)
-
-        if self.log_input:
-            x = x.log()
-
-        x = self.instancenorm(x).unsqueeze(1).detach()
+        # bo stft o day r
+        assert len(x.size()) == 4
+        
+        x = x.detach()
 
         x = self.conv1(x)
         x = self.bn1(x)

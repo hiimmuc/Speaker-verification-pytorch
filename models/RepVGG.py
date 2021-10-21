@@ -10,7 +10,6 @@ try:
 except:
     from models.ResNetBlocks import SEBlock
 
-import torchaudio
 from torchsummary import summary
 
 # TODO: se block for sse
@@ -164,18 +163,6 @@ class RepVGG(nn.Module):
             int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
         self.linear = nn.Linear(int(512 * width_multiplier[3]), nOut)
-        #
-
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfb = torch.nn.Sequential(
-            PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
-                sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
 
     def _make_stage(self, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -189,10 +176,6 @@ class RepVGG(nn.Module):
         return nn.Sequential(*blocks)
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.torchfb(x) + 1e-6
-            x = self.instancenorm(x).unsqueeze(1)
-        print(x.size())
         out = self.stage0(x)
         out = self.stage1(out)
         out = self.stage2(out)
@@ -330,7 +313,7 @@ def repvgg_model_convert(model: torch.nn.Module, save_path=None, do_copy=True):
 
 
 def MainModel(nOut=256, **kwargs):
-    model = kwargs['model']
+    model ='RepVGG-B0'
     return get_RepVGG_func_by_name(model)(nOut=nOut, deploy=False)
 
 
