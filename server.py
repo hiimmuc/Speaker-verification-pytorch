@@ -7,7 +7,6 @@ from pathlib import Path
 from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, url_for)
 from flask_restful import Api, Resource
-# from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 
 from config import ModelParams as pr
@@ -22,8 +21,7 @@ ALLOWED_EXTENSIONS = set(['wav', 'mp4'])
 api = Api(app)
 
 # load model
-
-model_path = str(Path('exp/ResNetSE34V2/model/best_state.model'))
+model_path = str(Path('exp/dump/best_state_d2010_8686_percent.model'))
 kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95}
@@ -75,7 +73,7 @@ def upload_audio():
         audio_1 = audio[0]
         audio_2 = audio[1]
         result = model.pair_test(audio_1, audio_2, 100, 10, '', scoring_mode='cosine', cohorts=None)
-        matching = result > 0.5
+        matching = result > 0.22
         # return and upload score
         inference_time = time.time() - t0
 
