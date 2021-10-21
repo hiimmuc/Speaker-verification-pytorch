@@ -11,6 +11,8 @@ from argparse import Namespace
 import numpy as np
 import soundfile as sf
 import torch
+import torch.nn as nn
+import torchaudio
 import torch.nn.functional as F
 import webrtcvad
 import yaml
@@ -19,7 +21,7 @@ from scipy import signal
 from sklearn import metrics
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, vad_on=False):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -35,12 +37,8 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, vad_on=Fa
     # Maximum audio length
     # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
     max_audio = max_frames * 160 + 240
-    if vad_on:
-        segments = VAD(frame_duration=30, win_length=100).detect(filename, write=False)
-        audio = np.concatenate(segments)
-        sample_rate = sr
-    else:
-        audio, sample_rate = sf.read(filename)
+
+    audio, sample_rate = sf.read(filename)
 
     audiosize = audio.shape[0]
 
@@ -65,8 +63,27 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, vad_on=Fa
             feats.append(audio[int(asf):int(asf) + max_audio])
 
     feat = np.stack(feats, axis=0).astype(np.float)
-    if sr:
-        return feat, sample_rate
+
+    return feat if not sr else (feat, sample_rate)
+
+def mels_spec_preprocess(feat):
+    n_mels = 64
+    instancenorm = nn.InstanceNorm1d(n_mels)
+    torchfb = torch.nn.Sequential(
+        PreEmphasis(),
+        torchaudio.transforms.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=512,
+            win_length=400,
+            hop_length=160,
+            window_fn=torch.hamming_window,
+            n_mels=n_mels))
+
+    with torch.no_grad():
+        feat = torch.FloatTensor(feat)
+        feat = torchfb(feat) + 1e-6
+        feat = instancenorm(feat).unsqueeze(1)
+        
     return feat
 
 

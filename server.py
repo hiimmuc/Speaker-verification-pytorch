@@ -7,7 +7,6 @@ from pathlib import Path
 from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, url_for)
 from flask_restful import Api, Resource
-# from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 
 from config import ModelParams as pr
@@ -23,7 +22,7 @@ api = Api(app)
 
 # load model
 
-model_path = str(Path('exp/ResNetSE34V2/model/best_state.model'))
+model_path = str(Path('checkpoint/final_500.model'))
 kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95}
@@ -34,7 +33,7 @@ model = SpeakerNet(pr.save_path,
                    pr.criterion,
                    pr.device,
                    pr.max_epoch, **kwrags)
-model.loadParameters(model_path)
+# model.loadParameters(model_path)
 
 
 def allowed_file(filename):
@@ -86,4 +85,4 @@ def upload_audio():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8112)

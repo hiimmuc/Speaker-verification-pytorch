@@ -17,12 +17,13 @@ from utils import *
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, **kwargs):
+    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, preprocess, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
         self.save_path = save_path
         self.model_name = model
         self.max_epoch = max_epoch
+        self.apply_preprocess = preprocess
 
         SpeakerNetModel = importlib.import_module(
             'models.' + self.model_name).__getattribute__('MainModel')
@@ -89,7 +90,7 @@ class SpeakerNet(nn.Module):
             tstart = time.time()
 
             sys.stdout.write(
-                f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}) :")
+                f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}): ")
             sys.stdout.write(
                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
                 (loss / counter, top1 / counter, stepsize / telapsed))
@@ -150,6 +151,9 @@ class SpeakerNet(nn.Module):
         # Save all features to dictionary
         for idx, filename in enumerate(setfiles):
             audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)
+            if self.apply_preprocess:
+                audio = mels_spec_preprocess(audio)
+                
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
@@ -232,7 +236,7 @@ class SpeakerNet(nn.Module):
         cohorts = None
         if cohorts_path is not None:
             cohorts = np.load(cohorts_path)
-        save_root = self.save_path + f"/{self.model}/result"
+        save_root = self.save_path + f"/{self.model_name}/result"
 
         data_root = Path(root, 'public_test/data_test')
         read_file = Path(root, 'public-test.csv')
@@ -251,11 +255,16 @@ class SpeakerNet(nn.Module):
 
         # Save all features to feat dictionary
         for idx, filename in enumerate(setfiles):
-            inp1 = torch.FloatTensor(
-                loadWAV(Path(data_root, filename),
+            audio = loadWAV(Path(data_root, filename),
                         eval_frames,
                         evalmode=True,
-                        num_eval=num_eval)).to(self.device)
+                        num_eval=num_eval)
+            
+            if self.apply_preprocess:
+                audio = mels_spec_preprocess(audio)
+                
+            inp1 = torch.FloatTensor(audio).to(self.device)
+                
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
             feats[filename] = ref_feat
@@ -444,10 +453,16 @@ class SpeakerNet(nn.Module):
             # desciption: load file and extrac feature embedding
 
             for idx, f in enumerate(tqdm(setfiles)):
-                inp1 = torch.FloatTensor(
-                    loadWAV(f, eval_frames, evalmode=True,
-                            num_eval=num_eval)).to(self.device)
+                audio = loadWAV(f,
+                            eval_frames,
+                            evalmode=True,
+                            num_eval=num_eval)
 
+                if self.apply_preprocess:
+                    audio = mels_spec_preprocess(audio)
+
+                inp1 = torch.FloatTensor(audio).to(self.device)
+                    
                 feat = self.__S__.forward(inp1)
                 if self.__L__.test_normalize:
                     feat = F.normalize(feat, p=2,
@@ -506,9 +521,16 @@ class SpeakerNet(nn.Module):
         """
         Get embedding from utterance
         """
-        inp = torch.FloatTensor(
-            loadWAV(fpath, eval_frames, evalmode=True,
-                    num_eval=num_eval, vad_on=False)).to(self.device)
+        audio = loadWAV(fpath,
+                    eval_frames,
+                    evalmode=True,
+                    num_eval=num_eval)
+
+        if self.apply_preprocess:
+            audio = mels_spec_preprocess(audio)
+        
+        inp = torch.FloatTensor(audio).to(self.device)
+            
         with torch.no_grad():
             embed = self.__S__.forward(inp)
         if normalize:
@@ -551,7 +573,10 @@ class SpeakerNet(nn.Module):
         dummy_input = torch.FloatTensor(
             loadWAV(r"dataset\wavs\5-F-27\5-3.wav", 100, evalmode=True,
                     num_eval=10)).to(self.device)
-
+        
+        if self.apply_preprocess:
+            dummy_input = mels_spec_preprocess(dummy_input)
+            
         self.loadParameters(state_path)
         self.__S__.eval()
 
