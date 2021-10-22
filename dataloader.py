@@ -12,12 +12,13 @@ from utils import *
 
 
 class Loader(Dataset):
-    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, preprocess, aug_folder='offline'):
+    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, preprocess, n_mels, aug_folder='offline'):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
         self.augment = augment
         self.apply_preprocess = preprocess
+        self.n_mels = n_mels
 
         # augmented folder files
         self.aug_folder = aug_folder
@@ -90,7 +91,7 @@ class Loader(Dataset):
 
         # preprocess input with mels
         if self.apply_preprocess:
-            feat = mels_spec_preprocess(feat)
+            feat = mels_spec_preprocess(feat, self.n_mels)
 
         return torch.FloatTensor(feat), self.data_label[index]
 
@@ -148,9 +149,9 @@ class Sampler(torch.utils.data.Sampler):
 
 def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
                     rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
-                    nPerSpeaker, preprocess, **kwargs):
+                    nPerSpeaker, preprocess, n_mels, **kwargs):
     train_dataset = Loader(dataset_file_name, augment, musan_path,
-                           rir_path, max_frames, preprocess, aug_folder='online')
+                           rir_path, max_frames, preprocess, n_mels, aug_folder='online')
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
                             max_seg_per_spk, batch_size)
@@ -213,6 +214,12 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='Apply preprocess by mels at input')
+
+    # Model definition for MFCCs
+    parser.add_argument('--n_mels',
+                        type=int,
+                        default=64,
+                        help='Number of mel filter banks')
 
     args = parser.parse_args()
     t = time.time()
