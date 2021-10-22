@@ -70,9 +70,8 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
 def mels_spec_preprocess(feat):
     n_mels = 64
     instancenorm = nn.InstanceNorm1d(n_mels)
-    # PreEmphasis(),
-    torchfb = torch.nn.Sequential(
 
+    torchfb = torch.nn.Sequential(
         torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
             n_fft=512,
