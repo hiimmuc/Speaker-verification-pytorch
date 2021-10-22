@@ -12,8 +12,8 @@ import numpy as np
 import soundfile as sf
 import torch
 import torch.nn as nn
-import torchaudio
 import torch.nn.functional as F
+import torchaudio
 import webrtcvad
 import yaml
 from matplotlib import pyplot as plt
@@ -66,11 +66,13 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
 
     return feat if not sr else (feat, sample_rate)
 
+
 def mels_spec_preprocess(feat):
     n_mels = 64
     instancenorm = nn.InstanceNorm1d(n_mels)
+    # PreEmphasis(),
     torchfb = torch.nn.Sequential(
-        PreEmphasis(),
+
         torchaudio.transforms.MelSpectrogram(
             sample_rate=16000,
             n_fft=512,
@@ -79,11 +81,12 @@ def mels_spec_preprocess(feat):
             window_fn=torch.hamming_window,
             n_mels=n_mels))
 
+    feat = torch.FloatTensor(feat)
+
     with torch.no_grad():
-        feat = torch.FloatTensor(feat)
         feat = torchfb(feat) + 1e-6
         feat = instancenorm(feat).unsqueeze(1)
-        
+
     return feat
 
 

@@ -90,7 +90,9 @@ class Loader(Dataset):
 
         # preprocess input with mels
         if self.apply_preprocess:
+            print(feat.shape)
             feat = mels_spec_preprocess(feat)
+            print(feat.shape)
 
         return torch.FloatTensor(feat), self.data_label[index]
 
