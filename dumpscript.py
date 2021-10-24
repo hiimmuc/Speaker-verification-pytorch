@@ -13,7 +13,7 @@ from numpy.core.fromnumeric import argmin
 from torchsummary import summary
 from tqdm.auto import tqdm
 
-from models.RawNet2v2 import *
+from models.ResNetSE34V2 import *
 from utils import *
 
 
@@ -101,12 +101,12 @@ if __name__ == '__main__':
     # create_full_augmented_dataset()
     # check_result("exp\dump\submission_list_test_1310_ambase.csv")
 
-    # model = MainModel()
-    # nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    # print("nb_params:{}".format(nb_params))
-    # # audio =
-    # summary(model, (16240, ), batch_size=128)
+    model = MainModel(preprocess=True)
+    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
+    print("nb_params:{}".format(nb_params))
+    # audio =
+    summary(model, (1, 64, 102), batch_size=128)
 
-    audio_path = r"dataset\public_test\data_test\0a0056eec2d8de0b89e52849b1c2844e.wav"
-    mels = librosa.feature.melspectrogram(y=sf.read(audio_path)[0], sr=16000, n_fft=512, hop_length=160, win_length=400, n_mels=64)
-    print(mels.shape)
+    # audio_path = r"dataset\public_test\data_test\0a0056eec2d8de0b89e52849b1c2844e.wav"
+    # mels = librosa.feature.melspectrogram(y=sf.read(audio_path)[0], sr=16000, n_fft=512, hop_length=160, win_length=400, n_mels=64)
+    # print(mels.shape)
