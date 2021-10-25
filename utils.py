@@ -19,6 +19,8 @@ import yaml
 from matplotlib import pyplot as plt
 from scipy import signal
 from sklearn import metrics
+from scipy import spatial
+from numpy.linalg import norm
 
 
 def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
@@ -191,6 +193,9 @@ class PreEmphasis(torch.nn.Module):
 
 
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
+    labels = np.nan_to_num(labels)
+    scores = np.nan_to_num(scores)
+    
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
     # G-mean
     gmean = np.sqrt(tpr * (1 - fpr))
@@ -246,9 +251,44 @@ def score_normalization(ref, com, cohorts, top=-1):
     com = com.cpu().numpy()
     return S_norm(ref, com, top=top)
 
+# cosine similarity
 
-def cosine_simialrity(ref, com):
+def cosine_sim_ver1(ref, com):
     return np.mean(abs(F.cosine_similarity(ref, com, dim=1)).cpu().numpy())
+
+
+def cosine_sim_advance(ref, com):
+    """https://groups.csail.mit.edu/sls/publications/2010/Dehak_Odyssey.pdf"""
+    def cosine_with_adaptive(ref, com):
+        com_mean = np.mean(com)
+        com_cov = np.cov(com.T)
+        print(com_cov)
+        com_sqrt_cov = np.sqrt(com_cov)
+        print(com_sqrt_cov)
+        score = (np.dot((ref - com_mean).T,(com - com_mean)))/(norm(np.dot(com_sqrt_cov, ref))*norm(np.dot(com_sqrt_cov, com)))
+        return score
+    
+    ref = ref.cpu().numpy()
+    com = com.cpu().numpy()
+    return np.mean(abs((cosine_with_adaptive(ref, com) + cosine_with_adaptive(com, ref))/2))
+
+
+def cosine_sim_ver2(ref, com):
+    ref = ref.cpu().numpy()
+    com = com.cpu().numpy()
+    result = 1 - spatial.distance.cosine(ref, com)
+    return result
+
+
+def cosine_simialrity(ref, com, ver='1'):
+    if ver == '1':
+        return cosine_sim_ver1(ref, com)
+    elif ver == '2':
+        return cosine_sim_ver1(ref, com)
+    elif ver =='advance':
+        return cosine_sim_advance(ref, com)
+    else:
+        return 0
 
 
 def read_config(config_path, args=None):
