@@ -37,12 +37,28 @@ class SpeakerNet(nn.Module):
             'optimizer.' + optimizer).__getattribute__('Optimizer')
         self.__optimizer__ = Optimizer(self.parameters(), **kwargs)
         # TODO: set up callbacks, add reduce on plateau + early stopping
-        Scheduler = importlib.import_module(
-            'callbacks.' + callbacks).__getattribute__('Scheduler')
-        self.__scheduler__, self.lr_step = Scheduler(
-            self.__optimizer__, **kwargs)
-        assert self.lr_step in ['epoch', 'iteration']
-
+        self.callback = callbacks
+        self.lr_step = ''
+        if self.callback in ['steplr', 'cosinelr']:
+            Scheduler = importlib.import_module(
+                'callbacks.' + callbacks).__getattribute__('Scheduler')
+            self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **kwargs)
+            
+            assert self.lr_step in ['epoch', 'iteration']
+            
+        elif self.callback == 'reduceOnPlateau':
+            Scheduler = importlib.import_module(
+                        'callbacks.' + callbacks).__getattribute__('LRScheduler')
+            self.__scheduler__ = Scheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.5)
+            
+        elif self.callback == 'auto':
+            steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
+            ropScheduler = importlib.import_module('callbacks.' + 'reduceOnPlateau').__getattribute__('LRScheduler')
+            
+            self.__scheduler__ = {}
+            self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
+            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.5)
+            
     def fit(self, loader, epoch=0):
         '''Train
 
@@ -96,12 +112,24 @@ class SpeakerNet(nn.Module):
                 (loss / counter, top1 / counter, stepsize / telapsed))
             sys.stdout.flush()
 
-            if self.lr_step == 'iteration':
+            if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
-
-        if self.lr_step == 'epoch':
+        
+        # select mode for callbacks
+        if self.lr_step == 'epoch' and self.callback in ['steplr', 'cosinelr']:
             self.__scheduler__.step()
 
+        elif self.callback == 'reduceOnPlateau':
+            # reduceon plateau
+            self.__scheduler__(loss / counter)
+            
+        elif self.callback == 'auto':
+            if epoch <= 100:
+                self.__scheduler__['rop'](loss / counter)
+            else:
+                print("[INFO] Epochs > 100, switch to steplr callback")
+                self.__scheduler__['steplr'].step()
+            
         sys.stdout.write("\n")
 
         loss_result = loss / counter
@@ -239,7 +267,7 @@ class SpeakerNet(nn.Module):
         save_root = self.save_path + f"/{self.model_name}/result"
 
         data_root = Path(root, 'public_test/data_test')
-        read_file = Path(root, 'public-test.csv')
+        read_file = Path(root, 'data_public_test.csv')
         write_file = Path(save_root, 'submission_list_test.csv')
         # Read all lines from testfile (read_file)
         with open(read_file, newline='') as rf:

@@ -179,11 +179,11 @@ if __name__ == '__main__':
                         help='decide whether use augment data')
     parser.add_argument('--train_list',
                         type=str,
-                        default="dataset/train.txt",
+                        default="dataset/train_def.txt",
                         help='Directory to save files(parent root)')
     parser.add_argument('--batch_size',
                         type=int,
-                        default=2,
+                        default=64,
                         help='Batch size, number of speakers per batch')
     parser.add_argument('--max_seg_per_spk',
                         type=int,
@@ -191,7 +191,7 @@ if __name__ == '__main__':
                         help='Maximum number of utterances per speaker per epoch')
     parser.add_argument('--nDataLoaderThread',
                         type=int,
-                        default=2,
+                        default=1,
                         help='Number of loader threads')
     parser.add_argument('--nPerSpeaker',
                         type=int,
@@ -226,6 +226,7 @@ if __name__ == '__main__':
     train_loader = get_data_loader(args.train_list, **vars(args))
 
     print("Delay: ", time.time() - t)
+    print(len(train_loader))
     for (sample, label) in tqdm(train_loader):
         # train_sample = np.array(train_sample)
         sample = sample.transpose(0, 1)

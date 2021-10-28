@@ -61,8 +61,9 @@ def train(args):
         it = 1
 
     # schedule the learning rate to stopped epoch
-    for _ in range(0, it - 1):
-        s.__scheduler__.step()
+    if args.callbacks in ['steplr', 'cosinelr']:
+        for _ in range(0, it - 1):
+            s.__scheduler__.step()
 
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')

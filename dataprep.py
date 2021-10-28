@@ -419,26 +419,13 @@ class DataGenerator():
             subprocess.call('mv %s %s' % (outpath, fpath), shell=True)
         print('Done!')
 
-        # # rename all files
-        # print('Rename all files, Total:', len(files))
-        # for f in tqdm(glob.glob('dataset/dataset/*')[:]):
-        #     audio_files = os.listdir(f)
-        #     for i, af in enumerate(audio_files):
-        #         new_name = f"{af.replace('.wav', '').split('-')[0]}_{i}.wav"
-        #         # TODO: chinh cho nay theo form id/id_index.wav cho thong nhat
-        #         if os.path.exists(os.path.join(f, new_name)):
-        #             continue
-        #         else:
-        #             os.rename(os.path.join(f, af), os.path.join(f, new_name))
-        # print('Done!')
-
     def generate_lists(self):
         """
         Generate train test lists for zalo data
         """
         root = Path(self.args.raw_dataset)
-        train_writer = open(Path(root.parent, 'train.txt'), 'w')
-        val_writer = open(Path(root.parent, 'val.txt'), 'w')
+        train_writer = open(Path(root.parent, 'train_def.txt'), 'w')
+        val_writer = open(Path(root.parent, 'val_def.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         print('Generate dataset metadata files, total:', len(classpaths))
         val_filepaths_list = []
@@ -455,9 +442,11 @@ class DataGenerator():
             if self.args.split_ratio > 0:
                 val_num = int(self.args.split_ratio * len(filepaths))
 
-            val_filepaths = filepaths[:val_num]
-            train_filepaths = filepaths[val_num:]
-
+#             val_filepaths = filepaths[:val_num]
+#             train_filepaths = filepaths[val_num:]
+            val_filepaths = random.sample(filepaths, val_num)
+            train_filepaths = list(set(filepaths) - set(val_filepaths))
+        
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')

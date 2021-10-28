@@ -89,7 +89,7 @@ if __name__ == '__main__':
     parser.add_argument('--callbacks',
                         type=str,
                         default="steplr",
-                        help='Learning rate scheduler')
+                        help='Learning rate scheduler: steplr or reduceOnPlateau')
     parser.add_argument('--early_stop',
                         action='store_true',
                         default=False,
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                         help='Learning rate decay every [test_interval] epochs')
     parser.add_argument('--weight_decay',
                         type=float,
-                        default=0,
+                        default=0.0,
                         help='Weight decay in the optimizer')
 
     # Loss functions

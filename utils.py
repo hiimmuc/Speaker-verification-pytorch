@@ -69,7 +69,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     return feat if not sr else (feat, sample_rate)
 
 
-def mels_spec_preprocess(feat, n_mels):
+def mels_spec_preprocess(feat, n_mels=64):
     instancenorm = nn.InstanceNorm1d(n_mels)
 
     torchfb = torch.nn.Sequential(

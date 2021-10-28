@@ -101,12 +101,22 @@ if __name__ == '__main__':
     # create_full_augmented_dataset()
     # check_result("exp\dump\submission_list_test_1310_ambase.csv")
 
-    model = MainModel(preprocess=True)
-    nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
-    print("nb_params:{}".format(nb_params))
-    # audio =
-    summary(model, (1, 64, 102), batch_size=128)
+    # model = MainModel(preprocess=True)
+    # nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
+    # print("nb_params:{}".format(nb_params))
+    # # audio =
+    # summary(model, (1, 64, 102), batch_size=128)
 
     # audio_path = r"dataset\public_test\data_test\0a0056eec2d8de0b89e52849b1c2844e.wav"
     # mels = librosa.feature.melspectrogram(y=sf.read(audio_path)[0], sr=16000, n_fft=512, hop_length=160, win_length=400, n_mels=64)
     # print(mels.shape)
+
+    # !python3 -m pip install packages/ipywidgets-7.6.5.tar.gz
+    import subprocess
+    import glob
+    import os
+    # from tqdm import tqdm
+    package_files = glob.glob(os.path.join('packages', '*.whl')) + glob.glob(os.path.join('packages', '*.tar.gz'))
+    # print('Installing:', package_files)
+    for f in package_files:
+        subprocess.call(f"pip install {f} -f ./ --no-index --no-deps | tqdm", shell=True)
