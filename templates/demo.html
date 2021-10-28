@@ -26,26 +26,38 @@
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },"HTML-CSS": {linebreaks: { automatic: true, width: "container" }}});
     </script>
+<!--    -->
+<!--     <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
+<!--     <link rel="stylesheet" href="https://unpkg.com/buefy/dist/buefy.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.8.55/css/materialdesignicons.min.css">  -->
+
 </head>
 
+<!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+<script src="https://unpkg.com/buefy/dist/buefy.min.js"></script> -->
+    
+    
 <body>
     <style>
         body {
-            /*background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Logo_Viettel_from_7_January_2021_Slogan.svg/1200px-Logo_Viettel_from_7_January_2021_Slogan.svg.png');*/
-            background-color: rgb(0, 191, 255);
+            background-color: rgb(240, 240, 240);
             background-repeat: no-repeat;
             background-attachment: fixed;
             background-size: 100% 100%;
         }
     </style>
-    <p>\
-    <nav>
-    </nav>
-    </p>
+    
+    <p></p>
+    
     <div align="center" style="background:rgb(255, 255, 255); width: 600px; height: 400px; margin: 0 auto">
         <strong>
             <nav>
-                <h1>User voice verification demo</h1>
+                <br/>
+                <h1>Speaker verification demo</h1>
             </nav>
         </strong>
         <h2>Select 2 audio files to upload</h2>
@@ -58,13 +70,18 @@
             <p>
                 <input type="submit" value="Submit">
             </p>
-            </p>
+            
             {%if result %}
-            <p style="background-color: rgb(220, 220, 220); width: 200px; height: 80px; margin: 0 auto" font-size: 16px >Matching: {{matching|safe}}<br></br> score: {{result|safe}}</p>
+            <p style="background-color: rgb(220, 220, 220); width: 200px; height: 80px; margin: 0 auto" font-size: 16px>
+                <br/> 
+                Matching: {{matching|safe}}
+                <br/> 
+                score: {{result|safe}}</p>
             {% endif %}
 
             {%if inference_time %}
-            <p style="background-color: rgb(200, 200, 200); width: 200px; height: 50px; margin: 0 auto" font-size: 16px>Inference time: {{inference_time|safe}} seconds</p>
+            <p style="background-color: rgb(200, 200, 200); width: 200px; height: 50px; margin: 0 auto" font-size: 16px>
+                Inference time: {{inference_time|safe}} seconds</p>
             {% endif %}
             
         </form>

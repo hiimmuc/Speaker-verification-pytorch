@@ -1,0 +1,98 @@
+<html>
+
+<head>
+    <title></title>
+    <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
+    <link rel="stylesheet" href="https://unpkg.com/buefy/dist/buefy.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@5.8.55/css/materialdesignicons.min.css">
+
+
+</head>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+<script src="https://unpkg.com/buefy/dist/buefy.min.js"></script>
+<!-- <script src="https://unpkg.com/buefy/dist/buefy.min.js"></script> -->
+
+
+<body>
+    <div id="app">
+        <div class="container mt-3">
+            <header class="pb-3 columns">
+                <h3 class="column is-half is-offset-one-quarter title has-text-centered">Speaker verification</h3>
+            </header>
+
+                <div class="columns">
+                    <section class="column is-half is-offset-one-quarter">
+                        <b-field class="file">
+                            <b-upload v-model="file1" expanded>
+                                <a class="button is-primary is-fullwidth">
+                                    <b-icon icon="upload"></b-icon>
+                                    <span>[[ file || "Click to upload"]]</span>
+                                </a>
+                            </b-upload>
+                        </b-field>
+                    </section>
+                </div>
+
+                <div class="columns">
+                    <section class="column is-half is-offset-one-quarter">
+                        <b-field class="file">
+                            <b-upload v-model="file2" expanded>
+                                <a class="button is-primary is-fullwidth">
+                                    <b-icon icon="upload"></b-icon>
+                                    <span>[[ file || "Click to upload"]]</span>
+                                </a>
+                            </b-upload>
+                        </b-field>
+                    </section>
+                </div>
+
+                <b-button @click="submitFormData()">Submit</b-button>
+                
+<!--             </section> -->
+
+        </div>
+       <!--  <b-loading :is-full-page="isFullPage" v-model="isLoading" :can-cancel="false">
+            <b-icon pack="fas" icon="sync-alt" size="is-large" custom-class="fa-spin" type="is-primary">
+            </b-icon>
+        </b-loading> -->
+    </div>
+
+    <script>
+        new Vue({
+            el: "#app",
+            data() {
+                return {
+                    isLoading: false,
+                    isFullPage: true,
+                    file1: null,
+                    file1: null,
+                    data: ''
+                }
+            },
+
+            methods: {
+                submitFormData() {
+                    this.isLoading = true
+                    let formData = new FormData()
+                    formData.append('file1', this.file1)
+                    formData.append('file2', this.file2)
+
+                    var baseURL = "http://127.0.0.1:8000"
+                    axios.post('/add', formData)
+                        .then(response => {
+                            this.data = response.data
+                        })
+                    // this.isLoading = false
+
+                },
+            },
+            delimiters: ['[[', ']]']
+        })
+    </script>
+</body>
+
+</html>
