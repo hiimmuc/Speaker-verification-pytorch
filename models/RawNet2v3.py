@@ -236,10 +236,10 @@ class RawNet2(nn.Module):
 
 
 def MainModel(nOut=512, **kwargs):
-    layers = [1, 1, 1, 2, 1, 2]
-    nb_filters = [128, 128, 256, 256, 512, 512]
-#     layers = [1, 1, 3, 4, 6, 3]
-#     nb_filters = [128, 128, 256, 256, 256, 256]
+#     layers = [1, 1, 1, 2, 1, 2]
+#     nb_filters = [128, 128, 256, 256, 512, 512]
+    layers = [1, 1, 3, 4, 6, 3]
+    nb_filters = [128, 128, 256, 256, 256, 256]
     
     model = RawNet2(
         RawNetBasicBlock,
