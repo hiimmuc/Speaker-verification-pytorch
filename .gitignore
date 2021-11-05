@@ -14,3 +14,4 @@ venv/
 error.txt
 data_inequality.txt
 *.wav
+dumpscript.py
