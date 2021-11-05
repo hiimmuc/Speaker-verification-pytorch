@@ -1,123 +1,124 @@
 <!DOCTYPE html>
 
 <html>
-  <head>
-    <meta charset="UTF-8" />
+
+<head>
+    <meta charset="UTF-8">
     <div align="center">
-      <title>Final Project</title>
+        <title>Final Project</title>
     </div>
     <style>
-      article,
-      aside,
-      figure,
-      footer,
-      header,
-      hgroup,
-      menu,
-      nav,
-      section {
-        display: block;
-      }
+        article,
+        aside,
+        figure,
+        footer,
+        header,
+        hgroup,
+        menu,
+        nav,
+        section {
+            display: block;
+        }
     </style>
-    <script
-      type="text/javascript"
-      src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-    ></script>
-    <script type="text/x-mathjax-config">
-      MathJax.Hub.Config({tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },"HTML-CSS": {linebreaks: { automatic: true, width: "container" }}});
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        
     </script>
-  </head>
-  <body>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({tex2jax: { inlineMath: [["$","$"],["\\(","\\)"]] },"HTML-CSS": {linebreaks: { automatic: true, width: "container" }}});
+    </script>
+
+
+</head>
+    
+    
+<body>
     <style>
-      body {
-        background-color: rgb(240, 240, 240);
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        background-size: 100% 100%;
-      }
+        body {
+            background-color: rgb(240, 240, 240);
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: 100% 100%;
+        }
     </style>
-
+    <img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Viettel_logo_2021.svg"
+         allign="top lèft" width="10%" height="10%">
+    
+    
     <p></p>
-
-    <div
-      align="center"
-      style="
-        background: rgb(255, 255, 255);
-        width: 600px;
-        height: 400px;
-        margin: 0 auto;
-      "
-    >
-      <strong>
-        <nav>
-          <br />
-          <h1>Speaker verification demo</h1>
-        </nav>
-      </strong>
-      <h2>Select 2 audio files to upload</h2>
-      <form method="post" action="/" enctype="multipart/form-data">
-        <dl>
-          <p>
-            <input
-              type="file"
-              name="files[]"
-              multiple="true"
-              autocomplete="off"
-              required
-            />
-          </p>
-        </dl>
-        <p>
-          <input type="submit" value="Submit" />
-        </p>
-
-        {%if result %}
-        <table border="1" cellpadding="2" cellspacing="2">
+    
+    <div align="center" style="background:rgb(255, 255, 255); width: 600px; height: 500px; margin: 0 auto">
+        <strong>
+            <nav>
+                <br/>
+                <h1>Speaker verification demo</h1>
+            </nav>
+        </strong>
+        <p style="font-family:verdana font-size:30px">Select 2 audio files to upload</p>
+        <form method="post" action="/" enctype="multipart/form-data">
+<!--             <dl>
+                <p>
+                    <input type="file" name="files[]" multiple="true" autocomplete="off" required>
+                </p>
+            </dl>
+            <p>
+                <input type="submit" value="Submit">
+            </p> -->
+                     
+            <table border="0" cellpadding="2" cellspacing="2">
                 <thead>
                     <tr>
-                        <th>Audio file 1</th>
-                        <th>Audio file 2</th>
+                        <th>Enrollment</th>
+                        <th>Test speaker</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody align='middle'>
                     <tr>
-                        <td>{{filename1}}</td>
-                        <td>{{filename2}}</td>
+                        <td>
+                            <dl>
+                                <p>
+                                    <input type="file" name="file1" multiple="false" autocomplete="off">
+                                </p>
+                            </dl>
+
+                        </td>
+                        <td >                    
+                            <dl>
+                                <p>
+                                    <input type="file" name="file2" multiple="false" autocomplete="off" required>
+                                </p>
+                            </dl>
+                        </td>
                     </tr>
+                    {%if result %}
+                    <tr>
+                        <td>{{filename1|safe}}</td>
+                        <td>{{filename2|safe}}</td>
+                    </tr>
+                    {% endif %}
                 </tbody>
-        </table>
-        <br/>
-        
-        <p
-          style="
-            background-color: rgb(220, 220, 220);
-            width: 200px;
-            height: 80px;
-            margin: 0 auto;
-          "
-          font-size:
-          16px
-        >
-          <br />
-          Matching: {{matching|safe}}
-          <br />
-          score: {{result|safe}}
-        </p>
-        {% endif %} {%if inference_time %}
-        <p
-          style="
-            background-color: rgb(200, 200, 200);
-            width: 200px;
-            height: 50px;
-            margin: 0 auto;
-          "
-          font-size:
-          16px
-        >
-          Inference time: {{inference_time|safe}} seconds
-        </p>
-        {% endif %}
-      </form>
+            </table>
+            <br/>
+            <p>
+                <input type="submit" value="Submit">
+            </p>
+            
+            {%if result %}
+            <p style="background-color: rgb(220, 220, 220); width: 200px; height: 80px; margin: 0 auto" font-size: 16px>
+                <br/> 
+                Matching: {{matching|safe}}
+                <br/> 
+                Score: {{result|safe}}
+            </p>
+            {% endif %}
+
+            {%if inference_time %}
+            <p style="background-color: rgb(200, 200, 200); width: 200px; height: 50px; margin: 0 auto" font-size: 16px>
+                Predict time: {{inference_time|safe}} seconds
+            </p>
+            {% endif %}
+            
+        </form>
     </div>
-  </body>
+</body>
+
 </html>
