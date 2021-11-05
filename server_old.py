@@ -9,7 +9,6 @@ from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
 from flask_restful import Api, Resource
 from werkzeug.utils import secure_filename
 
-from config import ModelParams as pr
 from model import SpeakerNet
 
 app = Flask(__name__, template_folder='templates')
@@ -21,21 +20,27 @@ ALLOWED_EXTENSIONS = set(['wav', 'mp4'])
 api = Api(app)
 
 # load model
-threshold = 0.22
-model_path = str(Path('exp/dump/best_state_d2010_8686_percent.model'))
+threshold = 0.50
+model_path = str(Path('exp/RawNet2v2/model/last_state.model'))
 
 kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95,
-         'preprocess': False}
-model = SpeakerNet(pr.save_path,
-                   pr.model,
-                   pr.optimizer,
-                   pr.callbacks,
-                   pr.criterion,
-                   pr.device,
-                   pr.max_epoch, **kwrags)
-# model.loadParameters(model_path)
+          'preprocess': False,
+          'save_path' : 'exp',
+          'model' : 'RawNet2v2',
+          'optimizer' : 'adam',
+          'callbacks' : 'steplr',
+          'criterion' : 'amsoftmax',
+          'device' : 'cpu',
+          'max_epoch' : 500,
+          'nOut' : 512,
+          'nClasses' : 400}
+
+model = SpeakerNet(**kwrags)
+model.loadParameters(model_path)
+# default enrollment
+enroll_def = None
 
 
 def allowed_file(filename):
@@ -56,18 +61,31 @@ def audio(filename):
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_audio():
+    global enroll_def
+    
     if request.method == 'POST':
-        if 'files[]' not in request.files:
+        if any(f'file{i}' not in request.files for i in [1, 2] ):
             flash('No file part')
             return redirect(request.url)
-        files = request.files.getlist('files[]')
+        
+        enroll = request.files['file1']                
+        test = request.files['file2']
+        
+        if allowed_file(enroll.filename) and enroll:
+            enroll_def = enroll
+        else:
+            enroll = enroll_def
+                
+        files = [enroll, test]
+
         audio = []
         for file in files:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 audio_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 audio.append(str(Path(audio_path)))
-                file.save(audio_path)
+                if not os.path.exists(audio_path):
+                    file.save(audio_path)
             else:
                 return redirect('/')
         # predict
@@ -81,10 +99,12 @@ def upload_audio():
         inference_time = time.time() - t0
 
         return render_template('demo.html',
+                               filename1=audio_1,
+                               filename2=audio_2,
                                matching=str(bool(matching)),
                                result=str(round(result, 4)),
                                inference_time=str(round(inference_time, 4)))
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8112)
+    app.run(debug=True, host='0.0.0.0', port=8111)

@@ -33,4 +33,4 @@ async def post_new_item(file1: UploadFile = File(...), file2: UploadFile = File(
     }
 
 if __name__ == "__main__":
-    uvicorn.run(app,host='0.0.0.0',port=8015)
+    uvicorn.run(app,host='0.0.0.0',port=8111)
