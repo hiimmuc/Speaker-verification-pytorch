@@ -107,6 +107,7 @@ class RawNet2(nn.Module):
             in_channels=1,
             n_mels=64,
             log_input=True,
+        
             **kwargs):
         super(RawNet2, self).__init__()
         self.inplanes = nb_filters[0]
@@ -164,20 +165,11 @@ class RawNet2(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
         self.sig = nn.Sigmoid()
-
         #####
-        # Mel spectrograms
+        # gru mode
         #####
-        # self.instancenorm = nn.InstanceNorm1d(n_mels)
-        # self.torchfb = torch.nn.Sequential(
-        #     PreEmphasis(),
-        #     torchaudio.transforms.MelSpectrogram(
-        #         sample_rate=16000,
-        #         n_fft=512,
-        #         win_length=400,
-        #         hop_length=160,
-        #         window_fn=torch.hamming_window,
-        #         n_mels=n_mels))
+        
+        
 
     def _make_layer(self, block, planes, nb_layer, downsample_all=False):
         if downsample_all:
@@ -192,14 +184,6 @@ class RawNet2(nn.Module):
 
     def forward(self, x):
         #####
-        # Perfrom melspectrograms
-        # with torch.no_grad():
-        #     x = self.torchfb(x) + 1e-6
-        #     if self.log_input:
-        #         x = x.log()
-        #     x = self.instancenorm(x).unsqueeze(1)
-        # print(x.shape)
-
         x = x.unsqueeze(1)
         #####
         # first layers before residual blocks

@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.utils import data
 from torchsummary import summary
-from utils import *
+# from utils import *
 
 
 class RawNetBasicBlock(nn.Module):
@@ -107,6 +107,7 @@ class RawNet2(nn.Module):
             in_channels=1,
             n_mels=64,
             log_input=True,
+            nb_gru_layers =1, gru_node=1024,
             **kwargs):
         super(RawNet2, self).__init__()
         self.inplanes = nb_filters[0]
@@ -136,7 +137,7 @@ class RawNet2(nn.Module):
         #####
         # aggregate to utterance(segment)-level
         #####
-        self.bn_before_agg = nn.BatchNorm1d(nb_filters[5])
+        self.bn_before_agg = nn.BatchNorm1d(gru_node)
         self.attention = nn.Sequential(
             nn.Conv1d(nb_filters[5], 128, kernel_size=1),
             nn.LeakyReLU(),
@@ -165,19 +166,17 @@ class RawNet2(nn.Module):
 
         self.sig = nn.Sigmoid()
 
-        #####
-        # Mel spectrograms
-        #####
-        # self.instancenorm = nn.InstanceNorm1d(n_mels)
-        # self.torchfb = torch.nn.Sequential(
-        #     PreEmphasis(),
-        #     torchaudio.transforms.MelSpectrogram(
-        #         sample_rate=16000,
-        #         n_fft=512,
-        #         win_length=400,
-        #         hop_length=160,
-        #         window_fn=torch.hamming_window,
-        #         n_mels=n_mels))
+        ##########
+        self.bn_before_gru = nn.BatchNorm1d(nb_filters[5])
+        
+        self.gru = nn.GRU(input_size = nb_filters[5], 
+                        hidden_size = gru_node, 
+                        num_layers = nb_gru_layers, 
+                        batch_first = True)
+        
+        self.fc_after_gru = nn.Linear(in_features = gru_node,
+            out_features =code_dim)
+        ###########
 
     def _make_layer(self, block, planes, nb_layer, downsample_all=False):
         if downsample_all:
@@ -192,14 +191,6 @@ class RawNet2(nn.Module):
 
     def forward(self, x):
         #####
-        # Perfrom melspectrograms
-        # with torch.no_grad():
-        #     x = self.torchfb(x) + 1e-6
-        #     if self.log_input:
-        #         x = x.log()
-        #     x = self.instancenorm(x).unsqueeze(1)
-        # print(x.shape)
-
         x = x.unsqueeze(1)
         #####
         # first layers before residual blocks
@@ -216,21 +207,33 @@ class RawNet2(nn.Module):
         x = self.layer5(x)
         x = self.layer6(x)
 
-        #####
-        # aggregation: attentive statistical pooling
-        #####
-        x = self.bn_before_agg(x)
-        x = self.lrelu(x)
-        w = self.attention(x)
-        m = torch.sum(x * w, dim=-1)
-        s = torch.sqrt((torch.sum((x ** 2) * w, dim=-1) - m ** 2).clamp(min=1e-5))
-        x = torch.cat([m, s], dim=1)
-        x = x.view(x.size(0), -1)
 
         #####
-        # speaker embedding layer
+        # gru
         #####
-        x = self.fc(x)
+        x = self.bn_before_gru(x)
+        x = self.lrelu(x)
+        x = x.permute(0, 2, 1)  #(batch, filt, time) >> (batch, time, filt)
+        self.gru.flatten_parameters()
+        x, _ = self.gru(x)
+        x = x[:,-1,:]
+        x = self.fc_after_gru(x)
+        
+#         #####
+#         # aggregation: attentive statistical pooling
+#         #####
+#         x = self.bn_before_agg(x)
+#         x = self.lrelu(x)
+#         w = self.attention(x)
+#         m = torch.sum(x * w, dim=-1)
+#         s = torch.sqrt((torch.sum((x ** 2) * w, dim=-1) - m ** 2).clamp(min=1e-5))
+#         x = torch.cat([m, s], dim=1)
+#         x = x.view(x.size(0), -1)
+
+#         #####
+#         # speaker embedding layer
+#         #####
+#         x = self.fc(x)
 
         return x
 
