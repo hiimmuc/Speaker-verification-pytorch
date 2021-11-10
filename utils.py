@@ -483,11 +483,10 @@ def plot_from_file(result_save_path, show=False):
     '''Plot graph from score file
 
     Args:
-        model (str): model name
+        result_save_path (str): path to model folder
         show (bool, optional): Whether to show the graph. Defaults to False.
     '''
-    model_name = model
-    with open(f"{result_save_path}/result/scores.txt") as f:
+    with open(f"{result_save_path}/scores.txt") as f:
         line_data = f.readlines()
 
     line_data = [line.strip().replace('\n', '').split(',')
@@ -509,11 +508,11 @@ def plot_from_file(result_save_path, show=False):
         data_loss = [float(line[3].strip().split(' ')[1])
                      for _, line in dt.items()]
         plot_graph(data_loss, 'epoch', 'loss', 'Loss',
-                   f"{result_save_path}/result/loss_{i}.png", color='b', mono=True, show=show)
+                   f"{result_save_path}/loss_{i}.png", color='b', mono=True, show=show)
         data_acc = [float(line[2].strip().split(' ')[1])
                     for _, line in dt.items()]
         plot_graph(data_acc, 'epoch', 'accuracy', 'Accuracy',
-                   f"{result_save_path}/result/acc_{i}.png", color='r', show=show)
+                   f"{result_save_path}/acc_{i}.png", color='r', show=show)
         plt.close()
 
 
