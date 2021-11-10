@@ -2,7 +2,7 @@ import argparse
 import os
 
 from inference import inference
-from train import train
+from trainer import train
 
 
 def main(args):
