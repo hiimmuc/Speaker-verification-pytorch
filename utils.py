@@ -254,7 +254,9 @@ def score_normalization(ref, com, cohorts, top=-1):
 # cosine similarity
 
 def cosine_sim_ver1(ref, com):
-    return np.mean(abs(F.cosine_similarity(ref, com, dim=1)).cpu().numpy())
+#     return np.mean(abs(F.cosine_similarity(ref, com, dim=1)).cpu().numpy())
+    similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-06)
+    return np.mean(abs(similarity(ref, com)).cpu().numpy())
 
 
 def cosine_sim_advance(ref, com):
@@ -477,7 +479,7 @@ def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', 
     plt.close()
 
 
-def plot_from_file(model, show=False):
+def plot_from_file(result_save_path, show=False):
     '''Plot graph from score file
 
     Args:
@@ -485,7 +487,7 @@ def plot_from_file(model, show=False):
         show (bool, optional): Whether to show the graph. Defaults to False.
     '''
     model_name = model
-    with open(f"exp/{model_name}/result/scores.txt") as f:
+    with open(f"{result_save_path}/result/scores.txt") as f:
         line_data = f.readlines()
 
     line_data = [line.strip().replace('\n', '').split(',')
@@ -507,11 +509,11 @@ def plot_from_file(model, show=False):
         data_loss = [float(line[3].strip().split(' ')[1])
                      for _, line in dt.items()]
         plot_graph(data_loss, 'epoch', 'loss', 'Loss',
-                   f"exp/{model_name}/result/loss_{i}.png", color='b', mono=True, show=show)
+                   f"{result_save_path}/result/loss_{i}.png", color='b', mono=True, show=show)
         data_acc = [float(line[2].strip().split(' ')[1])
                     for _, line in dt.items()]
         plot_graph(data_acc, 'epoch', 'accuracy', 'Accuracy',
-                   f"exp/{model_name}/result/acc_{i}.png", color='r', show=show)
+                   f"{result_save_path}/result/acc_{i}.png", color='r', show=show)
         plt.close()
 
 
