@@ -58,6 +58,10 @@ def train(args):
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
+#         remove last checkout
+        for old_file in eerfiles:
+            if os.path.exists(old_file):
+                os.remove(old_file)
         it = 1
 
     # schedule the learning rate to stopped epoch
@@ -135,7 +139,7 @@ def train(args):
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f' % result[1])
 
-            plot_from_file(args.model, show=False)
+            plot_from_file(result_save_path, show=False)
 
         else:
 
