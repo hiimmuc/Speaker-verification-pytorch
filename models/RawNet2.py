@@ -91,9 +91,15 @@ class LayerNorm(nn.Module):
         self.eps = eps
 
     def forward(self, x):
+        device = x.get_device()
+        
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
-        return self.gamma * (x - mean) / (std + self.eps) + self.beta
+        
+        gamma = self.gamma.to(device)
+        beta = self.beta.to(device)
+
+        return gamma * (x - mean) / (std + self.eps) + beta
 
 class SincConv_fast(nn.Module):
     """Sinc-based convolution
@@ -196,10 +202,15 @@ class SincConv_fast(nn.Module):
         self.n_ = self.n_.to(waveforms.device)
 
         self.window_ = self.window_.to(waveforms.device)
-
-        low = self.min_low_hz  + torch.abs(self.low_hz_)
         
-        high = torch.clamp(low + self.min_band_hz + torch.abs(self.band_hz_),self.min_low_hz,self.sample_rate/2)
+        low_hz_ = self.low_hz_.to(waveforms.device)
+        band_hz_ = self.band_hz_.to(waveforms.device)
+        
+        low = self.min_low_hz  + torch.abs(low_hz_)
+        
+        
+        
+        high = torch.clamp(low + self.min_band_hz + torch.abs(band_hz_), self.min_low_hz, self.sample_rate/2)
         band=(high-low)[:,0]
         
         f_times_t_low = torch.matmul(low, self.n_)
@@ -216,24 +227,33 @@ class SincConv_fast(nn.Module):
         band_pass = band_pass / (2*band[:,None])
         
 
-        self.filters = (band_pass).view(
+        self.filters_map = (band_pass).view(
             self.out_channels, 1, self.kernel_size)
 
-        return F.conv1d(waveforms, self.filters, stride=self.stride,
+        return F.conv1d(waveforms, self.filters_map, stride=self.stride,
                         padding=self.padding, dilation=self.dilation,
                          bias=None, groups=1) 
     
 class RawNet2(nn.Module):
-    def __init__(self,filters,nb_classes =400,nb_gru_layer =1, gru_node=1024,nb_fc_node=1024, first_conv_size=251, in_channels=1, nb_samp=16240):
+    def __init__(self, filters, nb_classes =400,
+                 nb_gru_layer =1, gru_node=1024,
+                 nb_fc_node=1024, 
+                 first_conv_size=251,
+                 in_channels=1,
+                 nb_samp=16240,
+                 device = 'cuda:4', **kwargs):
+        
         super(RawNet2, self).__init__()
-
+        
+        self.device = device
         self.ln = LayerNorm(nb_samp)
         self.first_conv = SincConv_fast(in_channels = in_channels,
             out_channels = filters[0],
             kernel_size = first_conv_size
             )
 
-        self.first_bn = nn.BatchNorm1d(num_features = filters[0])
+        self.first_bn = nn.BatchNorm1d(num_features = filters[0], device=self.device)
+        
         self.lrelu = nn.LeakyReLU()
         self.lrelu_keras = nn.LeakyReLU(negative_slope = 0.3)
         
@@ -248,6 +268,7 @@ class RawNet2(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool1d(1)
 
         self.bn_before_gru = nn.BatchNorm1d(num_features = filters[2][-1])
+        
         self.gru = nn.GRU(input_size = filters[2][-1],
             hidden_size = gru_node,
             num_layers = nb_gru_layer,
@@ -262,13 +283,17 @@ class RawNet2(nn.Module):
         
         self.sig = nn.Sigmoid()
         
-    def forward(self, x, y = 0, is_test=False):
+    def forward(self, x):
         #follow sincNet recipe
+#         x = x.unsqueeze(1)
+#         print(x.shape)
+        device = x.get_device()
+        
         nb_samp = x.shape[0]
         len_seq = x.shape[1]
         x = self.ln(x)
         x=x.view(nb_samp,1,len_seq)
-        x = F.max_pool1d(torch.abs(self.first_conv(x)), 3)
+        x = F.max_pool1d(torch.abs(self.first_conv(x)), 3).to(device)
         x = self.first_bn(x)
         x = self.lrelu_keras(x)
         
@@ -287,12 +312,14 @@ class RawNet2(nn.Module):
         x, _ = self.gru(x)
         x = x[:,-1,:]
         code = self.fc1_gru(x)
-        if is_test: return code
+        return code
+#         if is_test: 
+#             return code
         
-        code_norm = code.norm(p=2,dim=1, keepdim=True) / 10.
-        code = torch.div(code, code_norm)
-        out = self.fc2_gru(code)
-        return out
+#         code_norm = code.norm(p=2,dim=1, keepdim=True) / 10.
+#         code = torch.div(code, code_norm)
+#         out = self.fc2_gru(code)
+#         return out
 
 def MainModel(nOut=512, **kwargs):
 
