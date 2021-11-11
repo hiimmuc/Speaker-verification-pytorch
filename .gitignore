@@ -11,7 +11,5 @@ venv/
 *.ipynb
 *.zip
 *.db
-error.txt
-data_inequality.txt
 *.wav
 dumpscript.py
