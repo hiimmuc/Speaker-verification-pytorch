@@ -13,6 +13,7 @@ import torch.nn.functional as F
 class LossFunction(nn.Module):
     def __init__(self, margin=0.1, scale_neg=50.0, scale_pos=2.0, ** kwargs):
         super(LossFunction, self).__init__()
+        self.test_normalize = True
         self.thresh = 0.5  # lambda
         self.margin = margin
         self.scale_pos = scale_pos  # alpha
@@ -72,7 +73,7 @@ class LossFunction(nn.Module):
             return torch.zeros([], requires_grad=True), 0
 
         loss = sum(losses) / batch_size
-        prec1 = float(c) / batch_size
+        prec1 = float(c) *100 / batch_size
         return loss, prec1
 
 

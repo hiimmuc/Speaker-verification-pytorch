@@ -29,4 +29,4 @@ class LossFunction(nn.Module):
 
         nlossP, _ = self.angleproto(x, None)
 
-        return nlossS+nlossP, prec1
+        return 1.0 * nlossS + 1.2 * nlossP, prec1
