@@ -28,6 +28,8 @@ class SpeakerNet(nn.Module):
         SpeakerNetModel = importlib.import_module(
             'models.' + self.model_name).__getattribute__('MainModel')
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
+        nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
+        print(f"{self.model_name}: {nb_params}\n")
 
         LossFunction = importlib.import_module(
             'losses.' + criterion).__getattribute__('LossFunction')
@@ -36,6 +38,7 @@ class SpeakerNet(nn.Module):
         Optimizer = importlib.import_module(
             'optimizer.' + optimizer).__getattribute__('Optimizer')
         self.__optimizer__ = Optimizer(self.parameters(), **kwargs)
+        
         # TODO: set up callbacks, add reduce on plateau + early stopping
         self.callback = callbacks
         self.lr_step = ''
@@ -78,9 +81,10 @@ class SpeakerNet(nn.Module):
         loss = 0
         top1 = 0  # EER or accuracy
 
-        tstart = time.time()
-
-        for (data, data_label) in loader:
+#         tstart = time.time()
+        
+        
+        for (data, data_label) in tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green"):
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
@@ -102,15 +106,15 @@ class SpeakerNet(nn.Module):
             nloss.backward()
             self.__optimizer__.step()
 
-            telapsed = time.time() - tstart
-            tstart = time.time()
+#             telapsed = time.time() - tstart
+#             tstart = time.time()
 
-            sys.stdout.write(
-                f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}): ")
-            sys.stdout.write(
-                "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
-                (loss / counter, top1 / counter, stepsize / telapsed))
-            sys.stdout.flush()
+#             sys.stdout.write(
+#                 f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}): ")
+#             sys.stdout.write(
+#                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
+#                 (loss / counter, top1 / counter, stepsize / telapsed))
+#             sys.stdout.flush()
 
             if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
@@ -128,13 +132,13 @@ class SpeakerNet(nn.Module):
                 self.__scheduler__['rop'](loss / counter)
             else:
                 if epoch == 101:
-                    print("\n[INFO] Epochs > 100, switch to steplr callback")
+                    print("\n[INFO] # epochs > 100, switch to steplr callback")
                 self.__scheduler__['steplr'].step()
             
-        sys.stdout.write("\n")
+#         sys.stdout.write("\n")
 
-        loss_result = loss / counter
-        precision = top1 / counter
+        loss_result = loss / (counter)
+        precision = top1 / (counter)
 
         return loss_result, precision
 
@@ -191,12 +195,12 @@ class SpeakerNet(nn.Module):
             feats[filename] = ref_feat
             telapsed = time.time() - tstart
 
-            if idx % print_interval == 0:
-                sys.stdout.write(
-                    "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
-                    (idx, len(setfiles), idx / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
+#             if idx % print_interval == 0:
+#                 sys.stdout.write(
+#                     "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
+#                     (idx, len(setfiles), idx / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
 
-        print('')
+#         print('')
         all_scores = []
         all_labels = []
         all_trials = []
@@ -237,13 +241,13 @@ class SpeakerNet(nn.Module):
             all_labels.append(int(data[0]))
             all_trials.append(data[1] + " " + data[2])
 
-            if idx % print_interval == 0:
-                telapsed = time.time() - tstart
-                sys.stdout.write("\rComputing %d of %d: %.2f Hz - %.4f s" %
-                                 (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-                sys.stdout.flush()
+#             if idx % print_interval == 0:
+#                 telapsed = time.time() - tstart
+#                 sys.stdout.write("Computing %d of %d: %.2f Hz - %.4f s" %
+#                                  (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
+#                 sys.stdout.flush()
 
-        print('\n')
+#         print('\n')
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -339,7 +343,7 @@ class SpeakerNet(nn.Module):
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2', 'score'])
+#             spamwriter.writerow(['audio_1', 'audio_2', 'score'])
             for idx, data in enumerate(lines):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -599,7 +603,7 @@ class SpeakerNet(nn.Module):
     def saveParameters(self, path):
         torch.save(self.state_dict(), path)
 
-    def loadParameters(self, path):
+    def loadParameters(self, path, show_error=True):
         self_state = self.state_dict()
         if self.device == torch.device('cpu'):
             loaded_state = torch.load(path, map_location=torch.device('cpu'))
@@ -611,13 +615,15 @@ class SpeakerNet(nn.Module):
                 name = name.replace("module.", "")
 
                 if name not in self_state:
-                    print("%s is not in the model." % origname)
+                    if show_error:
+                        print("%s is not in the model." % origname)
                     continue
 
             if self_state[name].size() != loaded_state[origname].size():
-                print("Wrong parameter length: %s, model: %s, loaded: %s" %
-                      (origname, self_state[name].size(),
-                       loaded_state[origname].size()))
+                if show_error:
+                    print("Wrong parameter length: %s, model: %s, loaded: %s" %
+                          (origname, self_state[name].size(),
+                           loaded_state[origname].size()))
                 continue
 
             self_state[name].copy_(param)
