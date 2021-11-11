@@ -93,15 +93,14 @@ def train(args):
     while True:
         clr = [x['lr'] for x in s.__optimizer__.param_groups]
 
-        print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
-              "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
+#         print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
+#               "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
         loss, trainer = s.fit(loader=train_loader, epoch=it)
         # save best model
         if loss == min(min_loss, loss):
-            print(
-                f"Loss reduce from {min_loss} to {loss}. Save to model_best.model")
+            print(f"Loss reduce from {min_loss} to {loss}. Save the best state")
             s.saveParameters(model_save_path + "/best_state.model")
             if args.early_stop:
                 early_stopping.counter = 0  # reset counter of early stopping
@@ -111,7 +110,7 @@ def train(args):
         # Validate and save
         if it % args.test_interval == 0:
 
-            print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
+#             print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
 
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
@@ -120,8 +119,8 @@ def train(args):
 
             min_eer = min(min_eer, result[1])
 
-            print(
-                time.strftime("%Y-%m-%d %H:%M:%S"),
+            print("[INFO] Evaluating ",
+                time.strftime("%H:%M:%S"),
                 "LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f" %
                 (max(clr), trainer, loss, result[1], min_eer))
             score_file.write(
@@ -137,14 +136,14 @@ def train(args):
                 s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
-                eerfile.write('%.4f' % result[1])
+                eerfile.write('%.4f, ' % result[1])
 
             plot_from_file(result_save_path, show=False)
 
         else:
 
-            print(time.strftime("%Y-%m-%d %H:%M:%S"),
-                  "LR %f, TEER/TAcc %2.2f, TLOSS %f" % (max(clr), trainer, loss))
+            print("[INFO] Training at", time.strftime("%H:%M:%S"),
+                  "LR %f, Accuracy: %2.2f, Loss: %f" % (max(clr), trainer, loss))
             score_file.write("IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f\n" %
                              (it, max(clr), trainer, loss))
 
@@ -166,4 +165,4 @@ def train(args):
                 os.remove(f)
                    
         it += 1
-        print("")
+#         print("")
