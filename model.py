@@ -29,7 +29,7 @@ class SpeakerNet(nn.Module):
             'models.' + self.model_name).__getattribute__('MainModel')
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
         nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
-        print(f"{self.model_name}: {nb_params}\n")
+        print(f"Train with model{self.model_name}: {nb_params} parameters")
 
         LossFunction = importlib.import_module(
             'losses.' + criterion).__getattribute__('LossFunction')
@@ -38,7 +38,7 @@ class SpeakerNet(nn.Module):
         Optimizer = importlib.import_module(
             'optimizer.' + optimizer).__getattribute__('Optimizer')
         self.__optimizer__ = Optimizer(self.parameters(), **kwargs)
-        
+
         # TODO: set up callbacks, add reduce on plateau + early stopping
         self.callback = callbacks
         self.lr_step = ''
@@ -46,22 +46,22 @@ class SpeakerNet(nn.Module):
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('Scheduler')
             self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **kwargs)
-            
+
             assert self.lr_step in ['epoch', 'iteration']
-            
+
         elif self.callback == 'reduceOnPlateau':
             Scheduler = importlib.import_module(
-                        'callbacks.' + callbacks).__getattribute__('LRScheduler')
+                'callbacks.' + callbacks).__getattribute__('LRScheduler')
             self.__scheduler__ = Scheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.5)
-            
+
         elif self.callback == 'auto':
             steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
             ropScheduler = importlib.import_module('callbacks.' + 'reduceOnPlateau').__getattribute__('LRScheduler')
-            
+
             self.__scheduler__ = {}
             self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
             self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=5, min_lr=0.0006, factor=0.8)
-            
+
     def fit(self, loader, epoch=0):
         '''Train
 
@@ -82,8 +82,7 @@ class SpeakerNet(nn.Module):
         top1 = 0  # EER or accuracy
 
 #         tstart = time.time()
-        
-        
+
         for (data, data_label) in tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green"):
             data = data.transpose(0, 1)
             self.zero_grad()
@@ -118,7 +117,7 @@ class SpeakerNet(nn.Module):
 
             if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
-        
+
         # select mode for callbacks
         if self.lr_step == 'epoch' and self.callback in ['steplr', 'cosinelr']:
             self.__scheduler__.step()
@@ -126,7 +125,7 @@ class SpeakerNet(nn.Module):
         elif self.callback == 'reduceOnPlateau':
             # reduceon plateau
             self.__scheduler__(loss / counter)
-            
+
         elif self.callback == 'auto':
             if epoch <= 100:
                 self.__scheduler__['rop'](loss / counter)
@@ -134,7 +133,7 @@ class SpeakerNet(nn.Module):
                 if epoch == 101:
                     print("\n[INFO] # epochs > 100, switch to steplr callback")
                 self.__scheduler__['steplr'].step()
-            
+
 #         sys.stdout.write("\n")
 
         loss_result = loss / (counter)
@@ -180,20 +179,21 @@ class SpeakerNet(nn.Module):
 
         setfiles = list(set(files))
         setfiles.sort()
+        print(">>>>Evaluation")
 
         # Save all features to dictionary
-        for idx, filename in enumerate(setfiles):
+        for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="it", colour="red")):
             audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)
             if self.apply_preprocess:
                 audio = mels_spec_preprocess(audio)
-                
+
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
 
             feats[filename] = ref_feat
-            telapsed = time.time() - tstart
+            # telapsed = time.time() - tstart
 
 #             if idx % print_interval == 0:
 #                 sys.stdout.write(
@@ -204,10 +204,10 @@ class SpeakerNet(nn.Module):
         all_scores = []
         all_labels = []
         all_trials = []
-        tstart = time.time()
+        # tstart = time.time()
 
         # Read files and compute all scores
-        for idx, line in enumerate(lines):
+        for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="it", colour="purple")):
             data = line.split()
 
             # Append random label if missing
@@ -290,15 +290,15 @@ class SpeakerNet(nn.Module):
         # Save all features to feat dictionary
         for idx, filename in enumerate(setfiles):
             audio = loadWAV(Path(data_root, filename),
-                        eval_frames,
-                        evalmode=True,
-                        num_eval=num_eval)
-            
+                            eval_frames,
+                            evalmode=True,
+                            num_eval=num_eval)
+
             if self.apply_preprocess:
                 audio = mels_spec_preprocess(audio)
-                
+
             inp1 = torch.FloatTensor(audio).to(self.device)
-                
+
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
             feats[filename] = ref_feat
@@ -517,15 +517,15 @@ class SpeakerNet(nn.Module):
 
             for idx, f in enumerate(tqdm(setfiles)):
                 audio = loadWAV(f,
-                            eval_frames,
-                            evalmode=True,
-                            num_eval=num_eval)
+                                eval_frames,
+                                evalmode=True,
+                                num_eval=num_eval)
 
                 if self.apply_preprocess:
                     audio = mels_spec_preprocess(audio)
 
                 inp1 = torch.FloatTensor(audio).to(self.device)
-                    
+
                 feat = self.__S__.forward(inp1)
                 if self.__L__.test_normalize:
                     feat = F.normalize(feat, p=2,
@@ -585,15 +585,15 @@ class SpeakerNet(nn.Module):
         Get embedding from utterance
         """
         audio = loadWAV(fpath,
-                    eval_frames,
-                    evalmode=True,
-                    num_eval=num_eval)
+                        eval_frames,
+                        evalmode=True,
+                        num_eval=num_eval)
 
         if self.apply_preprocess:
             audio = mels_spec_preprocess(audio)
-        
+
         inp = torch.FloatTensor(audio).to(self.device)
-            
+
         with torch.no_grad():
             embed = self.__S__.forward(inp).detach().cpu()
         if normalize:
@@ -638,10 +638,10 @@ class SpeakerNet(nn.Module):
         dummy_input = torch.FloatTensor(
             loadWAV(r"dataset\wavs\5-F-27\5-3.wav", 100, evalmode=True,
                     num_eval=10)).to(self.device)
-        
+
         if self.apply_preprocess:
             dummy_input = mels_spec_preprocess(dummy_input)
-            
+
         self.loadParameters(state_path)
         self.__S__.eval()
 

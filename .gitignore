@@ -1,6 +1,7 @@
 .vim/
 __pycache__/
-checkpoints/
+checkpoint/*.model
+checkpoint/*.npy
 config/
 exp/
 dataset/

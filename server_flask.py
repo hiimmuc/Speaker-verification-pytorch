@@ -27,15 +27,15 @@ kwrags = {'nOut': 512, 'nClasses': 400,
           'lr': 0.001, 'weight_decay': 0,
           'test_interval': 10, 'lr_decay': 0.95,
           'preprocess': False,
-          'save_path' : 'exp',
-          'model' : 'RawNet2v2',
-          'optimizer' : 'adam',
-          'callbacks' : 'steplr',
-          'criterion' : 'amsoftmax',
-          'device' : 'cpu',
-          'max_epoch' : 500,
-          'nOut' : 512,
-          'nClasses' : 400}
+          'save_path': 'exp',
+          'model': 'RawNet2v2',
+          'optimizer': 'adam',
+          'callbacks': 'steplr',
+          'criterion': 'amsoftmax',
+          'device': 'cpu',
+          'max_epoch': 500,
+          'nOut': 512,
+          'nClasses': 400}
 
 model = SpeakerNet(**kwrags)
 model.loadParameters(model_path)
@@ -62,20 +62,20 @@ def audio(filename):
 @app.route('/', methods=['GET', 'POST'])
 def upload_audio():
     global enroll_def
-    
+
     if request.method == 'POST':
-        if any(f'file{i}' not in request.files for i in [1, 2] ):
+        if any(f'file{i}' not in request.files for i in [1, 2]):
             flash('No file part')
             return redirect(request.url)
-        
-        enroll = request.files['file1']                
+
+        enroll = request.files['file1']
         test = request.files['file2']
-        
+
         if allowed_file(enroll.filename) and enroll:
             enroll_def = enroll
         else:
             enroll = enroll_def
-                
+
         files = [enroll, test]
 
         audio = []

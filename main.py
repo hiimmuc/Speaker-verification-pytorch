@@ -3,6 +3,7 @@ import os
 
 from inference import inference
 from trainer import train
+from utils import read_config
 
 
 def main(args):
@@ -245,6 +246,10 @@ if __name__ == '__main__':
                         help='norm or cosine for scoring')
 
     args = parser.parse_args()
+
+    if args.config is not None:
+        read_config(args.config, args)
+
     # Initialise directories
     if args.do_train:
         model_save_path = args.save_path + f"/{args.model}/model"

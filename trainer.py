@@ -110,7 +110,7 @@ def train(args):
         # Validate and save
         if it % args.test_interval == 0:
 
-#             print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
+            #             print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
 
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
@@ -120,9 +120,9 @@ def train(args):
             min_eer = min(min_eer, result[1])
 
             print("[INFO] Evaluating ",
-                time.strftime("%H:%M:%S"),
-                "LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f" %
-                (max(clr), trainer, loss, result[1], min_eer))
+                  time.strftime("%H:%M:%S"),
+                  "LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f" %
+                  (max(clr), trainer, loss, result[1], min_eer))
             score_file.write(
                 "IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f\n"
                 % (it, max(clr), trainer, loss, result[1], min_eer))
@@ -158,11 +158,11 @@ def train(args):
             if early_stopping.early_stop:
                 score_file.close()
                 sys.exit(1)
-        
+
         # if train from iteration 1, delete all eer checkpoints
         if it == 1:
             for f in eerfiles:
                 os.remove(f)
-                   
+
         it += 1
 #         print("")
