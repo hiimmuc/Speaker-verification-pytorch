@@ -86,7 +86,7 @@ class Residual_block_wFRM(nn.Module):
         out = self.mp(out)
         out = self.frm(out)
         return out
-
+    
 
 class LayerNorm(nn.Module):
 
@@ -101,10 +101,10 @@ class LayerNorm(nn.Module):
 
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
-        return self.gamma * (x - mean) / (std + self.eps) + self.beta
 
-        # gamma = self.gamma.to(device)
-        # beta = self.beta.to(device)
+        return self.gamma * (x - mean) / (std + self.eps) + self.beta
+        # gamma = self.gamma.to(x.device)
+        # beta = self.beta.to(x.device)
 
         # return gamma * (x - mean) / (std + self.eps) + beta
 
@@ -238,10 +238,11 @@ class SincConv_fast(nn.Module):
                         bias=None, groups=1)
 
 
+
 class RawNet2(nn.Module):
     def __init__(self, filters, nb_classes=400,
                  nb_gru_layer=1, gru_node=1024,
-                 nb_fc_node=1024,
+                 nb_fc_node=512,
                  first_conv_size=251,
                  in_channels=1,
                  nb_samp=16240,
@@ -290,13 +291,11 @@ class RawNet2(nn.Module):
         # follow sincNet recipe
         #         x = x.unsqueeze(1)
         #         print(x.shape)
-        device = x.get_device()
-
         nb_samp = x.shape[0]
         len_seq = x.shape[1]
         x = self.ln(x)
         x = x.view(nb_samp, 1, len_seq)
-        x = F.max_pool1d(torch.abs(self.first_conv(x)), 3).to(device)
+        x = F.max_pool1d(torch.abs(self.first_conv(x)), 3)
         x = self.first_bn(x)
         x = self.lrelu_keras(x)
 

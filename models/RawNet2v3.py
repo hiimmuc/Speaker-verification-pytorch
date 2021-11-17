@@ -260,7 +260,6 @@ class RawNet2(nn.Module):
             n_mels=64,
             log_input=True,
             nb_gru_layers=1, gru_node=1024,
-            nb_fc_node=1024,
             first_conv_size=251,
             nb_samp=16240,
             **kwargs):
