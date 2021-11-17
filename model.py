@@ -608,7 +608,7 @@ class SpeakerNet(nn.Module):
         if self.device == torch.device('cpu'):
             loaded_state = torch.load(path, map_location=torch.device('cpu'))
         else:
-            loaded_state = torch.load(path)
+            loaded_state = torch.load(path, map_location=torch.device(self.device))
         for name, param in loaded_state.items():
             origname = name
             if name not in self_state:
