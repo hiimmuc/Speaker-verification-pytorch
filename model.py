@@ -80,7 +80,7 @@ class SpeakerNet(nn.Module):
         index = 0
         loss = 0
         top1 = 0  # EER or accuracy
-
+        
 #         tstart = time.time()
 
         for (data, data_label) in tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green"):
@@ -114,6 +114,10 @@ class SpeakerNet(nn.Module):
 #                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
 #                 (loss / counter, top1 / counter, stepsize / telapsed))
 #             sys.stdout.flush()
+            if self.model_name == 'FTDNN':
+                self.__S__.step_semi_orth()
+                orth_error = self.__S__.orth_error()
+                loss += orth_error
 
             if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
@@ -207,7 +211,7 @@ class SpeakerNet(nn.Module):
         # tstart = time.time()
 
         # Read files and compute all scores
-        for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="it", colour="purple")):
+        for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="it", colour="MAGENTA")):
             data = line.split()
 
             # Append random label if missing
