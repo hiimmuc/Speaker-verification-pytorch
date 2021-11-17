@@ -18,7 +18,7 @@ class SEBasicBlock(nn.Module):
             planes, planes, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.se = SELayer(planes, reduction)
+        self.se = SEBlock(planes, planes // reduction)
         self.downsample = downsample
         self.stride = stride
 
@@ -54,7 +54,7 @@ class SEBottleneck(nn.Module):
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
-        self.se = SELayer(planes * 4, reduction)
+        self.se = SEBlock(planes * 4, planes * 4 // reduction)
         self.downsample = downsample
         self.stride = stride
 
@@ -83,13 +83,13 @@ class SEBottleneck(nn.Module):
 
 
 class SELayer(nn.Module):
-    def __init__(self, channel, reduction=8):
+    def __init__(self,input_channels, internal_neurons):
         super(SELayer, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction),
+            nn.Linear(input_channels, internal_neurons),
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel),
+            nn.Linear(internal_neurons, input_channels),
             nn.Sigmoid()
         )
 
@@ -111,7 +111,8 @@ class SEBlock(nn.Module):
         self.input_channels = input_channels
 
     def forward(self, inputs):
-        x = F.avg_pool2d(inputs, kernel_size=inputs.size(1))
+#         x = F.avg_pool2d(inputs, kernel_size=inputs.size(1))
+        x = nn.AdaptiveAvgPool2d(1)(inputs)
         x = self.down(x)
         x = F.relu(x)
         x = self.up(x)
