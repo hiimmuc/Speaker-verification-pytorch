@@ -29,7 +29,7 @@ class SpeakerNet(nn.Module):
             'models.' + self.model_name).__getattribute__('MainModel')
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
         nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
-        print(f"Train with model{self.model_name}: {nb_params} parameters")
+        print(f"Train with model {self.model_name}: {nb_params} params")
 
         LossFunction = importlib.import_module(
             'losses.' + criterion).__getattribute__('LossFunction')
@@ -114,10 +114,6 @@ class SpeakerNet(nn.Module):
 #                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
 #                 (loss / counter, top1 / counter, stepsize / telapsed))
 #             sys.stdout.flush()
-            if self.model_name == 'FTDNN':
-                self.__S__.step_semi_orth()
-                orth_error = self.__S__.orth_error()
-                loss += orth_error
 
             if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
