@@ -259,7 +259,8 @@ class RawNet2(nn.Module):
             in_channels=1,
             n_mels=64,
             log_input=True,
-            nb_gru_layers=1, gru_node=1024,
+            nb_gru_layers=1, 
+            gru_node=1024,
             first_conv_size=251,
             nb_samp=16240,
             **kwargs):
@@ -279,6 +280,7 @@ class RawNet2(nn.Module):
             padding=0
         )
         #  sinc layer
+        nb_samp = 16000 * (kwargs['max_frames']//100) + 240
         self.ln = LayerNorm(nb_samp)
         self.first_conv = SincConv_fast(in_channels=in_channels,
                                         out_channels=nb_filters[0],
@@ -384,31 +386,35 @@ class RawNet2(nn.Module):
         #####
         # gru
         #####
-        x = self.bn_before_gru(x)
-        x = self.lrelu_keras(x)
-        x = x.permute(0, 2, 1)  # (batch, filt, time) >> (batch, time, filt)
+
+        out1 = self.bn_before_gru(x)
+        out1 = self.lrelu_keras(out1)
+        out1 = out1.permute(0, 2, 1)  # (batch, filt, time) >> (batch, time, filt)
         self.gru.flatten_parameters()
-        x, _ = self.gru(x)
-        x = x[:, -1, :]
-        x = self.fc_after_gru(x)
+        out1, _ = self.gru(out1)
+        out1 = out1[:, -1, :]
+        out1 = self.fc_after_gru(out1)
 
         #####
         # aggregation: attentive statistical pooling
         #####
-        # x = self.bn_before_agg(x)
-        # x = self.lrelu_keras(x)
-        # w = self.attention(x)
-        # m = torch.sum(x * w, dim=-1)
-        # s = torch.sqrt((torch.sum((x ** 2) * w, dim=-1) - m ** 2).clamp(min=1e-5))
-        # x = torch.cat([m, s], dim=1)
-        # x = x.view(x.size(0), -1)
-
+        out2 = self.bn_before_agg(x)
+        out2 = self.lrelu_keras(out2)
+        w = self.attention(out2)
+        m = torch.sum(out2 * w, dim=-1)
+        s = torch.sqrt((torch.sum((out2 ** 2) * w, dim=-1) - m ** 2).clamp(min=1e-5))
+        out2 = torch.cat([m, s], dim=1)
+        out2 = out2.view(out2.size(0), -1)
         # #####
         # # speaker embedding layer
         # #####
-        # x = self.fc(x)
+        out2 = self.fc(out2)
+        
+        #
+        out = torch.cat([out1.unsqueeze(-1), out2.unsqueeze(-1)], dim=-1)
+        out = torch.mean(out, dim=-1)
 
-        return x
+        return out
 
 
 def MainModel(nOut=512, **kwargs):

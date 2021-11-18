@@ -52,13 +52,13 @@ class ResNetSE(nn.Module):
         self.instancenorm = nn.InstanceNorm1d(n_mels)
         self.torchfb = torch.nn.Sequential(
             PreEmphasis(),
-            torchaudio.transforms.MelSpectrogram(
+            torchaudio.transforms.MFCC(
                 sample_rate=16000,
-                n_fft=512,
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=n_mels))
+                n_mfcc=n_mels,
+                melkwargs={'n_fft':512,
+                           'n_mels':80,
+                          'win_length':400,
+                          'hop_length':160}))
         outmap_size = int(self.n_mels / 8)
 
         self.attention = nn.Sequential(
@@ -116,7 +116,6 @@ class ResNetSE(nn.Module):
                 x = self.instancenorm(x).unsqueeze(1)
 
         assert len(x.size()) == 4  # batch x channel x n_mels x n_frames
-
         x = self.conv1(x)
         x = self.relu(x)
         x = self.bn1(x)

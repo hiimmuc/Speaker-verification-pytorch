@@ -440,3 +440,12 @@ class SharedDimScaleDropout(nn.Module):
                 return X * self.mask.repeat(tied_mask_shape).uniform_(1 - 2*self.alpha, 1 + 2*self.alpha).repeat(repeats)
                 # expected value of dropout mask is 1 so no need to scale outputs like vanilla dropout
         return X
+    
+__models__ = {
+    'FTDNN': FTDNN,
+    'ETDNN': ETDNN,
+    'TDNN': TDNN,
+    'XTDNN': XTDNN,
+    'XTDNN-OLayer': XTDNN-OLayer,
+    'XTDNN-ILayer': XTDNN-ILayer
+}
