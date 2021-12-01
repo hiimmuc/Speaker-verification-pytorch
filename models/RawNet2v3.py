@@ -102,16 +102,10 @@ class LayerNorm(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        # device = x.get_device()
-
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
 
         return self.gamma * (x - mean) / (std + self.eps) + self.beta
-        # gamma = self.gamma.to(x.device)
-        # beta = self.beta.to(x.device)
-
-        # return gamma * (x - mean) / (std + self.eps) + beta
 
 
 class SincConv_fast(nn.Module):
@@ -280,11 +274,21 @@ class RawNet2(nn.Module):
             padding=0
         )
         #  sinc layer
-        nb_samp = 16000 * (kwargs['max_frames']//100) + 240
+        hoplength = 10e-3 * int(kwargs['sample_rate'])
+        winlength = 25e-3 * int(kwargs['sample_rate'])
+        
+        nb_samp = int(int(kwargs['sample_rate']) * (kwargs['max_frames']/100)) + int(winlength - hoplength)
         self.ln = LayerNorm(nb_samp)
         self.first_conv = SincConv_fast(in_channels=in_channels,
                                         out_channels=nb_filters[0],
-                                        kernel_size=first_conv_size
+                                        kernel_size=first_conv_size,
+                                        sample_rate=int(kwargs['sample_rate']),
+                                        stride=1, 
+                                        padding=0, 
+                                        dilation=1, 
+                                        bias=False, 
+                                        groups=1, 
+                                        min_low_hz=50, min_band_hz=50
                                         )
 
         self.first_bn = nn.BatchNorm1d(nb_filters[0])
