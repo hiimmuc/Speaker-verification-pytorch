@@ -207,6 +207,8 @@ class SpeakerNet(nn.Module):
         # tstart = time.time()
 
         # Read files and compute all scores
+
+            
         for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="it", colour="MAGENTA")):
             data = line.split()
 
@@ -239,7 +241,8 @@ class SpeakerNet(nn.Module):
 
             all_scores.append(score)
             all_labels.append(int(data[0]))
-            all_trials.append(data[1] + " " + data[2])
+            all_trials.append(data[1] + " " + data[2])             
+                
 
 #             if idx % print_interval == 0:
 #                 telapsed = time.time() - tstart

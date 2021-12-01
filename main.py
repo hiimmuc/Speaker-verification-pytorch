@@ -35,6 +35,10 @@ if __name__ == '__main__':
                         type=int,
                         default=100,
                         help='Input length to the network for testing; 0 for whole files')
+    parser.add_argument('--sample_rate',
+                        type=int,
+                        default=8000,
+                        help='samplerate for audio')
     parser.add_argument('--batch_size',
                         type=int,
                         default=128,

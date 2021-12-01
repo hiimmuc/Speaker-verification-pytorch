@@ -21,9 +21,10 @@ from scipy import signal
 from sklearn import metrics
 from scipy import spatial
 from numpy.linalg import norm
+import librosa
 
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=False):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -36,13 +37,22 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
     Returns:
         [type]: [description]
     '''
-    # Maximum audio length
-    # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
-    max_audio = max_frames * 160 + 240
-
-    audio, sample_rate = sf.read(filename)
+    
+    if not resample:
+        audio, sample_rate = sf.read(filename)
+    else:
+        y = sf.read(filename)
+        sf.write('temp.wav', y[0], sr)
+        audio, sample_rate = sf.read('temp.wav')
 
     audiosize = audio.shape[0]
+    # Maximum audio length
+    # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
+    # get the winlength 25ms, hop 10ms
+    hoplength = 10e-3 * sample_rate
+    winlength = 25e-3 * sample_rate
+    
+    max_audio = int(max_frames * hoplength + (winlength - hoplength))
 
     if audiosize <= max_audio:
         shortage = max_audio - audiosize + 1
@@ -66,7 +76,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None):
 
     feat = np.stack(feats, axis=0).astype(np.float)
 
-    return feat if not sr else (feat, sample_rate)
+    return feat
 
 
 def mels_spec_preprocess(feat, n_mels=64):
@@ -99,9 +109,13 @@ def worker_init_fn(worker_id):
 
 
 class AugmentWAV(object):
-    def __init__(self, musan_path, rir_path, max_frames):
+    def __init__(self, musan_path, rir_path, max_frames, sample_rate=16000):
+        self.sr = sample_rate
+        hop_length = 10e-3 * self.sr
+        win_length = 25e-3 * self.sr
+        
         self.max_frames = max_frames
-        self.max_audio = max_frames * 160 + 240
+        self.max_audio = int(max_frames * hop_length + (win_length - hop_length))
 
         self.noisetypes = ['noise', 'speech', 'music']
 
@@ -133,7 +147,7 @@ class AugmentWAV(object):
         noises = []
 
         for noise in noiselist:
-            noiseaudio = loadWAV(noise, self.max_frames, evalmode=False)
+            noiseaudio = loadWAV(noise, self.max_frames, evalmode=False, resample=True, sr=self.sr)
             noise_snr = random.uniform(self.noisesnr[noisecat][0],
                                        self.noisesnr[noisecat][1])
             noise_db = 10 * np.log10(np.mean(noiseaudio[0] ** 2) + 1e-4)
@@ -147,7 +161,7 @@ class AugmentWAV(object):
     def reverberate(self, audio):
         rir_file = random.choice(self.rir_files)
 
-        rir, _ = sf.read(rir_file)
+        rir, _ = librosa.load(rir_file, sr=self.sr)
         rir = np.expand_dims(rir.astype(np.float), 0)
         rir = rir / np.sqrt(np.sum(rir ** 2))
         aug_audio = signal.convolve(audio, rir, mode='full')[
@@ -256,7 +270,7 @@ def score_normalization(ref, com, cohorts, top=-1):
 # cosine similarity
 
 def cosine_simialrity(ref, com):
-    return np.mean(abs(F.cosine_similarity(ref, com, dim=1, eps=1e-06)).cpu().numpy())
+    return np.mean(abs(F.cosine_similarity(ref, com, dim=-1, eps=1e-05)).cpu().numpy())
 #     similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-06)
 #     return np.mean(abs(similarity(ref, com)).cpu().numpy())
 

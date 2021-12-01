@@ -67,7 +67,7 @@ def inference(args):
         best_sum_rate = 999
         best_tfa = None
         for i, tfa in enumerate(target_fa):
-            print(tfa, result[0][i])
+#             print(tfa, result[0][i])
             sum_rate = result[0][i][1] + result[0][i][2]
             if sum_rate < best_sum_rate:
                 best_sum_rate = sum_rate
@@ -80,6 +80,18 @@ def inference(args):
             Best sum rate {best_sum_rate} at {best_tfa}\n\
             EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
         score_file.close()
+        
+        # write to file
+        save_root = args.save_path + f"/{args.model_name}/result"
+        writefiles = Path(save_root, 'evaluation_results.txt')
+        with open(write_file, 'w', newline='') as wf:
+            spamwriter = csv.writer(wf, delimiter=',')
+            spamwriter.writerow(['audio_1', 'audio_2','label', 'score', 'predict_label'])
+            for score, label, pair in zip(sc, lab, trials):
+                pred = '1' if score >= result[2] else '0'
+                com, ref = pair.strip().split(' ')
+                spamwriter.writerow([com, ref, label, score, pred])
+            print("Done")
 
         sys.exit(1)
 

@@ -20,6 +20,8 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
 from utils import *
+import wave
+import contextlib
 
 
 def get_audio_path(folder):
@@ -221,13 +223,10 @@ def augmentation(args, audio_paths, mode='train', max_frames=400, step_save=500)
                     roots[i//s + ii], f"{audio_names[i//s + ii].replace('.wav', '')}_augmented_{aug_t}.wav")
 
                 if os.path.exists(save_path):
-                    # print(f"overwrite {idx} to id {i//s + ii}")
                     os.remove(save_path)
-                    # continue
                 else:
                     os.makedirs(os.path.split(save_path)[0], exist_ok=True)
-                # NOTE: still have error, duplicate files
-                # shape: (channel, frames) -> (frames, channels)
+                    
                 audio = audio.T
                 sf.write(str(save_path), audio, sr)
             list_audio = []  # refresh list to avoid memory overload
@@ -262,115 +261,7 @@ def clean_dump_files(args):
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
 
-
-class FeatureExtraction:
-    def __init__(self, args):
-        self.data_files = []
-        self.args = args
-        self.save_dir = args.save_dir
-        self.get_labels('train')
-        self.feat_save_dir = f'./dataset/feature_vectors/{time.strftime("%m-%d-%H-%M", time.localtime())}'
-        os.makedirs(self.feat_save_dir, exist_ok=True)
-
-    def get_labels(self, dts):
-        with open(os.path.join(self.save_dir, f"{dts}.txt"), 'r') as f:
-            self.data_files = f.readlines()
-        self.data_files = list(
-            map(lambda x: x.replace('\n', '').split(' ')[1], self.data_files))
-        # get label of audio
-        self.data_labels = list(
-            map(lambda x: x.replace('\n', '').split(' ')[0], self.data_files))
-
-    def extract_feature_frame(self, audio_path):
-        '''Extract Mel spectrogram features from audio file
-
-        Args:
-            audio_path (str or file type): path to audio file
-
-        Returns:
-            ndarray: mfccs (frames, channels)
-            sampling_rate: int
-        '''
-        try:
-
-            audio, sample_rate = librosa.load(
-                audio_path, sr=16000)
-            y = audio
-
-            # calculate by avg time length / time overlap - 1 for st :v
-            max_pad_length = 400
-            win_length = 400
-            n_fft = 512
-            hop_length = 160
-            n_mels = 64
-            window = scipy.signal.hamming(win_length, sym=False)
-
-            mfccs = librosa.feature.melspectrogram(y=y, sr=sample_rate,
-                                                   n_fft=n_fft,
-                                                   hop_length=hop_length,
-                                                   win_length=win_length,
-                                                   n_mels=n_mels,
-                                                   window=window)
-
-            pad_width = max_pad_length - mfccs.shape[1]
-            pad_width = pad_width if pad_width >= 0 else 0
-            mfccs = np.pad(mfccs[:, :max_pad_length], pad_width=(
-                (0, 0), (0, pad_width)), mode='constant')
-
-        except Exception as e:
-            print("Error encountered while parsing file: ", e)
-            return None, 0
-        return mfccs, sample_rate
-
-    def process_raw_dataset(self):
-        """
-        Load and preprocess the audio files
-        """
-        print("Start text-independent utterance feature extraction")
-        if not isinstance(self.data_files, list):
-            print("wrong format of folder path")
-            return None, None
-        total_speaker_num = len(self.data_files)
-        print("Total speaker files : %d" % total_speaker_num)
-        features = []
-        labels = []
-        for i, audio_path in enumerate(tqdm(self.data_files, unit='files', desc='Extracting features')):
-            # same speaker -> same label
-            label = self.data_labels[i]
-
-            feat, _ = self.extract_feature_frame(audio_path=audio_path)
-            if feat is not None:
-                features.append(feat)
-                labels.append(label)
-            else:
-                print("Data is empty: ", audio_path)
-                continue
-
-        X = np.array(features)
-        Y = np.array(labels)
-
-        # one hot label
-        y_l = Y.copy()
-        # integer encode
-        label_encoder = LabelEncoder()
-        integer_encoded = label_encoder.fit_transform(Y)
-        # binary encode
-        onehot_encoder = OneHotEncoder(sparse=False)
-        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-        onehot_encoded = onehot_encoder.fit_transform(integer_encoded)
-        Y = np.asanyarray(onehot_encoded)
-        return X, Y, y_l, np.asanyarray(integer_encoded)
-
-    def save_as_ndarray(self, X, y_onehot, y_raw, y_int_encode):
-        print('Saving into npy format')
-        np.save(os.path.join(self.feat_save_dir, "data.npy"), X)
-        np.save(os.path.join(self.feat_save_dir, "label_onehot.npy"), y_onehot)
-        np.save(os.path.join(self.feat_save_dir, "label_raw.npy"), y_raw)
-        np.save(os.path.join(self.feat_save_dir,
-                "label_int_encode.npy"), y_int_encode)
-        print('Done!')
-
-
+                        
 class DataGenerator():
     def __init__(self, args, **kwargs):
         self.args = args
@@ -402,9 +293,17 @@ class DataGenerator():
 
     def convert(self):
         # convert data to one form 16000Hz, only works on Linux
-        files = list(Path(self.args.raw_dataset).glob('*/*.wav'))
-        files.sort()
-        print('Converting files, Total:', len(files))
+        spk_files = list(Path(self.args.raw_dataset).glob('*/'))
+        spk_files.sort()
+        if self.args.num_spks > 0:
+            spk_files = spk_files[:self.args.num_spks]
+        
+        files = []
+        for spk in spk_files:
+            files += list(Path(spk).glob('*.wav'))
+            
+        print(f"Converting process, Total: {len(files)}/{len(spk_files)}")
+        
         for fpath in tqdm(files):
             fpath = str(fpath).replace('(', '\(')
             fpath = str(Path(fpath.replace(')', '\)')))
@@ -427,23 +326,27 @@ class DataGenerator():
         train_writer = open(Path(root.parent, 'train_def.txt'), 'w')
         val_writer = open(Path(root.parent, 'val_def.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
+        classpaths.sort()
+        
+        if 0 < self.args.num_spks < len(classpaths) + 1:
+            classpaths = classpaths[:self.args.num_spks]
+        else:
+            raise "Invalid number of speakers"
+
         print('Generate dataset metadata files, total:', len(classpaths))
         val_filepaths_list = []
         for classpath in classpaths:
             filepaths = list(classpath.glob('*.wav'))
+            
+            filepaths = check_valid_audio(filepaths, 0.5, 8000)
 
             random.shuffle(filepaths)
-
-#             non_augment_path = list(
-#                 filter(lambda x: 'augment' not in str(x), filepaths))
 
             val_num = 3  # 3 utterances per speaker for val
 
             if self.args.split_ratio > 0:
                 val_num = int(self.args.split_ratio * len(filepaths))
 
-#             val_filepaths = filepaths[:val_num]
-#             train_filepaths = filepaths[val_num:]
             val_filepaths = random.sample(filepaths, val_num)
             train_filepaths = list(set(filepaths) - set(val_filepaths))
         
@@ -479,6 +382,23 @@ class DataGenerator():
         data = feat_extract_engine.process_raw_dataset()
         feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
 
+        
+def check_valid_audio(files, duration_lim=1.5, sr=8000):
+    filtered_list = []
+    files = [str(path) for path in files]
+    
+    for fname in files:
+        with contextlib.closing(wave.open(fname,'r')) as f:
+            frames = f.getnframes()
+            rate = f.getframerate()
+            duration = frames / float(rate)
+        if rate == sr and duration >= duration_lim:
+            filtered_list.append(fname)
+        else:
+            pass
+    filtered_list = [Path(path) for path in filtered_list]
+    return filtered_list
+    
 
 def restore_dataset(raw_dataset):
     raw_data_dir = raw_dataset
@@ -538,6 +458,10 @@ if __name__ == '__main__':
                         type=float,
                         default=0.2,
                         help='Split ratio')
+    parser.add_argument('--num_spks',
+                        type=int,
+                        default=-1,
+                        help='number of speaker')   
     # mode
     parser.add_argument('--convert',
                         default=False,

@@ -51,18 +51,19 @@ def train(args):
     if args.initial_model:
         s.loadParameters(args.initial_model)
         print("Model %s loaded!" % args.initial_model)
-        if 'checkpoints' in args.initial_model:
-            it = 1
+        it = 1
     elif prev_model_state:
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
     else:
         print("Train model from scratch!")
-#         remove last checkout
+        it = 1
+    
+    if it == 1:
+        # remove old eerfiles
         for old_file in eerfiles:
             if os.path.exists(old_file):
                 os.remove(old_file)
-        it = 1
 
     # schedule the learning rate to stopped epoch
     if args.callbacks in ['steplr', 'cosinelr']:

@@ -12,13 +12,14 @@ from utils import *
 
 
 class Loader(Dataset):
-    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, preprocess, n_mels, aug_folder='offline'):
+    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, preprocess, n_mels, aug_folder='offline', **kwargs):
 
         self.dataset_file_name = dataset_file_name
         self.max_frames = max_frames
         self.augment = augment
         self.apply_preprocess = preprocess
         self.n_mels = n_mels
+        self.sr = kwargs['sample_rate']
 
         # augmented folder files
         self.aug_folder = aug_folder
@@ -28,7 +29,8 @@ class Loader(Dataset):
             if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
                 self.augment_engine = AugmentWAV(musan_path=musan_path,
                                                  rir_path=rir_path,
-                                                 max_frames=max_frames)
+                                                 max_frames=max_frames,
+                                                 sample_rate=self.sr)
             else:
                 self.augment_engine = None
 
@@ -100,7 +102,7 @@ class Loader(Dataset):
 
 
 class Sampler(torch.utils.data.Sampler):
-    def __init__(self, data_source, nPerSpeaker, max_seg_per_spk, batch_size):
+    def __init__(self, data_source, nPerSpeaker, max_seg_per_spk, batch_size, **kwargs):
         self.data_source = data_source
         self.label_dict = data_source.label_dict
         self.nPerSpeaker = nPerSpeaker
@@ -151,10 +153,10 @@ def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
                     rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
                     nPerSpeaker, preprocess, n_mels, **kwargs):
     train_dataset = Loader(dataset_file_name, augment, musan_path,
-                           rir_path, max_frames, preprocess, n_mels, aug_folder='online')
+                           rir_path, max_frames, preprocess, n_mels, aug_folder='online', **kwargs)
 
     train_sampler = Sampler(train_dataset, nPerSpeaker,
-                            max_seg_per_spk, batch_size)
+                            max_seg_per_spk, batch_size, **kwargs)
 
     train_loader = DataLoader(
         train_dataset,
@@ -228,8 +230,7 @@ if __name__ == '__main__':
     print("Delay: ", time.time() - t)
     print(len(train_loader))
     for (sample, label) in tqdm(train_loader):
-        # train_sample = np.array(train_sample)
         sample = sample.transpose(0, 1)
-        for inp in sample:
-            print(inp.size())
-        # print(sample.size(), label.size())
+#         for inp in sample:
+# #             print(inp.size())
+        print(sample.size(), label.size())
