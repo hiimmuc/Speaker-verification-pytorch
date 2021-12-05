@@ -1,5 +1,6 @@
 # run on linux only
 import argparse
+import contextlib
 import glob
 import hashlib
 import os
@@ -7,21 +8,16 @@ import random
 import shutil
 import subprocess
 import tarfile
-import time
+import wave
 from pathlib import Path
 from zipfile import ZipFile
 
-import librosa
-import numpy as np
-import scipy
 import soundfile as sf
 from scipy.io import wavfile
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
 from utils import *
-import wave
-import contextlib
 
 
 def get_audio_path(folder):
@@ -226,7 +222,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=400, step_save=500)
                     os.remove(save_path)
                 else:
                     os.makedirs(os.path.split(save_path)[0], exist_ok=True)
-                    
+
                 audio = audio.T
                 sf.write(str(save_path), audio, sr)
             list_audio = []  # refresh list to avoid memory overload
@@ -261,7 +257,7 @@ def clean_dump_files(args):
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
 
-                        
+
 class DataGenerator():
     def __init__(self, args, **kwargs):
         self.args = args
@@ -297,13 +293,13 @@ class DataGenerator():
         spk_files.sort()
         if self.args.num_spks > 0:
             spk_files = spk_files[:self.args.num_spks]
-        
+
         files = []
         for spk in spk_files:
             files += list(Path(spk).glob('*.wav'))
-            
+
         print(f"Converting process, Total: {len(files)}/{len(spk_files)}")
-        
+
         for fpath in tqdm(files):
             fpath = str(fpath).replace('(', '\(')
             fpath = str(Path(fpath.replace(')', '\)')))
@@ -327,7 +323,7 @@ class DataGenerator():
         val_writer = open(Path(root.parent, 'val_def.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         classpaths.sort()
-        
+
         if 0 < self.args.num_spks < len(classpaths) + 1:
             classpaths = classpaths[:self.args.num_spks]
         else:
@@ -337,7 +333,7 @@ class DataGenerator():
         val_filepaths_list = []
         for classpath in classpaths:
             filepaths = list(classpath.glob('*.wav'))
-            
+
             filepaths = check_valid_audio(filepaths, 0.5, 8000)
 
             random.shuffle(filepaths)
@@ -349,7 +345,7 @@ class DataGenerator():
 
             val_filepaths = random.sample(filepaths, val_num)
             train_filepaths = list(set(filepaths) - set(val_filepaths))
-        
+
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')
@@ -382,13 +378,13 @@ class DataGenerator():
         data = feat_extract_engine.process_raw_dataset()
         feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
 
-        
+
 def check_valid_audio(files, duration_lim=1.5, sr=8000):
     filtered_list = []
     files = [str(path) for path in files]
-    
+
     for fname in files:
-        with contextlib.closing(wave.open(fname,'r')) as f:
+        with contextlib.closing(wave.open(fname, 'r')) as f:
             frames = f.getnframes()
             rate = f.getframerate()
             duration = frames / float(rate)
@@ -398,7 +394,7 @@ def check_valid_audio(files, duration_lim=1.5, sr=8000):
             pass
     filtered_list = [Path(path) for path in filtered_list]
     return filtered_list
-    
+
 
 def restore_dataset(raw_dataset):
     raw_data_dir = raw_dataset
@@ -461,7 +457,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_spks',
                         type=int,
                         default=-1,
-                        help='number of speaker')   
+                        help='number of speaker')
     # mode
     parser.add_argument('--convert',
                         default=False,
