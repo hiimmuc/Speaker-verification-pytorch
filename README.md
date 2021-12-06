@@ -63,7 +63,7 @@ Pretrained models and corresponding cohorts can be downloaded from [here](https:
 !export CUDA_VISIBLE_DEVICES=5
 ```
 
-then add the device="cuda:5" to args<br/>
+then add the device="cuda:5" to args
 **Phase 1**: Train with classification loss (softmax, amsoftmax, aamsoftmax)
 
 ```python

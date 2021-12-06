@@ -23,6 +23,9 @@ from scipy import spatial
 from numpy.linalg import norm
 import librosa
 
+from scipy.io import wavfile
+import scipy.signal as sps
+from pydub import AudioSegment
 
 def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=False):
     '''Load audio form .wav file and return as the np arra
@@ -41,11 +44,15 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=
     if not resample:
         audio, sample_rate = sf.read(filename)
     else:
-        y = sf.read(filename)
-        sf.write('temp.wav', y[0], sr)
-        audio, sample_rate = sf.read('temp.wav')
+        audio, sample_rate = sf.read(filename)
+        if sample_rate !=  sr:
+            sf.write('temp.wav', y[0], sr)
+            audio, sample_rate = sf.read('temp.wav')
+        else: 
+            pass
 
     audiosize = audio.shape[0]
+
     # Maximum audio length
     # hoplength is 160, winlength is 400 -> total length  = winlength- hop_length + max_frames * hop_length
     # get the winlength 25ms, hop 10ms
@@ -60,7 +67,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=
         audiosize = audio.shape[0]
 
     if evalmode:
-        # get 10 of audio and stack together
+        # get num_eval of audio and stack together
         startframe = np.linspace(0, audiosize - max_audio, num=num_eval)
     else:
         # get randomly initial index of frames, not always from 0
@@ -98,6 +105,43 @@ def mels_spec_preprocess(feat, n_mels=64):
         feat = instancenorm(feat).unsqueeze(1)
 
     return feat
+
+def get_audio_information(audio_path):
+    """"""
+    properties = {}
+    audio = AudioSegment.from_file(audio_path)
+    
+    properties['channels'] = audio.channels 
+    properties['sample_rate'] = audio.frame_rate 
+    properties['sample_width'] = audio.sample_width
+    
+    return properties
+    
+
+def convert_audio(audio_path, new_format='wav', freq=8000):
+    """Convert audio format and samplerate to target"""
+    print(f"Converting process...")
+    try:
+        org_format = audio_path.split('.')[-1].strip()
+        if new_format != org_format:
+            print(f"Convert {org_format} to {new_format}")
+            audio = AudioSegment.from_file(audio_path)
+            audio.export(audio_path.replace(org_format, new_format), format=new_format)
+    except Exception as e:
+        raise e
+        
+    print(f"Convert to {freq}Hz")
+    try:
+        sampling_rate, data = wavfile.read(audio_path)
+        # Resample data
+        number_of_samples = round(len(data) * float(freq) / sampling_rate)
+        data = sps.resample(data, number_of_samples)
+        wavfile.write(audio_path, freq, data)
+    except Exception as e:
+        raise e
+        
+    print('Done!')
+    pass
 
 
 def round_down(num, divisor):

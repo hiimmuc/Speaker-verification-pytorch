@@ -69,7 +69,9 @@ def train(args):
     if args.callbacks in ['steplr', 'cosinelr']:
         for _ in range(0, it - 1):
             s.__scheduler__.step()
-
+    elif args.callbacks == 'auto':
+        it, lr, _ = read_log_file(model_save_path + "/model_state.log")
+        
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
     score_file = open(result_save_path + "/scores.txt", "a+")
@@ -138,6 +140,9 @@ def train(args):
 
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f, ' % result[1])
+                
+            with open(model_save_path + "/model_state.log", 'w') as log_file:
+                log_file.write(f"Epoch:{it}, LR:{max(clr)}, EER: {result[1]}")
 
             plot_from_file(result_save_path, show=False)
 
@@ -160,10 +165,11 @@ def train(args):
                 score_file.close()
                 sys.exit(1)
 
-        # if train from iteration 1, delete all eer checkpoints
-        if it == 1:
-            for f in eerfiles:
-                os.remove(f)
-
         it += 1
+
 #         print("")
+def read_log_file(log_file):
+    with open(log_file, 'w') as wf:
+        data = wf.readline().strip().replace('\n', '').split(',')
+        data = [float(d.split(':')[-1]) for d in data]
+    return data

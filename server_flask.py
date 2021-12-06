@@ -1,8 +1,7 @@
 import io
 import os
-import subprocess
 import time
-import wave
+
 from argparse import Namespace
 from json import dumps
 from pathlib import Path
@@ -15,57 +14,40 @@ from werkzeug.utils import secure_filename
 from model import SpeakerNet
 from utils import *
 
+
+
+# ==================================================Begin========================================
+# Set up env for flask 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'super secret key'
+
 UPLOAD_FOLDER = "static/uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
 ALLOWED_EXTENSIONS = set(['wav', 'mp3', 'flac'])
+
 api = Api(app)
 
 # load model
-threshold = 0.50
-model_path = str(Path('exp/RawNet2v2/model/last_state.model'))
+threshold = 0.27179449796676636
+model_path = str(Path('exp/dump/RawNet2v3/model/best_state_0112.model'))
 config_path = str(Path('config_deploy.yaml'))
 args = read_config(config_path)
 
 model = SpeakerNet(**vars(args))
-model.loadParameters(model_path)
+model.loadParameters(model_path, show_error=False)
 model.eval()
 
 # default enrollment
 enroll_def = None
 
 
-def convert_audio(audio_path, format='wav', freq=8000):
-    # convert data to one form 16000Hz, only works on Linux
-
-    print(f"Converting process...")
-    if format != audio_path[-4:]:
-        print("convert to wav")
-        subprocess.call(['ffmpeg', '-i', audio_path,
-                         audio_path[:-4] + format])
-
-    print(f"Convert to {freq}Hz")
-    fpath = str(audio_path).replace('(', '\(')
-    fpath = str(Path(fpath.replace(')', '\)')))
-    outpath = str(Path(fpath[:-4] + '_conv' + fpath[-4:]))
-    out = subprocess.call(
-        f'ffmpeg -y -i %s -ac 1 -vn -acodec pcm_s16le -ar {freq} %s >/dev/null 2>/dev/null'
-        % (fpath, outpath),
-        shell=True)
-    if out != 0:
-        raise ValueError('Conversion failed %s.' % fpath)
-    subprocess.call('rm %s' % (fpath), shell=True)
-    subprocess.call('mv %s %s' % (outpath, fpath), shell=True)
-    print('Done!')
-
-
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
+           
+# =============================================Flask API==================================
 @app.route('/')
 def home():
     return render_template('demo.html')
@@ -88,8 +70,11 @@ def upload_audio():
 
         enroll = request.files['file1']
         test = request.files['file2']
-
+        
+        # to make the fisrt enrollment be the base user and the other be the test user, if change user, remove the last one
         if allowed_file(enroll.filename) and enroll:
+            if os.path.exists(enroll_def):
+                os.remove(enroll_def)
             enroll_def = enroll
         else:
             enroll = enroll_def
@@ -109,22 +94,29 @@ def upload_audio():
 
         # check and convert audio:
         for audio_path in audio:
-            with wave.open(audio_path, "rb") as wave_file:
-                frame_rate = wave_file.getframerate()
-            valid_audio = (audio_path[-4:] != '.wav') and frame_rate != args.sample_rate
+            audio_properties = get_audio_information(audio_path)
+            format = audio_path.split('.')[-1]
+            valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format = args.target_format)
             if not valid_audio:
-                convert_audio(audio_path, format='wav', freq=args.sample_rate)
-
+                convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+                
         # predict
         t0 = time.time()
         # make prediction here
         audio_1 = audio[0]
         audio_2 = audio[1]
+        
         result = model.pair_test(audio_1, audio_2, 100, 10, '', scoring_mode='cosine', cohorts=None)
-        matching = result > threshold
+
+        ratio = threshold / 0.5
+        result = (result / ratio) if (result / ratio) < 1 else 1
+        matching = result > 0.5
+        
         # return and upload score
         inference_time = time.time() - t0
-        os.remove(audio_2)  # remove compath
+        
+        if os.path.exists(audio_2):
+            os.remove(audio_2) # remove the test voice audio to prevent overloading
 
         return render_template('demo.html',
                                filename1=audio_1,
@@ -135,5 +127,4 @@ def upload_audio():
 
 
 if __name__ == '__main__':
-    # app.run(debug=True, host='0.0.0.0', port=8111)
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8111)

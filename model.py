@@ -275,8 +275,8 @@ class SpeakerNet(nn.Module):
             cohorts = np.load(cohorts_path)
         save_root = self.save_path + f"/{self.model_name}/result"
 
-        data_root = Path(root, 'public_test/competition_public_test')
-        read_file = Path(root, 'public_test/test_vlsp.csv')
+        data_root = Path(root)
+        read_file = Path(root, 'evaluation_test.txt')
         write_file = Path(save_root, 'results.txt')
         # Read all lines from testfile (read_file)
         with open(read_file, newline='') as rf:
@@ -292,7 +292,7 @@ class SpeakerNet(nn.Module):
 
         # Save all features to feat dictionary
         for idx, filename in enumerate(setfiles):
-            audio = loadWAV(Path(data_root, filename),
+            audio = loadWAV(filename.replace('\n', ''),
                             eval_frames,
                             evalmode=True,
                             num_eval=num_eval)
@@ -314,39 +314,10 @@ class SpeakerNet(nn.Module):
         print('')
         tstart = time.time()
 
-#         # Read files and compute all scores
-#         with open(write_file, 'w', newline='') as wf:
-#             spamwriter = csv.writer(wf, delimiter=',')
-#             spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
-#             for idx, data in enumerate(lines):
-#                 ref_feat = feats[data[0]].to(self.device)
-#                 com_feat = feats[data[1]].to(self.device)
-
-#                 if self.__L__.test_normalize:
-#                     ref_feat = F.normalize(ref_feat, p=2, dim=1)
-#                     com_feat = F.normalize(com_feat, p=2, dim=1)
-
-#                 if cohorts_path is None:
-#                     dist = F.pairwise_distance(
-#                         ref_feat.unsqueeze(-1),
-#                         com_feat.unsqueeze(-1).transpose(
-#                             0, 2)).detach().cpu().numpy()
-#                     score = -1 * np.mean(dist)
-#                 else:
-#                     if scoring_mode == 'norm':
-#                         score = score_normalization(ref_feat,
-#                                                     com_feat,
-#                                                     cohorts,
-#                                                     top=200)
-#                     elif scoring_mode == 'cosine':
-#                         score = cosine_simialrity(ref_feat, com_feat)
-
-#                 pred = '1' if score >= thre_score else '0'
-#                 spamwriter.writerow([data[0], data[1], pred, score])
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-#             spamwriter.writerow(['audio_1', 'audio_2', 'score'])
+            spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
             for idx, data in enumerate(lines):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -371,7 +342,7 @@ class SpeakerNet(nn.Module):
                         score = cosine_simialrity(ref_feat, com_feat)
 
                 pred = '1' if score >= thre_score else '0'
-                spamwriter.writerow([data[0], data[1], score])
+                spamwriter.writerow([data[0], data[1], pred, score])
 
                 if idx % print_interval == 0:
                     telapsed = time.time() - tstart
@@ -385,13 +356,12 @@ class SpeakerNet(nn.Module):
                        root,
                        thre_score=0.5,
                        cohorts_path='data/zalo/cohorts.npy',
-                       print_interval=100,
+                       print_interval=1,
                        num_eval=10,
                        eval_frames=None,
                        scoring_mode='norm'):
         self.eval()
         lines = []
-        files = []
         pairs = []
         tstart = time.time()
 
@@ -400,27 +370,24 @@ class SpeakerNet(nn.Module):
 
         # Read all lines
         save_root = self.save_path + f"/{self.model_name}/result"
-        data_root = Path(root, 'public_test/data_test')
-        read_file = Path(root, 'data_public_test.csv')
-        write_file = Path(save_root, 'submission_pair_test.csv')
+
+        data_root = ''
+        read_file = Path(root, 'evaluation_test.csv')
+        write_file = Path(save_root, 'results_pair.txt')
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
             for row in tqdm(spamreader):
-                files.append(row[0])
-                files.append(row[1])
                 lines.append(row)
                 pairs.append([row[0], row[1]])
 
-        setfiles = list(set(files))
-        setfiles.sort()
         print("Delay time", (time.time() - tstart))
         pred_time_list = []
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(
-                ['audio_1', 'audio_2', 'label', 'inference_time'])
+                ['audio_1', 'audio_2', 'label', 'inference_time', 'score'])
 
             for idx, pair in enumerate(pairs):
                 t0 = time.time()
@@ -437,7 +404,7 @@ class SpeakerNet(nn.Module):
 
                 pred = '1' if score >= thre_score else '0'
 
-                spamwriter.writerow([pair[0], pair[1], pred, pred_time])
+                spamwriter.writerow([pair[0], pair[1], pred, pred_time, score])
 
                 if idx % print_interval == 0:
                     telapsed = time.time() - tstart
@@ -450,7 +417,11 @@ class SpeakerNet(nn.Module):
     def pair_test(self, audio_1, audio_2, eval_frames, num_eval, data_root, scoring_mode='cosine', cohorts=None):
         assert isinstance(audio_1, str)
         assert isinstance(audio_2, str)
+        
+        audio_1 = audio_1.replace('\n', '')
+        audio_2 = audio_2.replace('\n', '')
 
+        
         path_ref = Path(data_root, audio_1)
         path_com = Path(data_root, audio_2)
         ref_feat = self.embed_utterance(path_ref,

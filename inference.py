@@ -1,7 +1,9 @@
+import csv
 import glob
 import os
 import random
 import sys
+
 import time
 from math import fabs
 from pathlib import Path
@@ -82,8 +84,9 @@ def inference(args):
         score_file.close()
         
         # write to file
-        save_root = args.save_path + f"/{args.model_name}/result"
-        writefiles = Path(save_root, 'evaluation_results.txt')
+        save_root = args.save_path + f"/{args.model}/result"
+        write_file = Path(save_root, 'evaluation_results.txt')
+        
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(['audio_1', 'audio_2','label', 'score', 'predict_label'])
@@ -100,7 +103,7 @@ def inference(args):
         model.testFromList(args.test_path,
                            cohorts_path=args.cohorts_path,
                            thre_score=threshold,
-                           print_interval=100,
+                           print_interval=1,
                            eval_frames=args.eval_frames,
                            scoring_mode=scoring_mode)
         sys.exit(1)
@@ -109,7 +112,7 @@ def inference(args):
         model.test_each_pair(args.test_path,
                              cohorts_path=args.cohorts_path,
                              thre_score=threshold,
-                             print_interval=100,
+                             print_interval=1,
                              eval_frames=args.eval_frames,
                              scoring_mode=scoring_mode)
         sys.exit(1)
