@@ -18,7 +18,7 @@ class SEBasicBlock(nn.Module):
             planes, planes, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.se = SEBlock(planes, planes // reduction)
+        self.se = SELayer(planes, planes // reduction)
         self.downsample = downsample
         self.stride = stride
 

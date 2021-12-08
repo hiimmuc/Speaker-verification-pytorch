@@ -9,7 +9,6 @@ from torchsummary import summary
 from utils import PreEmphasis
 
 from models.ResNetBlocks import *
-from models.ResNetBlocks import SEBasicBlock
 
 
 class ResNetSE(nn.Module):
@@ -21,6 +20,7 @@ class ResNetSE(nn.Module):
                  encoder_type='SAP',
                  n_mels=64,
                  log_input=True,
+                 preprocess=False,
                  **kwargs):
         super(ResNetSE, self).__init__()
 
@@ -29,6 +29,7 @@ class ResNetSE(nn.Module):
         self.encoder_type = encoder_type
         self.n_mels = n_mels
         self.log_input = log_input
+        self.preprocess = preprocess
 
         self.conv1 = nn.Conv2d(1,
                                num_filters[0],
@@ -51,19 +52,31 @@ class ResNetSE(nn.Module):
                                        num_filters[3],
                                        layers[3],
                                        stride=(2, 2))
+        
+        self.instancenorm = nn.InstanceNorm1d(n_mels)
+        self.torchfb = torch.nn.Sequential(
+            PreEmphasis(),
+            torchaudio.transforms.MelSpectrogram(
+                sample_rate=16000,
+                n_fft=512,
+                win_length=400,
+                hop_length=160,
+                window_fn=torch.hamming_window,
+                n_mels=n_mels))
+        outmap_size = int(self.n_mels / 8)
+
+        self.attention = nn.Sequential(
+            nn.Conv1d(num_filters[3] * block.expansion * outmap_size, 128, kernel_size=1),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            nn.Conv1d(128, num_filters[3] * block.expansion * outmap_size, kernel_size=1),
+            nn.Softmax(dim=2),
+        )
 
         if self.encoder_type == "SAP":
-            self.sap_linear = nn.Linear(num_filters[3] * block.expansion,
-                                        num_filters[3] * block.expansion)
-            self.attention = self.new_parameter(
-                num_filters[3] * block.expansion, 1)
-            out_dim = num_filters[3] * block.expansion
+            out_dim =  num_filters[3] * block.expansion * outmap_size
         elif self.encoder_type == "ASP":
-            self.sap_linear = nn.Linear(num_filters[3] * block.expansion,
-                                        num_filters[3] * block.expansion)
-            self.attention = self.new_parameter(
-                num_filters[3] * block.expansion, 1)
-            out_dim = num_filters[3] * block.expansion * 2
+            out_dim =  num_filters[3] * block.expansion * outmap_size * 2
         else:
             raise ValueError('Undefined encoder')
 
@@ -77,6 +90,7 @@ class ResNetSE(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
 
     def new_parameter(self, *size):
         out = nn.Parameter(torch.FloatTensor(*size))
@@ -104,7 +118,14 @@ class ResNetSE(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        assert len(x.size()) == 4 # batch x channel x n_mels x n_frames
+        if not self.preprocess:
+            with torch.no_grad():
+                x = self.torchfb(x) + 1e-6
+                if self.log_input:
+                    x = x.log()
+                x = self.instancenorm(x).unsqueeze(1)
+
+        assert len(x.size()) == 4  # batch x channel x n_mels x n_frames
 
         x = self.conv1(x)
         x = self.relu(x)
@@ -115,32 +136,28 @@ class ResNetSE(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = torch.mean(x, dim=2, keepdim=True)
+        x = x.reshape(x.size()[0], -1, x.size()[-1])
+
+        w = self.attention(x)
 
         if self.encoder_type == "SAP":
-            x = x.permute(0, 3, 1, 2).squeeze(-1)
-            h = torch.tanh(self.sap_linear(x))
-            w = torch.matmul(h, self.attention).squeeze(dim=2)
-            w = F.softmax(w, dim=1).view(x.size(0), x.size(1), 1)
-            x = torch.sum(x * w, dim=1)
+            x = torch.sum(x * w, dim=2)
         elif self.encoder_type == "ASP":
-            x = x.permute(0, 3, 1, 2).squeeze(-1)
-            h = torch.tanh(self.sap_linear(x))
-            w = torch.matmul(h, self.attention).squeeze(dim=2)
-            w = F.softmax(w, dim=1).view(x.size(0), x.size(1), 1)
-            mu = torch.sum(x * w, dim=1)
-            rh = torch.sqrt((torch.sum(
-                (x**2) * w, dim=1) - mu**2).clamp(min=1e-5))
-            x = torch.cat((mu, rh), 1)
+            mu = torch.sum(x * w, dim=2)
+            sg = torch.sqrt((torch.sum(
+                (x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
+            x = torch.cat((mu, sg), 1)
 
         x = x.view(x.size()[0], -1)
         x = self.fc(x)
+
         return x
 
 
 def MainModel(nOut=512, **kwargs):
     # Number of filters
-    num_filters = [64, 128, 256, 512]
+#     num_filters = [64, 128, 256, 512]
+    num_filters = [32, 64, 128, 256]
     model = ResNetSE(SEBottleneck, [3, 4, 6, 3], num_filters, nOut, **kwargs)
     return model
 

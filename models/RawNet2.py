@@ -249,7 +249,7 @@ class RawNet2(nn.Module):
                  **kwargs):
 
         super(RawNet2, self).__init__()
-
+        nb_samp =  16000 * (kwargs['max_frames'] // 100) + 240
         # self.device = device
         self.ln = LayerNorm(nb_samp)
         self.first_conv = SincConv_fast(in_channels=in_channels,
