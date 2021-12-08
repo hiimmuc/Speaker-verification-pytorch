@@ -4,6 +4,7 @@ taken from https://github.com/cvqluu/GE2E-Loss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy
 from utils import accuracy
 
 class LossFunction(nn.Module):
@@ -26,6 +27,7 @@ class LossFunction(nn.Module):
         self.w = nn.Parameter(torch.tensor(init_w))
         self.b = nn.Parameter(torch.tensor(init_b))
         self.loss_method = loss_method
+        self.test_normalize = True
 
         assert self.loss_method in ['softmax', 'contrast']
 

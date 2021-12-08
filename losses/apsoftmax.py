@@ -9,7 +9,7 @@ from utils import accuracy
 
 class LossFunction(nn.Module):
 
-    def __init__(self, in_features, out_features, loss_type='cosface', eps=1e-7, s=None, m=None, **kwargs):
+    def __init__(self, nOut, nClasses, loss_type='cosface', eps=1e-7, s=None, m=None, **kwargs):
         '''
         Angular Penalty Softmax Loss
         Three 'loss_types' available: ['arcface', 'sphereface', 'cosface']
@@ -19,7 +19,7 @@ class LossFunction(nn.Module):
         SphereFace: https://arxiv.org/abs/1704.08063
         CosFace/Ad Margin: https://arxiv.org/abs/1801.05599
         '''
-        super(AngularPenaltySMLoss, self).__init__()
+        super(LossFunction, self).__init__()
         loss_type = loss_type.lower()
         assert loss_type in  ['arcface', 'sphereface', 'cosface']
         if loss_type == 'arcface':
@@ -32,9 +32,9 @@ class LossFunction(nn.Module):
             self.s = 30.0 if not s else s
             self.m = 0.4 if not m else m
         self.loss_type = loss_type
-        self.in_features = in_features
-        self.out_features = out_features
-        self.fc = nn.Linear(in_features, out_features, bias=False)
+        self.in_features = nOut
+        self.out_features = nClasses
+        self.fc = nn.Linear(nOut, nClasses, bias=False)
         self.eps = eps
 
     def forward(self, x, labels):
@@ -62,4 +62,4 @@ class LossFunction(nn.Module):
         denominator = torch.exp(numerator) + torch.sum(torch.exp(self.s * excl), dim=1)
         L = numerator - torch.log(denominator)
         prec1 = accuracy(torch.exp(self.s * excl).detach(), labels.detach(), topk=(1,))[0]
-        return -torch.mean(L)
+        return -torch.mean(L), prec1
