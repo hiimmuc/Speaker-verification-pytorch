@@ -31,13 +31,15 @@ api = Api(app)
 
 # load model
 threshold = 0.27179449796676636
-model_path = str(Path('exp/dump/RawNet2v3/model/best_state_0112.model'))
+model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
 config_path = str(Path('config_deploy.yaml'))
 args = read_config(config_path)
 
+t0 = time.time()
 model = SpeakerNet(**vars(args))
 model.loadParameters(model_path, show_error=False)
 model.eval()
+print("Model Loaded time: ", time.time() - t0)
 
 # default enrollment
 enroll_def = None
@@ -62,8 +64,9 @@ def audio(filename):
 @app.route('/', methods=['GET', 'POST'])
 def upload_audio():
     global enroll_def
-
+    
     if request.method == 'POST':
+        t0 = time.time()
         if any(f'file{i}' not in request.files for i in [1, 2]):
             flash('No file part')
             return redirect(request.url)
@@ -73,11 +76,10 @@ def upload_audio():
         
         # to make the fisrt enrollment be the base user and the other be the test user, if change user, remove the last one
         if allowed_file(enroll.filename) and enroll:
-            if os.path.exists(enroll_def):
-                os.remove(enroll_def)
             enroll_def = enroll
         else:
             enroll = enroll_def
+
 
         files = [enroll, test]
 
@@ -91,14 +93,17 @@ def upload_audio():
                     file.save(audio_path)
             else:
                 return redirect('/')
-
+        print("Upload files times:", time.time() - t0)
+        
         # check and convert audio:
-        for audio_path in audio:
+        for i, audio_path in enumerate(audio):
+            t0 = time.time()
             audio_properties = get_audio_information(audio_path)
             format = audio_path.split('.')[-1]
-            valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format = args.target_format)
+            valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
             if not valid_audio:
-                convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+                audio[i] = audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+            print("Check validation time:", time.time() - t0)
                 
         # predict
         t0 = time.time()
@@ -114,6 +119,7 @@ def upload_audio():
         
         # return and upload score
         inference_time = time.time() - t0
+        print("Predict time", inference_time)
         
         if os.path.exists(audio_2):
             os.remove(audio_2) # remove the test voice audio to prevent overloading
