@@ -18,8 +18,8 @@ pip install -r requirements.txt
    <pre>
    Structure of dataset: <br />
    dataset ---- wavs ---- id_00001 ---- id_00001_1.wav <br />
-                    |             |---- id_00001_1.wav <br />
-                    |             |---- id_00001_1.wav <br />
+                    |             |---- id_00001_2.wav <br />
+                    |             |---- id_00001_3.wav <br />
                     |             \----  .... <br />
                     |---- id_00002 ---- .... <br />
                     \---- id_.... <br />
