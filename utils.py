@@ -8,7 +8,9 @@ import time
 import wave
 from argparse import Namespace
 
+import librosa
 import numpy as np
+import scipy.signal as sps
 import soundfile as sf
 import torch
 import torch.nn as nn
@@ -17,17 +19,14 @@ import torchaudio
 import webrtcvad
 import yaml
 from matplotlib import pyplot as plt
-from scipy import signal
-from sklearn import metrics
-from scipy import spatial
 from numpy.linalg import norm
-import librosa
-
-from scipy.io import wavfile
-import scipy.signal as sps
 from pydub import AudioSegment
+from scipy import signal, spatial
+from scipy.io import wavfile
+from sklearn import metrics
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=False):
+
+def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
     '''Load audio form .wav file and return as the np arra
 
     Args:
@@ -40,16 +39,8 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=
     Returns:
         [type]: [description]
     '''
-    
-    if not resample:
-        audio, sample_rate = sf.read(filename)
-    else:
-        audio, sample_rate = sf.read(filename)
-        if sample_rate !=  sr:
-            sf.write('temp.wav', y[0], sr)
-            audio, sample_rate = sf.read('temp.wav')
-        else: 
-            pass
+
+    audio, sample_rate = sf.read(filename)
 
     audiosize = audio.shape[0]
 
@@ -58,7 +49,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10, sr=None, resample=
     # get the winlength 25ms, hop 10ms
     hoplength = 10e-3 * sample_rate
     winlength = 25e-3 * sample_rate
-    
+
     max_audio = int(max_frames * hoplength + (winlength - hoplength))
 
     if audiosize <= max_audio:
@@ -106,17 +97,18 @@ def mels_spec_preprocess(feat, n_mels=64):
 
     return feat
 
+
 def get_audio_information(audio_path):
     """"""
     properties = {}
     audio = AudioSegment.from_file(audio_path)
-    
-    properties['channels'] = audio.channels 
-    properties['sample_rate'] = audio.frame_rate 
+
+    properties['channels'] = audio.channels
+    properties['sample_rate'] = audio.frame_rate
     properties['sample_width'] = audio.sample_width
-    
+
     return properties
-    
+
 
 def convert_audio(audio_path, new_format='wav', freq=8000):
     """Convert audio format and samplerate to target"""
@@ -129,7 +121,7 @@ def convert_audio(audio_path, new_format='wav', freq=8000):
             audio.export(audio_path.replace(org_format, new_format), format=new_format)
     except Exception as e:
         raise e
-        
+
     print(f"Convert to {freq}Hz")
     try:
         sampling_rate, data = wavfile.read(audio_path)
@@ -139,7 +131,7 @@ def convert_audio(audio_path, new_format='wav', freq=8000):
         wavfile.write(audio_path, freq, data)
     except Exception as e:
         raise e
-        
+
     print('Done!')
     pass
 
@@ -157,7 +149,7 @@ class AugmentWAV(object):
         self.sr = sample_rate
         hop_length = 10e-3 * self.sr
         win_length = 25e-3 * self.sr
-        
+
         self.max_frames = max_frames
         self.max_audio = int(max_frames * hop_length + (win_length - hop_length))
 
@@ -250,12 +242,10 @@ class PreEmphasis(torch.nn.Module):
         return F.conv1d(input, self.flipped_filter).squeeze(1)
 
 
-
-
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     labels = np.nan_to_num(labels)
     scores = np.nan_to_num(scores)
-    
+
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
     # G-mean
     gmean = np.sqrt(tpr * (1 - fpr))
@@ -313,10 +303,12 @@ def score_normalization(ref, com, cohorts, top=-1):
 
 # cosine similarity
 
+
 def cosine_simialrity(ref, com):
     return np.mean(abs(F.cosine_similarity(ref, com, dim=-1, eps=1e-05)).cpu().numpy())
 #     similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-06)
 #     return np.mean(abs(similarity(ref, com)).cpu().numpy())
+
 
 def read_config(config_path, args=None):
     if args is None:
