@@ -11,3 +11,5 @@ SoundFile>=0.10.3.post1
 matplotlib
 Flask
 Flask-RESTful
+pydub
+webrtcvad
