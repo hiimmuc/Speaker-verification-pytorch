@@ -64,6 +64,7 @@ Pretrained models and corresponding cohorts can be downloaded from [here](https:
 ```
 
 then add the device="cuda:5" to args
+<br/>
 **Phase 1**: Train with classification loss (softmax, amsoftmax, aamsoftmax)
 
 ```python
@@ -155,34 +156,6 @@ Note: the best model is automaticly saved during the training process, if the in
                 --test_path dataset \
                 --initial_model_infer exp/ResNetSE34v2/model/best_state.model
 ```
-
-### Important arguments:
-1. max_frames (default = 100)
-2. eval_frames
-3. batch_size
-4. nDataLoaderThread
-5. augment
-6. device
-7. model
-8. max_epoch
-9. criterion
-10. save_model_last
-11. preprocess (default True, set to False if training with E2E model ex: RawNetv2)
-12. early_stop
-13. es_patience (default 20, if early_stop is set)
-14. margin (default 0.2 for amsoftmax, aamsoftmax loss)
-15. scale (default 30 for amsoftmax, aamsoftmax loss)
-16. scale_pos, scale_neg (for msloss)
-17. nPerSpeaker (if classification loss set it to 1 if metric loss set to 2, if msloss its likely to set to 5)
-18. nClasses (default 400, change due to the dataset)
-19. initial_model
-20. train_list (metadata of training files)
-21. test_list (metadata of testing files)
-22. n_mels
-23. encoder_type
-24. scoring_mode (using norm or cosine to scoring)
-25. initial_model_infer
-
 
 ## Citation
 
