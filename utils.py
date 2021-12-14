@@ -1,12 +1,14 @@
 import collections
 import contextlib
 import glob
+import json
 import os
 import random
 import sys
 import time
 import wave
 from argparse import Namespace
+from json import JSONEncoder
 
 import librosa
 import numpy as np
@@ -142,6 +144,13 @@ def round_down(num, divisor):
 
 def worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
+
+
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
 
 
 class AugmentWAV(object):

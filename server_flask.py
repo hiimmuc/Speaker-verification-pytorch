@@ -1,7 +1,6 @@
 import io
 import os
 import time
-
 from argparse import Namespace
 from json import dumps
 from pathlib import Path
@@ -14,10 +13,8 @@ from werkzeug.utils import secure_filename
 from model import SpeakerNet
 from utils import *
 
-
-
 # ==================================================Begin========================================
-# Set up env for flask 
+# Set up env for flask
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'super secret key'
 
@@ -48,8 +45,10 @@ enroll_def = None
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-           
+
 # =============================================Flask API==================================
+
+
 @app.route('/')
 def home():
     return render_template('demo.html')
@@ -64,7 +63,7 @@ def audio(filename):
 @app.route('/', methods=['GET', 'POST'])
 def upload_audio():
     global enroll_def
-    
+
     if request.method == 'POST':
         t0 = time.time()
         if any(f'file{i}' not in request.files for i in [1, 2]):
@@ -73,13 +72,12 @@ def upload_audio():
 
         enroll = request.files['file1']
         test = request.files['file2']
-        
+
         # to make the fisrt enrollment be the base user and the other be the test user, if change user, remove the last one
         if allowed_file(enroll.filename) and enroll:
             enroll_def = enroll
         else:
             enroll = enroll_def
-
 
         files = [enroll, test]
 
@@ -94,7 +92,7 @@ def upload_audio():
             else:
                 return redirect('/')
         print("Upload files times:", time.time() - t0)
-        
+
         # check and convert audio:
         for i, audio_path in enumerate(audio):
             t0 = time.time()
@@ -104,25 +102,25 @@ def upload_audio():
             if not valid_audio:
                 audio[i] = audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
             print("Check validation time:", time.time() - t0)
-                
+
         # predict
         t0 = time.time()
         # make prediction here
         audio_1 = audio[0]
         audio_2 = audio[1]
-        
+
         result = model.pair_test(audio_1, audio_2, 100, 10, '', scoring_mode='cosine', cohorts=None)
 
         ratio = threshold / 0.5
         result = (result / ratio) if (result / ratio) < 1 else 1
         matching = result > 0.5
-        
+
         # return and upload score
         inference_time = time.time() - t0
         print("Predict time", inference_time)
-        
+
         if os.path.exists(audio_2):
-            os.remove(audio_2) # remove the test voice audio to prevent overloading
+            os.remove(audio_2)  # remove the test voice audio to prevent overloading
 
         return render_template('demo.html',
                                filename1=audio_1,
@@ -135,108 +133,8 @@ def upload_audio():
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8111)
 """
-import io
-import os
-import time
-
-from argparse import Namespace
-from json import dumps
-import json
-from pathlib import Path
-
-from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
-                   request, send_file, send_from_directory, url_for)
-from flask_restful import Api, Resource
-from werkzeug.utils import secure_filename
-
-# from model import SpeakerNet
-from utils import *
-from pydub import AudioSegment
-import base64
-import numpy as np
-
-# ==================================================load Model========================================
-# load model
-# threshold = 0.27179449796676636
-# model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
-# config_path = str(Path('config_deploy.yaml'))
-# args = read_config(config_path)
-
-# t0 = time.time()
-# model = SpeakerNet(**vars(args))
-# model.loadParameters(model_path, show_error=False)
-# model.eval()
-# print("Model Loaded time: ", time.time() - t0)
-
-# ================================================Flask API=============================================
-# Set up env for flask 
-app = Flask(__name__, template_folder='templates')
-app.secret_key = 'super secret key'
-
-UPLOAD_FOLDER = "static/uploads"
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-app.config['DEBUG'] = True
-
-api = Api(app)
 
 
-@app.route('/', methods=['POST'])
-def get_embbeding():
-    audio_data = None
-    json_data = request.get_json()
-    print(json_data, type(json_data))
-    if 'data' in json_data:
-        audio_data = json.loads(json_data)["data"]
-    else:
-        raise "Error: no data provide"
-    
-#     # convert to AudioSegment
-#     # ....
-#     # enter above
-    # Convert from string of base64 to numpy
-    if isinstance(audio_data, str):
-        audio_data = base64.b64decode(audio_data)
-    print(audio_data)
-    r = base64.decodebytes(audio_data)
-    audio_data_np = np.frombuffer(r, dtype=np.float64)
-    print(audio_data_np)
-    
-#     assert isinstance(audio_data, AudioSegment)
-#     filename = f"time.strftime("%Y-%m-%d %H:%M:%S").wav"
-#     audio_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    
-#     audio_data.export(audio_path, format='wav')
-#     audio_properties = get_audio_information(audio_path)
-#     format = audio_path.split('.')[-1]
-#     valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
-#     if not valid_audio:
-#         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
-
-#     return np.asarray(model.embed_utterance(audio_path, eval_frames=100, num_eval=10, normalize=True))
-    return jsonify({'data': audio_data, 'time': time.time() - t0})
-
-@app.route('/', methods=['GET'])
-def get_something():
-    pass
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8111)
-# client
-import requests
-import simplejson
-import json
-
-signal = b'AAAAAAAgrD8AAAAAAMawPwAAAAAAqLA/AAAAAABMqz8AAAAAAEikPwAAAAAAoKA/AAAAAAAcoT8AAAAAADyhPwAAAAAAAJk/'
-signal_json = signal.decode('utf8').replace("'", '"')
-data = json.loads(signal_json)
-data_send = json.dumps(data)
-data = {'data': data_send}
-data_json = simplejson.dumps(data)
-# payload = {'json_payload': data_json}
-r = requests.post("http://0.0.0.0:8111/", json=data_json)
-print(r.status_code)
-print(r.json())
 # encode decode:
 import base64
 import numpy as np

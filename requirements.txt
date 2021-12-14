@@ -13,3 +13,4 @@ Flask
 Flask-RESTful
 pydub
 webrtcvad
+simplejson
