@@ -10,9 +10,13 @@ save_path: exp/
 criterion: amsoftmax
 optimizer: adam
 callbacks: auto
-device: 'cpu'
+device: 'cuda:0'
 max_epoch: 500
+batch_size: 16
+n_mels: 64
+
 
 sample_rate: 8000
 max_frames: 100
+eval_frames: 100
 target_format: wav
