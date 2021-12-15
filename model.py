@@ -29,7 +29,7 @@ class SpeakerNet(nn.Module):
             'models.' + self.model_name).__getattribute__('MainModel')
         self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
         nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
-        print(f"Train with model {self.model_name}: {nb_params} params")
+        print(f"Initialize model {self.model_name}: {nb_params} params")
 
         LossFunction = importlib.import_module(
             'losses.' + criterion).__getattribute__('LossFunction')
@@ -421,7 +421,6 @@ class SpeakerNet(nn.Module):
         audio_1 = audio_1.replace('\n', '')
         audio_2 = audio_2.replace('\n', '')
 
-        
         path_ref = Path(data_root, audio_1)
         path_com = Path(data_root, audio_2)
         ref_feat = self.embed_utterance(path_ref,
@@ -638,3 +637,20 @@ class SpeakerNet(nn.Module):
         onnx_inputs = {onnx_session.get_inputs()[0].name: torch.to_numpy(inp)}
         onnx_output = onnx_session.run(None, onnx_inputs)
         return onnx_output
+    
+    def export_folder(self, folder_path):
+        model_saved_path = os.path.join(folder_path, self.model_name)
+        os.makedirs(model_saved_path, exist_ok=True)
+        
+        saved_state = os.path.join(model_saved_path, 'best_state.model')
+        saved_model = os.path.join(model_saved_path, 'best_model.pt')
+        
+        torch.save(self.state_dict(), saved_state)
+        torch.save(self.__S__, saved_model)
+        
+        config_eval_file = os.path.join(model_saved_path, "config_eval.yaml")
+        config_deploy_file = os.path.join(model_saved_path, "config_deploy.yaml")
+
+        # with open()
+        # save all to 1 file
+        pass

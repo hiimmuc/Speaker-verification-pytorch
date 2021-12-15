@@ -4,14 +4,22 @@ import json
 import requests
 import simplejson
 
-signal = b'AAAAAAAgrD8AAAAAAMawPwAAAAAAqLA/AAAAAABMqz8AAAAAAEikPwAAAAAAoKA/AAAAAAAcoT8AAAAAADyhPwAAAAAAAJk/'
-# signal_json = signal.decode('utf8').replace("'", '"')
-# data = json.loads(signal_json)
-# data_send = json.dumps(data)
-# data = {'data': data_send}
-data = {'data': signal}
-data_json = simplejson.dumps(data)
-# payload = {'json_payload': data_json}
-r = requests.post("http://127.0.0.1:5000/", json=data_json)
-print(r.status_code)
-print(r.json())
+import soundfile as sf
+import numpy as np
+import base64
+
+
+def encode_audio(path):
+    audio, sr = sf.read(path)
+    audio = audio.astype(np.float64)
+    audio_signal = base64.b64encode(audio)
+    return audio_signal, sr
+
+if __name__ == '__main__':
+    signal, sr = encode_audio("dataset/dump/speaker_272-10_augmented_1.wav")
+    data = {'data': signal, 'sample_rate': sr}
+    data_json = simplejson.dumps(data)
+    
+    r = requests.post("http://0.0.0.0:8111/", json=data_json)
+    print(r.status_code)
+    print(r.json())

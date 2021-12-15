@@ -14,21 +14,21 @@ from flask_restful import Api, Resource
 from pydub import AudioSegment
 from werkzeug.utils import secure_filename
 
-# from model import SpeakerNet
+from model import SpeakerNet
 from utils import *
 
 # ==================================================load Model========================================
 # load model
-# threshold = 0.27179449796676636
-# model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
-# config_path = str(Path('config_deploy.yaml'))
-# args = read_config(config_path)
+threshold = 0.27179449796676636
+model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
+config_path = str(Path('config_deploy.yaml'))
+args = read_config(config_path)
 
-# t0 = time.time()
-# model = SpeakerNet(**vars(args))
-# model.loadParameters(model_path, show_error=False)
-# model.eval()
-# print("Model Loaded time: ", time.time() - t0)
+t0 = time.time()
+model = SpeakerNet(**vars(args))
+model.loadParameters(model_path, show_error=False)
+model.eval()
+print("Model Loaded time: ", time.time() - t0)
 
 # ================================================Flask API=============================================
 # Set up env for flask
@@ -48,35 +48,39 @@ def get_embbeding():
     audio_data = None
     t0 = time.time()
     json_data = request.get_json()
-    print(json_data, type(json_data))
+
     if 'data' in json_data:
-        audio_data = json.loads(json_data)["data"]
+        data_json = json.loads(json_data)
+        audio_data = data_json["data"]
+        sr = int(data_json["sample_rate"])
+        print("Got audio signal", time.time() - t0)
     else:
         raise "Error: no data provide"
+    # convertstring of base64 to np array
     audio_data_bytes = audio_data.encode('utf-8')
     audio_data_b64 = base64.decodebytes(audio_data_bytes)
     audio_data_np = np.frombuffer(audio_data_b64, dtype=np.float64)
-    print(audio_data_np, type(audio_data_np))
-    audio_data_np_json = json.dumps(audio_data_np.tolist())
-
 
 #     # convert to AudioSegment
 #     # ....
-#     # enter above
-
-#     assert isinstance(audio_data, AudioSegment)
-#     filename = f"time.strftime("%Y-%m-%d %H:%M:%S").wav"
-#     audio_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-#     audio_data.export(audio_path, format='wav')
-#     audio_properties = get_audio_information(audio_path)
-#     format = audio_path.split('.')[-1]
-#     valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
-#     if not valid_audio:
-#         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
-
-#     return np.asarray(model.embed_utterance(audio_path, eval_frames=100, num_eval=10, normalize=True))
-    return jsonify({"data": audio_data_np_json, "time": time.time() - t0})
+#     # none above, because we have convert the posted data to numpy array
+# 
+    t0 = time.time()
+    sf.write("dataset/dump/dump.wav", audio_data_np,sr)
+    audio_path = "dataset/dump/dump.wav"
+    print("Save audio signal to dump files", audio_path, time.time() - t0)
+    audio_properties = get_audio_information(audio_path)
+    format = audio_path.split('.')[-1]
+    valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
+    if not valid_audio:
+        audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+    
+    t0 = time.time()
+    emb = np.asarray(model.embed_utterance(audio_path, eval_frames=100, num_eval=10, normalize=True))
+    emb_json = json.dumps(emb.tolist())
+    print("Inference time", time.time() - t0, "Embeding size", emb.shape)
+    
+    return jsonify({"Embedding vector": emb_json, "Inference time": time.time() - t0})
 
 
 @app.route('/', methods=['GET'])
@@ -85,5 +89,5 @@ def get_something():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
-    # app.run(debug=True, host='0.0.0.0', port=8111)
+#     app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8111)
