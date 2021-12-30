@@ -6,20 +6,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time, pdb, numpy, math
-from accuracy import accuracy
+from utils import accuracy
 
-class AAMSoftmax(nn.Module):
-    def __init__(self,
-                 in_feats,
-                 n_classes=10,
-                 m=0.3,
-                 s=15, 
-                 easy_margin=False):
-        super(AAMSoftmax, self).__init__()
+class LossFunction(nn.Module):
+    """
+    AAMSoftmax
+    """
+    def __init__(self, nOut, nClasses, margin=0.2, scale=30, easy_margin=False, **kwargs):
+        super(LossFunction, self).__init__()
         self.m = m
         self.s = s
-        self.in_feats = in_feats
-        self.weight = torch.nn.Parameter(torch.FloatTensor(n_classes, in_feats), requires_grad=True)
+        self.in_feats = nOut
+        self.weight = torch.nn.Parameter(torch.FloatTensor(nOut, nClasses), requires_grad=True)
         self.ce = nn.CrossEntropyLoss()
         nn.init.xavier_normal_(self.weight, gain=1)
 
@@ -31,7 +29,7 @@ class AAMSoftmax(nn.Module):
         self.th = math.cos(math.pi - m)
         self.mm = math.sin(math.pi - m) * m
 
-        print('Initialised AMSoftmax m=%.3f s=%.3f'%(self.m,self.s))
+        print('Initialised AAMSoftmax m=%.3f s=%.3f'%(self.m,self.s))
 
     def forward(self, x, label=None):
         # cos(theta)
@@ -52,5 +50,5 @@ class AAMSoftmax(nn.Module):
         output = output * self.s
 
         loss = self.ce(output, label)
-        prec1, _    = accuracy(output.detach().cpu(), label.detach().cpu(), topk=(1, 5))
+        prec1 = accuracy(output.detach(), label.detach(), topk=(1,))[0]
         return loss, prec1

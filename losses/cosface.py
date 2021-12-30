@@ -8,7 +8,10 @@ import torch.nn.functional as F
 import time, pdb, numpy
 from accuracy import accuracy
 
-class AMSoftmax(nn.Module):
+class LossFunction(nn.Module):
+    """
+    AMSoftmax
+    """
     def __init__(self,
                  in_feats,
                  n_classes=10,

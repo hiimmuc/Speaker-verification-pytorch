@@ -27,14 +27,13 @@ def l2_norm(input):
     output = _output.view(input_size)
     return output
 
-class MMP_Balance2(torch.nn.Module):
-    def __init__(self, n_classes=5994, sz_embed=512, _lambda=0.5): 
+class LossFunction(torch.nn.Module):
+    def __init__(self, nOut=512, nClasses=5994, _lambda=0.5, **kwargs): 
         torch.nn.Module.__init__(self)
         # Proxy Anchor Initialization
         
-        self.proxies = torch.nn.Parameter(torch.randn(n_classes, sz_embed).cuda())
-        #self.proxies = torch.nn.Parameter(torch.randn(n_classes, sz_embed))
-        
+        self.proxies = torch.nn.Parameter(torch.randn(nClasses, nOut)).cuda()
+        #  self.proxies = torch.nn.Parameter(torch.randn(n_classes, sz_embed))
         nn.init.kaiming_normal_(self.proxies, mode='fan_out')
         
         self.criterion  = torch.nn.CrossEntropyLoss()
@@ -42,8 +41,8 @@ class MMP_Balance2(torch.nn.Module):
         self.w = nn.Parameter(torch.tensor(10.0))
         self.b = nn.Parameter(torch.tensor(5.0))
         
-        self.nb_classes = n_classes
-        self.sz_embed = sz_embed
+        self.nb_classes = nClasses
+        self.sz_embed = nOut
         self._lambda = _lambda
         
     def forward(self, X, T):
@@ -52,17 +51,19 @@ class MMP_Balance2(torch.nn.Module):
         #input size(batchsize, 2, feature size)
         assert X.size()[1] >= 2
         
+        device = X.get_device()
+        
         out_anchor      = torch.mean(X[:,1:,:],1)
         out_positive    = X[:,0,:]
         
         P = F.normalize(self.proxies, p=2, dim=1)
         #P = self.proxies
-        P_one_hot = binarize(T = T, nb_classes = self.nb_classes)
+        P_one_hot = binarize(T = T, nb_classes = self.nb_classes).to(device)
         N_one_hot = 1 - P_one_hot
         
         T_others = torch.from_numpy(numpy.delete(numpy.arange(self.nb_classes), T.detach().cpu().numpy())).long()
         
-        new_center = torch.zeros(self.nb_classes, self.sz_embed).cuda()
+        new_center = torch.zeros(self.nb_classes, self.sz_embed).to(device)
         #new_center = torch.zeros(self.nb_classes, self.sz_embed)
         
         new_center[T] = l2_norm(out_anchor)
@@ -79,7 +80,7 @@ class MMP_Balance2(torch.nn.Module):
         cos_sim_matrix2 = F.linear(out_anchor, P[T]) #(batch_size, num_classes)
         cos_sim_matrix2 = cos_sim_matrix2 * self.w - self.b   
         
-        label       = torch.from_numpy(numpy.asarray(range(0,X.shape[0]))).long().cuda()
+        label       = torch.from_numpy(numpy.asarray(range(0,X.shape[0]))).long().to(device)
         #label =  torch.from_numpy(numpy.asarray(range(0,X.shape[0]))).long()
         
         loss_regulator = self.criterion(cos_sim_matrix2, label).mean()
