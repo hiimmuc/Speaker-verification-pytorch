@@ -1,7 +1,8 @@
 import torch  # noqa: F401
 import torch.nn as nn
 import torch.nn.functional as F
-from models.ECAPA_utils import _Conv1d, _BatchNorm1d
+from models.ECAPA_utils import Conv1d as _Conv1d
+from models.ECAPA_utils import BatchNorm1d as _BatchNorm1d
 from utils import PreEmphasis
 import torchaudio
 
@@ -438,7 +439,7 @@ class ECAPA_TDNN(torch.nn.Module):
 
     def __init__(
         self,
-        input_size,
+        input_size=80,
         device="cpu",
         lin_neurons=192,
         activation=torch.nn.ReLU,
@@ -458,19 +459,20 @@ class ECAPA_TDNN(torch.nn.Module):
         self.channels = channels
         self.aug = kwargs['augment']
         sample_rate = int(kwargs['sample_rate'])
-        hoplength = 10e-3 * sample_rate
-        winlength = 25e-3 * sample_rate
+        hoplength = int(10e-3 * sample_rate)
+        winlength = int(25e-3 * sample_rate)
         n_mels = kwargs['n_mels']
+        input_size = n_mels
         
         self.blocks = nn.ModuleList()
         
         self.torchfbank = torch.nn.Sequential(
-            PreEmphasis(),            
+            PreEmphasis(),
             torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, 
                                                  n_fft=512, 
                                                  win_length=winlength, 
                                                  hop_length=hoplength,
-                                                 f_min = 20, f_max = 7600, 
+                                                 f_min=10, f_max=4000,
                                                  window_fn=torch.hamming_window, 
                                                  n_mels=n_mels),
             )
@@ -534,7 +536,6 @@ class ECAPA_TDNN(torch.nn.Module):
             Tensor of shape (batch, time, channel).
         """
         # Minimize transpose for efficiency
-        x = x.transpose(1, 2)
         
         with torch.no_grad():
             x = self.torchfbank(x) + 1e-6
@@ -543,8 +544,8 @@ class ECAPA_TDNN(torch.nn.Module):
             if self.aug == True:
                 x = self.specaug(x)
         
-        # x shape: batch x channel x n_mels x n_frames
-        
+        # x shape: batch x n_mels x n_frames
+
         xl = []
         for layer in self.blocks:
             try:
@@ -563,10 +564,14 @@ class ECAPA_TDNN(torch.nn.Module):
 
         # Final linear transformation
         x = self.fc(x)
-
-        x = x.transpose(1, 2)
         x = x.squeeze()
+       
         return x
+    
+def MainModel(nOut=512, **kwargs):
+    model = ECAPA_TDNN(lin_neurons=nOut, **kwargs)
+    return model
+
 
 # from torchsummary import  summary
 # net = ECAPA_TDNN(23)

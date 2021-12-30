@@ -187,7 +187,7 @@ class SincConv_fast(nn.Module):
         # Hamming window
         #self.window_ = torch.hamming_window(self.kernel_size)
         n_lin = torch.linspace(0, (self.kernel_size/2)-1, steps=int((self.kernel_size/2)))  # computing only half of the window
-        self.window_ = 0.54-0.46*torch.cos(2*math.pi*n_lin/self.kernel_size)
+        self.window_ = 0.54-0.46*torch.cos(2*math.pi*n_lin/self.kernel_size) # hanning window
 
         # (1, kernel_size/2)
         n = (self.kernel_size - 1) / 2.0
@@ -422,8 +422,9 @@ class RawNet2(nn.Module):
 
 
 def MainModel(nOut=512, **kwargs):
-    #     layers = [1, 1, 1, 2, 1, 2]
+#         layers = [1, 1, 1, 2, 1, 2]
     #     nb_filters = [128, 128, 256, 256, 512, 512]
+#     nb_filters = [1024, 1024, 2048, 2048, 2048, 4096]
     layers = [1, 1, 3, 4, 6, 3]
     nb_filters = [128, 128, 256, 256, 256, 256]
 
