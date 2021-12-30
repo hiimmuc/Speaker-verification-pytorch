@@ -1,18 +1,14 @@
 import collections
 import contextlib
 import glob
-import json
 import os
 import random
 import sys
 import time
 import wave
 from argparse import Namespace
-from json import JSONEncoder
 
-import librosa
 import numpy as np
-import scipy.signal as sps
 import soundfile as sf
 import torch
 import torch.nn as nn
@@ -21,18 +17,21 @@ import torchaudio
 import webrtcvad
 import yaml
 from matplotlib import pyplot as plt
-from numpy.linalg import norm
-from pydub import AudioSegment
-from scipy import signal, spatial
-from scipy.io import wavfile
+from scipy import signal
 from sklearn import metrics
+from scipy import spatial
+from numpy.linalg import norm
+import librosa
 
+from scipy.io import wavfile
+import scipy.signal as sps
+from pydub import AudioSegment
 
-def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
+def loadWAV(audio_source, max_frames, evalmode=True, num_eval=10, sr=None, desired_sr=None):
     '''Load audio form .wav file and return as the np arra
 
     Args:
-        filename (str): [description]
+        audio_source (str or numpy array): [description]
         max_frames ([type]): [description]
         evalmode (bool, optional): [description]. Defaults to True.
         num_eval (int, optional): [description]. Defaults to 10.
@@ -41,9 +40,15 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
     Returns:
         [type]: [description]
     '''
-
-    audio, sample_rate = sf.read(filename)
-
+    if isinstance(audio_source, str):
+        audio, sample_rate = sf.read(audio_source)
+    elif isinstance(audio_source, np.ndarray):
+        audio = audio_source
+        assert sr is not None, "Sample rate is not provided!"
+        sample_rate = sr
+    if desired_sr is not None:
+        assert sample_rate == desired_sr, "Different desired sampling rate"
+      
     audiosize = audio.shape[0]
 
     # Maximum audio length
@@ -51,7 +56,7 @@ def loadWAV(filename, max_frames, evalmode=True, num_eval=10):
     # get the winlength 25ms, hop 10ms
     hoplength = 10e-3 * sample_rate
     winlength = 25e-3 * sample_rate
-
+    
     max_audio = int(max_frames * hoplength + (winlength - hoplength))
 
     if audiosize <= max_audio:
@@ -99,45 +104,44 @@ def mels_spec_preprocess(feat, n_mels=64):
 
     return feat
 
-
 def get_audio_information(audio_path):
     """"""
     properties = {}
     audio = AudioSegment.from_file(audio_path)
-
-    properties['channels'] = audio.channels
-    properties['sample_rate'] = audio.frame_rate
+    
+    properties['channels'] = audio.channels 
+    properties['sample_rate'] = audio.frame_rate 
     properties['sample_width'] = audio.sample_width
-
+    
     return properties
+    
 
-
-def convert_audio(audio_path, new_format='wav', freq=8000):
+def convert_audio(audio_path, new_format='wav', freq=8000, out_path=None):
     """Convert audio format and samplerate to target"""
-    print(f"Converting process...")
     try:
         org_format = audio_path.split('.')[-1].strip()
         if new_format != org_format:
-            print(f"Convert {org_format} to {new_format}")
             audio = AudioSegment.from_file(audio_path)
-            audio.export(audio_path.replace(org_format, new_format), format=new_format)
+            # export file as new format
+            audio_path = audio_path.replace(org_format, new_format)
+            audio.export(audio_path, format=new_format)
     except Exception as e:
         raise e
-
-    print(f"Convert to {freq}Hz")
+        
     try:
-        sampling_rate, data = wavfile.read(audio_path)
-        # Resample data
-        number_of_samples = round(len(data) * float(freq) / sampling_rate)
-        data = sps.resample(data, number_of_samples)
-        wavfile.write(audio_path, freq, data)
+        sound = AudioSegment.from_file(audio_path, format='wav')
+        sound = sound.set_frame_rate(freq)
+        sound = sound.set_channels(1)
+        
+        if out_path is not None:
+            audio_path = out_path
+        sound.export(audio_path, format='wav')
     except Exception as e:
         raise e
+        
+    return audio_path
 
-    print('Done!')
-    pass
-
-
+        
 def round_down(num, divisor):
     return num - (num % divisor)
 
@@ -146,19 +150,12 @@ def worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 
-class NumpyArrayEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return JSONEncoder.default(self, obj)
-
-
 class AugmentWAV(object):
     def __init__(self, musan_path, rir_path, max_frames, sample_rate=16000):
         self.sr = sample_rate
         hop_length = 10e-3 * self.sr
         win_length = 25e-3 * self.sr
-
+        
         self.max_frames = max_frames
         self.max_audio = int(max_frames * hop_length + (win_length - hop_length))
 
@@ -192,7 +189,7 @@ class AugmentWAV(object):
         noises = []
 
         for noise in noiselist:
-            noiseaudio = loadWAV(noise, self.max_frames, evalmode=False, resample=True, sr=self.sr)
+            noiseaudio = loadWAV(noise, self.max_frames, evalmode=False, sr=self.sr)
             noise_snr = random.uniform(self.noisesnr[noisecat][0],
                                        self.noisesnr[noisecat][1])
             noise_db = 10 * np.log10(np.mean(noiseaudio[0] ** 2) + 1e-4)
@@ -254,13 +251,14 @@ class PreEmphasis(torch.nn.Module):
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     labels = np.nan_to_num(labels)
     scores = np.nan_to_num(scores)
-
+    
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
     # G-mean
     gmean = np.sqrt(tpr * (1 - fpr))
     idxG = np.argmax(gmean)
-    print(f"G-mean at {idxG}: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
-
+    G_mean_result = [idxG, gmean[idxG], thresholds[idxG]]
+#     print(f"G-mean at {idxG}: {gmean[idxG]}, Best Threshold {thresholds[idxG]}")
+    
     fnr = 1 - tpr
 
     fnr = fnr * 100
@@ -280,7 +278,7 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
     optimal_threshold = thresholds[idxE]
 
-    return (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr))
+    return (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
 
 
 def score_normalization(ref, com, cohorts, top=-1):
@@ -310,13 +308,9 @@ def score_normalization(ref, com, cohorts, top=-1):
     com = com.cpu().numpy()
     return S_norm(ref, com, top=top)
 
-# cosine similarity
-
 
 def cosine_simialrity(ref, com):
     return np.mean(abs(F.cosine_similarity(ref, com, dim=-1, eps=1e-05)).cpu().numpy())
-#     similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-06)
-#     return np.mean(abs(similarity(ref, com)).cpu().numpy())
 
 
 def read_config(config_path, args=None):
@@ -327,6 +321,13 @@ def read_config(config_path, args=None):
     for k, v in yml_config.items():
         args.__dict__[k] = v
     return args
+
+
+def read_log_file(log_file):
+    with open(log_file, 'w') as wf:
+        data = wf.readline().strip().replace('\n', '').split(',')
+        data = [float(d.split(':')[-1]) for d in data]
+    return data
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 # VAD utilities
@@ -420,6 +421,8 @@ class VAD:
         triggered = False
 
         voiced_frames = []
+        unvoiced_frames = []
+        
         for frame in frames:
             is_speech = self.vad.is_speech(frame.bytes, sample_rate)
             if show:
@@ -440,6 +443,8 @@ class VAD:
                     for f, s in ring_buffer:
                         voiced_frames.append(f)
                     ring_buffer.clear()
+                    unvoiced_frames = []
+
             else:
                 # We're in the TRIGGERED state, so collect the audio data
                 # and add it to the ring buffer.
@@ -452,11 +457,15 @@ class VAD:
                 if num_unvoiced > 0.9 * ring_buffer.maxlen:
                     if show:
                         sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+                        for f, s in ring_buffer:
+                            unvoiced_frames.append()
 
                     triggered = False
+                    
                     yield b''.join([f.bytes for f in voiced_frames])
                     ring_buffer.clear()
                     voiced_frames = []
+                    
         if triggered:
             if show:
                 sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
@@ -467,7 +476,7 @@ class VAD:
         if voiced_frames:
             yield b''.join([f.bytes for f in voiced_frames])
 
-    def detect(self, audio_path, write=True, show=False):
+    def detect(self, audio_path, write=True, overwrite=False, show=False):
         if not os.path.exists(audio_path):
             raise "Path is not existed"
         audio, sample_rate = read_wave(audio_path)

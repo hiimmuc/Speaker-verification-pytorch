@@ -81,9 +81,10 @@ class SpeakerNet(nn.Module):
         loss = 0
         top1 = 0  # EER or accuracy
         
-#         tstart = time.time()
-
-        for (data, data_label) in tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green"):
+        tstart = time.time()
+        
+        loader_bar = tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green")
+        for (data, data_label) in loader_bar:
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
@@ -104,6 +105,7 @@ class SpeakerNet(nn.Module):
 
             nloss.backward()
             self.__optimizer__.step()
+            loader_bar.set_postfix(TLoss=f"{round(float(loss / counter), 5)}", TAcc=f"{round(float(top1 / counter), 3)}%")
 
 #             telapsed = time.time() - tstart
 #             tstart = time.time()
@@ -550,17 +552,18 @@ class SpeakerNet(nn.Module):
             raise NotImplementedError
 
     def embed_utterance(self,
-                        fpath,
+                        source,
                         eval_frames=0,
                         num_eval=10,
-                        normalize=False):
+                        normalize=False, sr=None):
         """
         Get embedding from utterance
         """
-        audio = loadWAV(fpath,
+        audio = loadWAV(source,
                         eval_frames,
                         evalmode=True,
-                        num_eval=num_eval)
+                        num_eval=num_eval,
+                        sr=sr)
 
         if self.apply_preprocess:
             audio = mels_spec_preprocess(audio)

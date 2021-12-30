@@ -182,7 +182,7 @@ if __name__ == '__main__':
                         default="dataset/augment_data/RIRS_NOISES/simulated_rirs",
                         help='Absolute path to the augment set')
 
-    # Model definition for MFCCs
+    # Model definition 
     parser.add_argument('--n_mels',
                         type=int,
                         default=64,

@@ -19,9 +19,9 @@ from utils import *
 
 # ==================================================load Model========================================
 # load model
-threshold = 0.27179449796676636
-model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
-config_path = str(Path('config_deploy.yaml'))
+threshold = 0.25077444314956665
+model_path = str(Path('backup/RawNet2v5/model/eer345e-2.model'))
+config_path = str(Path('backup/RawNet2v5/config_deploy.yaml'))
 args = read_config(config_path)
 
 t0 = time.time()
@@ -65,22 +65,22 @@ def get_embbeding():
 #     # ....
 #     # none above, because we have convert the posted data to numpy array
 # 
-    t0 = time.time()
-    sf.write("dataset/dump/dump.wav", audio_data_np,sr)
-    audio_path = "dataset/dump/dump.wav"
-    print("Save audio signal to dump files", audio_path, time.time() - t0)
-    audio_properties = get_audio_information(audio_path)
-    format = audio_path.split('.')[-1]
-    valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
-    if not valid_audio:
-        audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+#     t0 = time.time()
+#     sf.write("dataset/dump/dump.wav", audio_data_np,sr)
+#     audio_path = "dataset/dump/dump.wav"
+#     print("Save audio signal to dump files", audio_path, time.time() - t0)
+#     audio_properties = get_audio_information(audio_path)
+#     format = audio_path.split('.')[-1]
+#     valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
+#     if not valid_audio:
+#         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
     
     t0 = time.time()
-    emb = np.asarray(model.embed_utterance(audio_path, eval_frames=100, num_eval=10, normalize=True))
+    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=3, normalize=True, sr=sr))
     emb_json = json.dumps(emb.tolist())
     print("Inference time", time.time() - t0, "Embeding size", emb.shape)
     
-    return jsonify({"Embedding vector": emb_json, "Inference time": time.time() - t0})
+    return jsonify({"Embedding": emb_json, "Inference_time": time.time() - t0, "Threshold": threshold})
 
 
 @app.route('/', methods=['GET'])

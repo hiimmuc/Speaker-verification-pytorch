@@ -96,14 +96,14 @@ def train(args):
     while True:
         clr = [x['lr'] for x in s.__optimizer__.param_groups]
 
-#         print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
-#               "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
+        print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
+              "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
 
         # Train network
         loss, trainer = s.fit(loader=train_loader, epoch=it)
         # save best model
         if loss == min(min_loss, loss):
-            print(f"Loss reduce from {min_loss} to {loss}. Save the best state")
+            print(f"[INFO] Loss reduce from {min_loss} to {loss}. Save the best state")
             s.saveParameters(model_save_path + "/best_state.model")
             if args.early_stop:
                 early_stopping.counter = 0  # reset counter of early stopping
@@ -167,9 +167,4 @@ def train(args):
 
         it += 1
 
-#         print("")
-def read_log_file(log_file):
-    with open(log_file, 'w') as wf:
-        data = wf.readline().strip().replace('\n', '').split(',')
-        data = [float(d.split(':')[-1]) for d in data]
-    return data
+# ============================ END =============================
