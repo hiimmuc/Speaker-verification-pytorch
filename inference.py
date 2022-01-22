@@ -60,12 +60,15 @@ def inference(args):
         sc, lab, trials = model.evaluateFromList(
             args.test_list,
             cohorts_path=args.cohorts_path,
-            print_interval=10,
+            print_interval=1,
             eval_frames=args.eval_frames,
             scoring_mode=scoring_mode)
+        
         target_fa = np.linspace(5, 0, num=50)
         result = tuneThresholdfromScore(sc, lab, target_fa)
-        print('tfa [thre, fpr, fnr]')
+        
+#         result form : (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
+#         print('tfa [thre, fpr, fnr]')
         best_sum_rate = 999
         best_tfa = None
         for i, tfa in enumerate(target_fa):
@@ -77,10 +80,12 @@ def inference(args):
         print(f'Best sum rate {best_sum_rate} at {best_tfa}')
         print(f'EER {result[1]}% at threshold {result[2]}')
         print(f'AUC {result[3]}')
+        print(f"Gmean result: \nMax accuracy: {result[-1][1]}% at threshold {result[-1][2]}")
         score_file.write(
             f"Evaluation result on:\n\
             Best sum rate {best_sum_rate} at {best_tfa}\n\
-            EER {result[1]} at threshold {result[2]}\nAUC {result[3]}")
+            EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n\
+            Gmean result: \nMax accuracy: {result[-1][1]}% at threshold {result[-1][2]}\n====>\n")
         score_file.close()
         
         # write to file

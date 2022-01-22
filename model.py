@@ -52,7 +52,7 @@ class SpeakerNet(nn.Module):
         elif self.callback == 'reduceOnPlateau':
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('LRScheduler')
-            self.__scheduler__ = Scheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.5)
+            self.__scheduler__ = Scheduler(self.__optimizer__, patience=8, min_lr=1e-6, factor=0.9)
 
         elif self.callback == 'auto':
             steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
@@ -60,7 +60,7 @@ class SpeakerNet(nn.Module):
 
             self.__scheduler__ = {}
             self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
-            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=5, min_lr=0.0006, factor=0.8)
+            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=8, min_lr=1e-6, factor=0.9)
 
     def fit(self, loader, epoch=0):
         '''Train
@@ -129,10 +129,10 @@ class SpeakerNet(nn.Module):
             self.__scheduler__(loss / counter)
 
         elif self.callback == 'auto':
-            if epoch <= 100:
+            if epoch <= 50:
                 self.__scheduler__['rop'](loss / counter)
             else:
-                if epoch == 101:
+                if epoch == 51:
                     print("\n[INFO] # epochs > 100, switch to steplr callback")
                 self.__scheduler__['steplr'].step()
 

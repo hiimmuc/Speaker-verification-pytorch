@@ -1,6 +1,5 @@
 # run on linux only
 import argparse
-import contextlib
 import glob
 import hashlib
 import os
@@ -9,7 +8,6 @@ import shutil
 import subprocess
 import tarfile
 import time
-import wave
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -22,7 +20,9 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from tqdm.auto import tqdm
 
 from utils import *
-
+import wave
+import contextlib
+import csv
 
 def get_audio_path(folder):
     """
@@ -180,7 +180,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=400, step_save=500)
 
     for idx, fpath in enumerate(tqdm(augment_audio_paths, unit='files', desc=f"Augmented process")):
         audio, sr = loadWAV(fpath, max_frames=max_frames,
-                            evalmode=False)
+                            evalmode=False, sr=16000)
         if mode == 'test':
             aug_type = random.randint(1, 4)
 
@@ -226,7 +226,7 @@ def augmentation(args, audio_paths, mode='train', max_frames=400, step_save=500)
                     os.remove(save_path)
                 else:
                     os.makedirs(os.path.split(save_path)[0], exist_ok=True)
-
+                    
                 audio = audio.T
                 sf.write(str(save_path), audio, sr)
             list_audio = []  # refresh list to avoid memory overload
@@ -261,7 +261,30 @@ def clean_dump_files(args):
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
 
-
+def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15):
+    '''
+    header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
+              'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
+              'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
+              'Crest factor', 'Flat factor', 'Peak count',
+              'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
+              'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
+    '''
+    blacklist = []
+    readfile = str(Path("dataset/train_details_full/", f"{id}.csv"))
+    
+    with open(readfile, 'r', newline='') as rf:
+        spamreader = csv.reader(rf, delimiter=',')
+        next(spamreader, None)
+        for row in spamreader:
+            short_length = (float(row[1]) < duration_limit)
+            low_amplitude = (float(row[9]) < dB_limit)
+            high_err = (float(row[-2]) > error_limit)
+            high_noise = (float(row[16]) > noise_limit)
+            if short_length or low_amplitude or high_err or high_noise:
+                blacklist.append(Path(row[-1]))
+    return list(set(blacklist))
+                        
 class DataGenerator():
     def __init__(self, args, **kwargs):
         self.args = args
@@ -297,13 +320,13 @@ class DataGenerator():
         spk_files.sort()
         if self.args.num_spks > 0:
             spk_files = spk_files[:self.args.num_spks]
-
+        
         files = []
         for spk in spk_files:
             files += list(Path(spk).glob('*.wav'))
-
+            
         print(f"Converting process, Total: {len(files)}/{len(spk_files)}")
-
+        
         for fpath in tqdm(files):
             fpath = str(fpath).replace('(', '\(')
             fpath = str(Path(fpath.replace(')', '\)')))
@@ -322,34 +345,50 @@ class DataGenerator():
         """
         Generate train test lists for zalo data
         """
+        no_spks = 0
         root = Path(self.args.raw_dataset)
         train_writer = open(Path(root.parent, 'train_def.txt'), 'w')
         val_writer = open(Path(root.parent, 'val_def.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         classpaths.sort()
-
+        
         if 0 < self.args.num_spks < len(classpaths) + 1:
             classpaths = classpaths[:self.args.num_spks]
+        elif self.args.num_spks == -1:
+            pass
         else:
             raise "Invalid number of speakers"
 
         print('Generate dataset metadata files, total:', len(classpaths))
         val_filepaths_list = []
-        for classpath in classpaths:
+        for classpath in tqdm(classpaths, desc="Processing:..."):
             filepaths = list(classpath.glob('*.wav'))
 
-            filepaths = check_valid_audio(filepaths, 0.5, 8000)
+            # check duration, volumn
+            blist = read_blacklist(str(Path(classpath).name), duration_limit=1.0, dB_limit=-10, error_limit=0.3, noise_limit=-10)
+            filepaths = list(set(filepaths).difference(set(blist)))
 
+            # check duration, sr
+            filepaths = check_valid_audio(filepaths, 1.0, 8000)
+
+            # checknumber of files
+            if len(filepaths) < 10:
+                continue
+            elif len(filepaths) >= 40:
+                filepaths = filepaths[:40]
+            no_spks += 1
+            
             random.shuffle(filepaths)
-
+            
             val_num = 3  # 3 utterances per speaker for val
-
+            
             if self.args.split_ratio > 0:
                 val_num = int(self.args.split_ratio * len(filepaths))
 
             val_filepaths = random.sample(filepaths, val_num)
-            train_filepaths = list(set(filepaths) - set(val_filepaths))
-
+            
+            train_filepaths = list(set(filepaths).difference(set(val_filepaths))) if self.args.split_ratio > 0 else filepaths
+        
             for train_filepath in train_filepaths:
                 label = str(train_filepath.parent.stem.split('-')[0])
                 train_writer.write(label + ' ' + str(train_filepath) + '\n')
@@ -372,7 +411,7 @@ class DataGenerator():
                     y = random.randint(0, len(val_filepaths_list[x]) - 1)
                     val_writer.write(label + ' ' + str(val_filepaths[i]) + ' ' +
                                      str(val_filepaths_list[x][y]) + '\n')
-
+        print("Valid speakers:", no_spks)
         train_writer.close()
         val_writer.close()
 
@@ -382,23 +421,29 @@ class DataGenerator():
         data = feat_extract_engine.process_raw_dataset()
         feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
 
-
+        
+def get_audio_properties(fname):
+    with contextlib.closing(wave.open(fname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        return duration, rate
+    
+    
 def check_valid_audio(files, duration_lim=1.5, sr=8000):
     filtered_list = []
     files = [str(path) for path in files]
-
+    
     for fname in files:
-        with contextlib.closing(wave.open(fname, 'r')) as f:
-            frames = f.getnframes()
-            rate = f.getframerate()
-            duration = frames / float(rate)
+        duration, rate = get_audio_properties(fname)
         if rate == sr and duration >= duration_lim:
             filtered_list.append(fname)
         else:
             pass
+    filtered_list.sort(reverse=True, key = lambda x: get_audio_properties(x)[0])    
     filtered_list = [Path(path) for path in filtered_list]
     return filtered_list
-
+    
 
 def restore_dataset(raw_dataset):
     raw_data_dir = raw_dataset
@@ -461,7 +506,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_spks',
                         type=int,
                         default=-1,
-                        help='number of speaker')
+                        help='number of speaker')   
     # mode
     parser.add_argument('--convert',
                         default=False,

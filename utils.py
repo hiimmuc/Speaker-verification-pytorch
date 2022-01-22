@@ -324,8 +324,8 @@ def read_config(config_path, args=None):
 
 
 def read_log_file(log_file):
-    with open(log_file, 'w') as wf:
-        data = wf.readline().strip().replace('\n', '').split(',')
+    with open(log_file, 'r+') as rf:
+        data = rf.readline().strip().replace('\n', '').split(',')
         data = [float(d.split(':')[-1]) for d in data]
     return data
 
@@ -458,7 +458,7 @@ class VAD:
                     if show:
                         sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
                         for f, s in ring_buffer:
-                            unvoiced_frames.append()
+                            unvoiced_frames.append(f)
 
                     triggered = False
                     
@@ -488,8 +488,9 @@ class VAD:
 
         if write:
             for i, segment in enumerate(segments):
-                path = f"{audio_path.replace('.wav', '')}_vad_{i}.wav"
-                write_wave(path, segment, sample_rate)
+                if len(segment) / sample_rate >= 1.0:
+                    path = f"{audio_path.replace('.wav', '')}_vad_{i}.wav"
+                    write_wave(path, segment, sample_rate)
 
         segments = [np.frombuffer(seg) for seg in segments]
         return segments

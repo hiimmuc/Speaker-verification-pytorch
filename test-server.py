@@ -19,9 +19,9 @@ from utils import *
 
 # ==================================================load Model========================================
 # load model
-threshold = 0.25077444314956665
-model_path = str(Path('backup/RawNet2v5/model/eer345e-2.model'))
-config_path = str(Path('backup/RawNet2v5/config_deploy.yaml'))
+threshold = 0.2023037225008011
+model_path = str(Path('backup/Raw_ECAPA/model/best_state-235e-2.model'))
+config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
 
 t0 = time.time()
@@ -76,7 +76,7 @@ def get_embbeding():
 #         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
     
     t0 = time.time()
-    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=3, normalize=True, sr=sr))
+    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=10, normalize=True, sr=sr))
     emb_json = json.dumps(emb.tolist())
     print("Inference time", time.time() - t0, "Embeding size", emb.shape)
     
