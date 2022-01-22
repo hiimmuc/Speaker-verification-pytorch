@@ -442,7 +442,7 @@ class ECAPA_TDNN(torch.nn.Module):
         input_size=80,
         device="cpu",
         lin_neurons=192,
-        activation=torch.nn.ReLU,
+        activation=torch.nn.GELU,
         channels=[512, 512, 512, 512, 1536],
         kernel_sizes=[5, 3, 3, 3, 1],
         dilations=[1, 2, 3, 4, 1],

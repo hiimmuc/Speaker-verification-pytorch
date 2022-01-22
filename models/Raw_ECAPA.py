@@ -14,8 +14,8 @@ from torch.nn.parameter import Parameter
 from torch.utils import data
 from models import ECAPA_TDNN, RawNet2v2
 
-# torch.backends.cudnn.benchmark = True
-# torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = False
 
 
 class Raw_ECAPA(nn.Module):
@@ -29,7 +29,6 @@ class Raw_ECAPA(nn.Module):
         super(Raw_ECAPA, self).__init__()
         self.ECAPA_TDNN = ECAPA_TDNN.MainModel(nOut=192,**kwargs)
         self.rawnet2v2 = RawNet2v2.MainModel(nOut=nOut-192,**kwargs)
-
 
     def forward(self, x):
         #####
@@ -46,7 +45,6 @@ class Raw_ECAPA(nn.Module):
         #
         out = torch.cat([out1, out2], dim=-1)
 #         out = torch.mean(out, dim=-1)
-
         return out
 
 
