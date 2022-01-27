@@ -246,13 +246,13 @@ if __name__ == '__main__':
                         help='Test threshold')
     parser.add_argument('--scoring_mode',
                         type=str,
-                        default='norm',
+                        default='cosine',
                         help='norm or cosine for scoring')
 
     args = parser.parse_args()
 
     if args.config is not None:
-        read_config(args.config, args)
+        args = read_config(args.config, args)
 
     # Initialise directories
     if args.do_train:

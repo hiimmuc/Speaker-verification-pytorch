@@ -16,7 +16,7 @@ import numpy as np
 import scipy
 import soundfile as sf
 from scipy.io import wavfile
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+
 from tqdm.auto import tqdm
 
 from utils import *
@@ -261,7 +261,7 @@ def clean_dump_files(args):
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
 
-def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15):
+def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15, details_dir="dataset/train_details_full/"):
     '''
     header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
               'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
@@ -271,19 +271,21 @@ def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_li
               'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
     '''
     blacklist = []
-    readfile = str(Path("dataset/train_details_full/", f"{id}.csv"))
-    
-    with open(readfile, 'r', newline='') as rf:
-        spamreader = csv.reader(rf, delimiter=',')
-        next(spamreader, None)
-        for row in spamreader:
-            short_length = (float(row[1]) < duration_limit)
-            low_amplitude = (float(row[9]) < dB_limit)
-            high_err = (float(row[-2]) > error_limit)
-            high_noise = (float(row[16]) > noise_limit)
-            if short_length or low_amplitude or high_err or high_noise:
-                blacklist.append(Path(row[-1]))
-    return list(set(blacklist))
+    readfile = str(Path(details_dir, f"{id}.csv"))
+    if os.path.exists(readfile):
+        with open(readfile, 'r', newline='') as rf:
+            spamreader = csv.reader(rf, delimiter=',')
+            next(spamreader, None)
+            for row in spamreader:
+                short_length = (float(row[1]) < duration_limit)
+                low_amplitude = (float(row[9]) < dB_limit)
+                high_err = (float(row[-2]) >= error_limit)
+                high_noise = (float(row[16]) > noise_limit)
+                if short_length or low_amplitude or high_err or high_noise:
+                    blacklist.append(Path(row[-1]))
+        return list(set(blacklist))
+    else:
+        return None
                         
 class DataGenerator():
     def __init__(self, args, **kwargs):
@@ -300,15 +302,15 @@ class DataGenerator():
             data_paths.extend(
                 glob.glob(os.path.join(raw_data_dir, f'{fdir}/*.wav')))
 
-        with open(os.path.join(self.args.save_dir, 'data.txt'), 'w') as f:
-            for path in data_paths:
-                f.write(f'{path}\n')
+#         with open(os.path.join(self.args.save_dir, 'data.txt'), 'w') as f:
+#             for path in data_paths:
+#                 f.write(f'{path}\n')
         data_folder = list(set([os.path.split(path)[0]
                            for path in data_paths]))
 
-        with open(os.path.join(self.args.save_dir, 'data_folders.txt'), 'w') as f:
-            for path in data_folder:
-                f.write(f'{path}\n')
+#         with open(os.path.join(self.args.save_dir, 'data_folders.txt'), 'w') as f:
+#             for path in data_folder:
+#                 f.write(f'{path}\n')
         non_augment_path = list(
             filter(lambda x: 'augment' not in str(x), data_paths))
         augment_data_paths = list(filter(lambda x: 'augment' in str(x), data_paths))
@@ -347,8 +349,8 @@ class DataGenerator():
         """
         no_spks = 0
         root = Path(self.args.raw_dataset)
-        train_writer = open(Path(root.parent, 'train_def.txt'), 'w')
-        val_writer = open(Path(root.parent, 'val_def.txt'), 'w')
+        train_writer = open(Path(root.parent, 'train_def_cb_anbn.txt'), 'w')
+        val_writer = open(Path(root.parent, 'val_def_cb_anbn.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         classpaths.sort()
         
@@ -365,7 +367,15 @@ class DataGenerator():
             filepaths = list(classpath.glob('*.wav'))
 
             # check duration, volumn
-            blist = read_blacklist(str(Path(classpath).name), duration_limit=1.0, dB_limit=-10, error_limit=0.3, noise_limit=-10)
+            blist = read_blacklist(str(Path(classpath).name), 
+                                   duration_limit=1.0, 
+                                   dB_limit=-10, 
+                                   error_limit=0.5, 
+                                   noise_limit=-10,
+                                   details_dir=self.args.details_dir)
+            if not blist:
+                continue
+                
             filepaths = list(set(filepaths).difference(set(blist)))
 
             # check duration, sr
@@ -498,6 +508,10 @@ if __name__ == '__main__':
                         type=str,
                         default="dataset/wavs",
                         help='Deractory consists raw dataset')
+    parser.add_argument('--details_dir',
+                        type=str,
+                        default='dataset/train_details_full/',
+                        help='Download and extract augmentation files')
 
     parser.add_argument('--split_ratio',
                         type=float,
@@ -542,6 +556,7 @@ if __name__ == '__main__':
                         default=0.5,
                         help='')
 
+
     args = parser.parse_args()
 
     data_generator = DataGenerator(args)
@@ -558,4 +573,3 @@ if __name__ == '__main__':
         data_generator.transform()
     if args.restore:
         restore_dataset(args.raw_dataset)
-# TODO: 10 ddiem du lieu bij loi luu tru 10601 -> 10610

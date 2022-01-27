@@ -12,7 +12,6 @@ import argparse
 import time
 import torch
 
-parser = argparse.ArgumentParser(description="TestService")
 default_path1 = "dataset/dump/thuyth.wav"
 default_path2 = "dataset/dump/366524143-20211229-084534_5.wav"
 URL = "http://0.0.0.0:8111/"
@@ -38,7 +37,7 @@ def get_response(path):
     data_json = simplejson.dumps(data)
     
     r = requests.post(URL, json=data_json)
-    print(r.status_code)
+    print("Success: ",int(r.status_code)==200)
     response = r.json()
     print("Response time:", time.time() - t)
     
@@ -64,7 +63,7 @@ def get_response(path):
     
 
 if __name__ == '__main__':
-    
+    parser = argparse.ArgumentParser(description="TestService")
     parser.add_argument('--ref', '-r',
                         type=str,
                         default=default_path1,
@@ -75,13 +74,15 @@ if __name__ == '__main__':
                         help='path to file 2')
     args = parser.parse_args()
     
+    t = time.time()
     emb_ref, threshold = get_response(args.ref)
     emb_com, threshold = get_response(args.com)
     
 #     print(type(emb_ref), emb_ref.shape)
 #     print(type(emb_com), emb_com.shape)
    
-    print("Matching:", check_matching(emb_ref, emb_com, threshold))
+    print("Matching:", check_matching(emb_ref, emb_com, threshold), "\nTotal time:", time.time() - t, 's')
+
 
         
 

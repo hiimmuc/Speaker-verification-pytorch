@@ -9,6 +9,7 @@ from pydub import AudioSegment
 from model import SpeakerNet
 from tqdm import tqdm
 from utils import *
+import csv
 
 def all_pairs(lst):
     return list(itertools.combinations(lst, 2))
@@ -18,12 +19,37 @@ def check_matching(ref_emb, com_emb, threshold=0.5):
     ratio = threshold / 0.5
     result = (score / ratio) if (score / ratio) < 1 else 1
     matching = result > 0.5
-#     print("Result:", result, "Score:", score)
     return matching, result
 
+def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15, details_dir="dataset/train_callbot/details"):
+    '''
+    header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
+              'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
+              'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
+              'Crest factor', 'Flat factor', 'Peak count',
+              'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
+              'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
+    '''
+    blacklist = []
+    readfile = str(Path(details_dir, f"{id}.csv"))
+    if os.path.exists(readfile):
+        with open(readfile, 'r', newline='') as rf:
+            spamreader = csv.reader(rf, delimiter=',')
+            next(spamreader, None)
+            for row in spamreader:
+                short_length = (float(row[1]) < duration_limit)
+                low_amplitude = (float(row[9]) < dB_limit)
+                high_err = (float(row[-2]) > error_limit)
+                high_noise = (float(row[16]) > noise_limit)
+                if short_length or low_amplitude or high_err or high_noise:
+                    blacklist.append(Path(row[-1]))
+        return list(set(blacklist))
+    else:
+        return None
+
 # load model
-threshold = 0.2528385519981384
-model_path = str(Path('backup/Raw_ECAPA/model/best_state-278e-2.model'))
+threshold = 0.3246918320655823 
+model_path = str(Path('backup/Raw_ECAPA/model/best_state-cb-2501.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
 
@@ -35,12 +61,22 @@ print("Model Loaded time: ", time.time() - t0)
 
 
 # ===================================================
-root = 'dataset/train/'
+root = 'dataset/train_callbot/train/'
 folders = glob.glob(str(Path(root, '*')))
 
 for folder in tqdm(folders[:]):
     files = glob.glob(f"{folder}/*.wav")
-    pairs = all_pairs(files)
+    blist = read_blacklist(str(Path(folder).name),                
+                           duration_limit=1.0,
+                           dB_limit=-16,
+                           error_limit=0.5,
+                           noise_limit=-5)
+    if not blist:
+        continue
+                
+    filepaths = list(set(files).difference(set(blist)))
+    
+    pairs = all_pairs(filepaths)
     files_emb_dict = {}
     imposters = {}
     
@@ -59,9 +95,9 @@ for folder in tqdm(folders[:]):
             imposters[pair[1]] += 1
     imposters_list = [k for k,v in imposters.items() if v >= int(0.2 * len(files))]
 
-    with open("Imposter.txt", 'a+') as f:
+    with open("Imposter_callbot2.txt", 'a+') as f:
         if len(imposters_list) > 0:
             f.write(f"Folder:{folder}\n")
             for imp in sorted(imposters_list):
                 f.write(f"[{imposters[imp]}/{len(files)}] - {imp}\n")
-            f.write("//================//\n")   
+            f.write("//================//\n") 

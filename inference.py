@@ -23,7 +23,7 @@ def inference(args):
     result_save_path = args.save_path + f"/{args.model}/result"
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
-    score_file = open(result_save_path + "/scores.txt", "a+")
+    score_file = open(result_save_path + "/Inference_log.txt", "a+")
     # summary settings
     settings_file.write(
         f'\n[INFER]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
@@ -77,15 +77,17 @@ def inference(args):
             if sum_rate < best_sum_rate:
                 best_sum_rate = sum_rate
                 best_tfa = result[0][i]
-        print(f'Best sum rate {best_sum_rate} at {best_tfa}')
-        print(f'EER {result[1]}% at threshold {result[2]}')
-        print(f'AUC {result[3]}')
-        print(f"Gmean result: \nMax accuracy: {result[-1][1]}% at threshold {result[-1][2]}")
+        
+        print("\n[RESULTS]")
+        print(f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result[3]}")
+        print(f">> EER {result[1]}% at threshold {result[2]}")
+        print(f">> Gmean result: \n>>> EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n>>> ACC: {result[-1][1] * 100}%")
+        
         score_file.write(
-            f"Evaluation result on:\n\
+            f"Evaluation result on: [{args.test_list}] with [{args.initial_model_infer}]\n\
             Best sum rate {best_sum_rate} at {best_tfa}\n\
             EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n\
-            Gmean result: \nMax accuracy: {result[-1][1]}% at threshold {result[-1][2]}\n====>\n")
+            Gmean result: \nMax accuracy: {result[-1][1] * 100}% at threshold {result[-1][2]}\n=================>\n")
         score_file.close()
         
         # write to file
@@ -94,25 +96,28 @@ def inference(args):
         
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2','label', 'score', 'predict_label'])
+            spamwriter.writerow(['audio_1', 'audio_2','score', 'label', 'predict_label'])
             for score, label, pair in zip(sc, lab, trials):
                 pred = '1' if score >= result[2] else '0'
                 com, ref = pair.strip().split(' ')
-                spamwriter.writerow([com, ref, label, score, pred])
-            print("Done")
+                spamwriter.writerow([com, ref, score, label, pred])
+            print("=============END===============//\n")
 
         sys.exit(1)
 
-    # Test code
+    # Test list
     if args.test is True:
         model.testFromList(args.test_path,
+                           args.test_list,
                            cohorts_path=args.cohorts_path,
                            thre_score=threshold,
                            print_interval=1,
                            eval_frames=args.eval_frames,
                            scoring_mode=scoring_mode)
+        check_result(path="backup/Raw_ECAPA/result/private_test_results.txt")
         sys.exit(1)
 
+    # Test pair by pair
     if args.test_by_pair is True:
         model.test_each_pair(args.test_path,
                              cohorts_path=args.cohorts_path,
@@ -207,3 +212,39 @@ def inference(args):
         print(f'same_smallest_score: {same_smallest_score}')
         print(f'diff_biggest_score: {diff_biggest_score}')
         sys.exit(1)
+
+        
+def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt"):
+    ref = "dataset/train_callbot/private_test_cb_truth.txt"
+    com = path
+    
+    assert os.path.isfile(ref) and os.path.isfile(com), "Files not exists"
+    
+    ref_data = {}
+    com_data = {}
+    
+    print("Checking results....")
+    with open(ref, newline='') as rf:
+        spamreader = csv.reader(rf, delimiter=' ')
+        for row in spamreader:
+            key = f"{row[1]}/{row[-1]}"
+            ref_data[key] = row[0]
+            
+    with open(com, newline='') as rf:
+        spamreader = csv.reader(rf, delimiter=',')
+        next(spamreader, None)
+        for row in spamreader:
+            key = f"{row[0]}/{row[1]}"
+            com_data[key] = row[2]
+            
+    assert len(ref_data)==len(com_data), "The length of 2 files is not equal"
+    count = 0
+    for k, v in com_data.items():
+        if ref_data[k] == v:
+            count += 1
+    
+    precision = count*100/len(ref_data)
+    print(">> Precision:", precision, 'EER:', 100 - precision, f"\n>>> True:  {count} pairs\n>>> Total: {len(ref_data)} pairs\n========//")
+    
+if __name__ == '__main__':
+    pass

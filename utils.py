@@ -514,7 +514,24 @@ def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', 
         plt.show()
     plt.close()
 
+def plot_acc_loss(acc, loss, x_label, y_label, title, save_path, show=True, colors=['b-', 'r-'], figsize=(10, 6)):
+    # Make an example plot with two subplots...
+    fig = plt.figure(figsize=figsize)
+    ax1 = fig.add_subplot(2,1,1)
+    ax1.plot(acc, colors[0])
+    ax1.set(xlabel=x_label[0], ylabel=y_label[0], title=title[0])
 
+    ax2 = fig.add_subplot(2,1,2)
+    ax2.plot(loss, colors[1])
+    ax2.set(xlabel=x_label[1], ylabel=y_label[1], title=title[1])
+    
+    fig.tight_layout()
+    # Save the full figure...
+    fig.savefig(save_path)
+    if show:
+        plt.show()
+    plt.close()
+    
 def plot_from_file(result_save_path, show=False):
     '''Plot graph from score file
 
@@ -543,12 +560,19 @@ def plot_from_file(result_save_path, show=False):
     for i, dt in enumerate(data):
         data_loss = [float(line[3].strip().split(' ')[1])
                      for _, line in dt.items()]
-        plot_graph(data_loss, 'epoch', 'loss', 'Loss',
-                   f"{result_save_path}/loss_{i}.png", color='b', mono=True, show=show)
+#         plot_graph(data_loss, 'epoch', 'loss', 'Loss',
+#                    f"{result_save_path}/loss_{i}.png", color='b', mono=True, show=show)
         data_acc = [float(line[2].strip().split(' ')[1])
                     for _, line in dt.items()]
-        plot_graph(data_acc, 'epoch', 'accuracy', 'Accuracy',
-                   f"{result_save_path}/acc_{i}.png", color='r', show=show)
+#         plot_graph(data_acc, 'epoch', 'accuracy', 'Accuracy',
+#                    f"{result_save_path}/acc_{i}.png", color='r', show=show)
+        plot_acc_loss(acc=data_acc, 
+                      loss=data_loss, 
+                      x_label=['epoch', 'epoch'], 
+                      y_label=['accuracy', 'loss'],
+                      title=['Accuracy', 'Loss'],
+                      figsize=(10, 12),
+                      save_path=f"{result_save_path}/graph.png", show=show)
         plt.close()
 
 

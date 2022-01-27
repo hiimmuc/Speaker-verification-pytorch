@@ -60,7 +60,7 @@ class SpeakerNet(nn.Module):
 
             self.__scheduler__ = {}
             self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
-            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=8, min_lr=1e-6, factor=0.9)
+            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=7, min_lr=1e-6, factor=0.8)
 
     def fit(self, loader, epoch=0):
         '''Train
@@ -129,11 +129,11 @@ class SpeakerNet(nn.Module):
             self.__scheduler__(loss / counter)
 
         elif self.callback == 'auto':
-            if epoch <= 50:
+            if epoch <= 100:
                 self.__scheduler__['rop'](loss / counter)
             else:
-                if epoch == 51:
-                    print("\n[INFO] # epochs > 100, switch to steplr callback")
+                if epoch == 101:
+                    print("\n[INFO] # Epochs > 100, switch to steplr callback\n========>\n")
                 self.__scheduler__['steplr'].step()
 
 #         sys.stdout.write("\n")
@@ -145,11 +145,11 @@ class SpeakerNet(nn.Module):
 
     def evaluateFromList(self,
                          listfilename,
-                         cohorts_path='dataset/cohorts.npy',
+                         cohorts_path='checkpoint/dump_cohorts.npy',
                          print_interval=100,
                          num_eval=10,
                          eval_frames=None,
-                         scoring_mode='norm'):
+                         scoring_mode='cosine'):
 
         self.eval()
 
@@ -160,7 +160,7 @@ class SpeakerNet(nn.Module):
 
         # Cohorts
         cohorts = None
-        if cohorts_path is not None:
+        if cohorts_path is not None and scoring_mode == 'norm':
             cohorts = np.load(cohorts_path)
 
         # Read all lines
@@ -184,7 +184,7 @@ class SpeakerNet(nn.Module):
         print(">>>>Evaluation")
 
         # Save all features to dictionary
-        for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="it", colour="red")):
+        for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
             audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)
             if self.apply_preprocess:
                 audio = mels_spec_preprocess(audio)
@@ -209,9 +209,8 @@ class SpeakerNet(nn.Module):
         # tstart = time.time()
 
         # Read files and compute all scores
-
-            
-        for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="it", colour="MAGENTA")):
+          
+        for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
             data = line.split()
 
             # Append random label if missing
@@ -257,9 +256,9 @@ class SpeakerNet(nn.Module):
 
     def testFromList(self,
                      root,
+                     test_list='evaluation_test.txt',
                      thre_score=0.5,
-                     cohorts_path='data/zalo/cohorts.npy',
-                     test_set='public',
+                     cohorts_path=None,
                      print_interval=100,
                      num_eval=10,
                      eval_frames=None,
@@ -273,18 +272,20 @@ class SpeakerNet(nn.Module):
 
         # Cohorts
         cohorts = None
-        if cohorts_path is not None:
+        if cohorts_path is not None and scoring_mode == 'norm':
             cohorts = np.load(cohorts_path)
         save_root = self.save_path + f"/{self.model_name}/result"
 
         data_root = Path(root)
-        read_file = Path(root, 'evaluation_test.txt')
-        write_file = Path(save_root, 'results.txt')
+        read_file = Path(test_list)
+        write_file = Path(save_root, 'private_test_results.txt')
+        
         # Read all lines from testfile (read_file)
+        print(">>>>TESTING...")
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)
-            for row in tqdm(spamreader):
+            for row in spamreader:
                 files.append(row[0])
                 files.append(row[1])
                 lines.append(row)
@@ -293,7 +294,7 @@ class SpeakerNet(nn.Module):
         setfiles.sort()
 
         # Save all features to feat dictionary
-        for idx, filename in enumerate(setfiles):
+        for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
             audio = loadWAV(filename.replace('\n', ''),
                             eval_frames,
                             evalmode=True,
@@ -307,20 +308,20 @@ class SpeakerNet(nn.Module):
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
             feats[filename] = ref_feat
-            telapsed = time.time() - tstart
-            if idx % print_interval == 0:
-                sys.stdout.write(
-                    "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
-                    (idx, len(setfiles), (idx + 1) / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
+#             telapsed = time.time() - tstart
+#             if idx % print_interval == 0:
+#                 sys.stdout.write(
+#                     "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
+#                     (idx, len(setfiles), (idx + 1) / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
 
-        print('')
-        tstart = time.time()
+#         print('')
+#         tstart = time.time()
 
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
-            for idx, data in enumerate(lines):
+            for idx, data in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
 
@@ -346,13 +347,13 @@ class SpeakerNet(nn.Module):
                 pred = '1' if score >= thre_score else '0'
                 spamwriter.writerow([data[0], data[1], pred, score])
 
-                if idx % print_interval == 0:
-                    telapsed = time.time() - tstart
-                    sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
-                                     (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-                    sys.stdout.flush()
+#                 if idx % print_interval == 0:
+#                     telapsed = time.time() - tstart
+#                     sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
+#                                      (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
+#                     sys.stdout.flush()
 
-        print('\n')
+#         print('\n')
 
     def test_each_pair(self,
                        root,

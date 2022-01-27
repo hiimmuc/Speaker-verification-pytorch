@@ -19,7 +19,7 @@ from utils import *
 
 # ==================================================load Model========================================
 # load model
-threshold = 0.2023037225008011
+threshold = 0.32077792286872864
 model_path = str(Path('backup/Raw_ECAPA/model/best_state-235e-2.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
