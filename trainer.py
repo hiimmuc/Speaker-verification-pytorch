@@ -6,7 +6,7 @@ import time
 from callbacks.earlyStopping import *
 from dataloader import get_data_loader
 from model import SpeakerNet
-from utils import *
+from utils.utils import *
 
 
 def train(args):
