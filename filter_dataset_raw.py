@@ -37,6 +37,62 @@ def get_error_list(imposter_file):
     else:
         return None
     
+def read_blacklist(id, duration_limit=1.0, 
+                   dB_limit=-16, 
+                   error_limit=None, 
+                   noise_limit=-15, 
+                   details_dir="dataset/train_details_full/"):
+    '''
+    header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
+              'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
+              'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
+              'Crest factor', 'Flat factor', 'Peak count',
+              'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
+              'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
+    '''
+    blacklist = []
+    readfile = str(Path(details_dir, f"{id}.csv"))
+    if not error_limit:
+        # auto choose
+        error_limit = 0.5
+        
+    if os.path.exists(readfile):
+        with open(readfile, 'r', newline='') as rf:
+            spamreader = csv.reader(rf, delimiter=',')
+            next(spamreader, None)
+            for row in spamreader:
+                short_length = (float(row[1]) < duration_limit)
+                low_amplitude = (float(row[9]) < dB_limit)
+                high_err = (float(row[-2]) > error_limit)
+                high_noise = (float(row[16]) > noise_limit)
+                if short_length or low_amplitude or high_err or high_noise:
+                    blacklist.append(Path(row[-1]))
+        return list(set(blacklist))
+    else:
+        return None
+
+def get_audio_properties(fname):
+    with contextlib.closing(wave.open(fname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        return duration, rate
+    
+    
+def check_valid_audio(files, duration_lim=1.5, sr=8000):
+    filtered_list = []
+    files = [str(path) for path in files]
+    
+    for fname in files:
+        duration, rate = get_audio_properties(fname)
+        if rate == sr and duration >= duration_lim:
+            filtered_list.append(fname)
+        else:
+            pass
+    filtered_list.sort(reverse=True, key = lambda x: get_audio_properties(x)[0])    
+    filtered_list = [Path(path) for path in filtered_list]
+    return filtered_list
+    
 def export_dataset_details(root="dataset/train", save_dir="dataset/train_details/"):
     root = Path(root)
     print("Getting general information")
@@ -142,30 +198,8 @@ def update_dataset_details(root="dataset/train", save_dir="dataset/train_details
                 
     return True
         
-def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15):
-    blacklist = []
-    readfile = str(Path("dataset/train_details/", f"{id}.csv"))
-    
-    with open(readfile, 'r', newline='') as rf:
-        spamreader = csv.reader(rf, delimiter=',')
-        next(spamreader, None)
-        #             header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
-        #                       'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
-        #                       'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
-        #                       'Crest factor', 'Flat factor', 'Peak count',
-        #                       'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
-        #                       'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
-        for row in spamreader:
-            
-            short = (float(row[1]) < duration_limit)
-            low_amp = (float(row[9]) < dB_limit)
-            large_err = (float(row[-2]) > error_limit)
-            noise = (float(row[17]) > noise_limit)
-            
-            if  short or low_amp or large_err or noise:
-                blacklist.append(Path(row[-1]))
-                
-    return list(set(blacklist))
+
+
 
 def remove_low_quality_files(raw_dataset='dataset/train', 
                              details_dir='dataset/details/train_cskh/',  
@@ -173,8 +207,66 @@ def remove_low_quality_files(raw_dataset='dataset/train',
                              dB_limit=-10,                          
                              error_limit=0.5,
                              noise_limit=-10,
-                             lower_num=10, upper_num = None):
-    pass
+                             lower_num=10, upper_num = None, 
+                             confirm_rm=False):
+    all_spks = []
+    valid_spks = []
+    
+    filepaths_lists = []
+    
+    root = Path(raw_dataset)
+    classpaths = [d for d in root.iterdir() if d.is_dir()]
+    classpaths.sort()
+    
+    for classpath in tqdm(list(classpaths)[:], desc="Processing:..."):
+        all_spks.append(Path(classpath).name)
+        
+        filepaths = list(classpath.glob('*.wav'))
+        
+        # check low quality files
+        blist = read_blacklist(str(Path(classpath).name), 
+                               duration_limit=duration_limit, 
+                               dB_limit=dB_limit, 
+                               error_limit=error_limit, 
+                               noise_limit=noise_limit,
+                               details_dir=details_dir)
+        if not blist:
+            continue
+
+        filepaths = list(set(filepaths).difference(set(blist)))
+
+        # check duration, sr
+        filepaths = check_valid_audio(filepaths, 1.0, 8000)
+
+        # check number of files
+        if lower_num:
+            if len(filepaths) < lower_num:
+                continue
+        if upper_num:
+            if len(filepaths) >= upper_num:
+                filepaths = filepaths[:upper_num]
+                
+        if len(filepaths) == 0:
+            continue
+                
+        valid_spks.append(Path(classpath).name)
+        filepaths_lists.extend(filepaths)
+    
+    invalid_spks = list(set(all_spks).difference(set(valid_spks)))
+    
+    print("# Valid speakers:", len(valid_spks),
+          "over", len(all_spks))
+    print("Total valide audio files:", len(filepaths_lists))
+    
+    if confirm_rm:
+        for spk in tqdm(invalid_spks, desc="Deleting invalid speaker's dir..."):
+            path_dir = os.path.join(raw_dataset, spk)
+            if os.path.exists(path_dir):
+                subprocess.call(f"rm -rf {path_dir}", shell=True)
+        print('Done!')
+    
+    return valid_spks, invalid_spks
+
 
 if __name__ == "__main__":
     parser.add_argument('--root', type=str, default="dataset/test_callbot/public")

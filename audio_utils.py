@@ -10,6 +10,44 @@ import soundfile as sf
 from tqdm import tqdm
 from pathlib import Path
 import os
+from pydub import AudioSegment
+
+
+def convert_audio(audio_path, new_format='wav', freq=8000, out_path=None):
+    """Convert audio format and samplerate to target"""
+    try:
+        org_format = audio_path.split('.')[-1].strip()
+        if new_format != org_format:
+            audio = AudioSegment.from_file(audio_path)
+            # export file as new format
+            audio_path = audio_path.replace(org_format, new_format)
+            audio.export(audio_path, format=new_format)
+    except Exception as e:
+        raise e
+        
+    try:
+        sound = AudioSegment.from_file(audio_path, format='wav')
+        sound = sound.set_frame_rate(freq)
+        sound = sound.set_channels(1)
+        
+        if out_path is not None:
+            out_path = audio_path
+        sound.export(audio_path, format='wav')
+    except Exception as e:
+        raise e
+        
+    return audio_path
+
+def change_volume(path=None, dB=6, overwrite=True):
+    segment = AudioSegment.from_file(path)
+    segment += dB
+    if overwrite:
+        path = path
+    else:
+        path = path.replace('.wav', '') + f'_{dB}' +'.wav'
+    segment.export(path, format='wav')
+    print(f'Export to {path}')
+
 
 def get_duration_file(fn_audio):
     """Getting duration information of audio files
