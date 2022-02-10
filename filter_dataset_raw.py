@@ -1,90 +1,11 @@
 import os
 import csv
-import glob
-import time
-import numpy as np
-
-import wave
-import librosa
-import contextlib
-import random
-import shutil
-import subprocess
-import soundfile as sf
-
 from tqdm import tqdm
 from pathlib import Path
-from scipy.io import wavfile
+import argparse
 
-from utils import *
-
-
-def get_duration_file(fn_audio):
-    with contextlib.closing(wave.open(str(fn_audio),'r')) as f:
-        frames = f.getnframes()
-        rate = f.getframerate()
-        duration = frames / float(rate)
-    return duration
-
-def get_infor_file(fn_audio):
-    ob =  sf.SoundFile(fn_audio)
-    return ob.subtype, ob.samplerate, ob.channels
-
-
-def get_amplitute_file(path):
-    sr, data = wavfile.read(path)
-#     bit_depth = int(get_infor_file(path)[0].split('_')[-1])
-    bit_depth = 16
-    db = 20 * np.log10(max(abs(data))/(2**(bit_depth - 1) - 1))
-    return sr, min(data), max(data), db
-
-def get_duration_folder(folder):
-    total_length = 0
-    for audio in glob.glob(f"{folder}/*.wav"):
-        try:
-            total_length += get_duration_file(audio)
-        except:
-            print("error in ",audio)
-    return total_length
-
-
-def get_size_file(fname):
-    return Path(fname).stat().st_size
-
-def get_size_folder(folder):
-    return sum([float(get_size_file(f)) for f in glob.glob(f"{folder}/*")])
-
-
-def get_audio_information_stats(filename):
-    cmd = ['ffmpeg', '-i', filename, '-map', '0:a', '-af', 'astats', '-f', 'null', '-']
-#     cmd = ['ffprobe', filename]
-    out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stderr
-    output_lines = [line.strip() for line in out.decode('utf-8').split('\n')]
-    return output_lines
-
-def get_dataset_infor(root="dataset/train"):
-    root = Path(root)
-    # get numbr of file
-    audio_folder_num = {}
-    for audio_folder in tqdm(root.iterdir(), desc="getting number of files"):
-        audio_folder_num[audio_folder.name] = len(os.listdir(audio_folder))
-
-    # get duration of files
-    audio_folder_duration = {}
-    for audio_folder in tqdm(root.iterdir(), desc="getting duration of files"):
-        audio_folder_duration[audio_folder.name] = list([get_duration_file(audio_file) for audio_file in audio_folder.iterdir()])
-
-    # get size of files
-    audio_folder_size = {}
-    for audio_folder in tqdm(root.iterdir(), desc="getting size of files"):
-        audio_folder_size[audio_folder.name] = list([get_size_file(audio_file) for audio_file in audio_folder.iterdir()])
-    
-    # get amplitue of file take long time :v
-#     audio_folder_amplitute = {}
-#     for audio_folder in tqdm(root.iterdir(), desc="getting peak amplitude of files"):
-#         audio_folder_amplitute[audio_folder.name] = list([get_amplitute_file(audio_file)[-1] for audio_file in audio_folder.iterdir()])
-    
-    return audio_folder_num, audio_folder_duration, audio_folder_size
+from audio_utils import *
+parser = argparse.ArgumentParser(description="Filtering low quality audio")
 
 def get_error_list(imposter_file):
     print("Get information from:", imposter_file)
@@ -93,9 +14,9 @@ def get_error_list(imposter_file):
         with open(imposter_file, 'r') as rf:
             lines = [line.strip().replace('\n', '') for line in rf.readlines()]
 
-        invalid_class = list(''.join(x.split(':')[1:]).strip() for x in filter(lambda x: True if ':' in x else False, lines))
-        invalid_files = list(''.join(x.split('-')[1:]).strip() for x in filter(lambda x: True if '-' in x else False, lines))
-        # len(invalid_files), len(invalid_class), invalid_class[-1], glob.glob("dataset/train/*").index(invalid_class[-1])
+        # invalid_class = list(''.join(x.split(':')[1:]).strip() for x in filter(lambda x: True if ':' in x else False, lines))
+        # invalid_files = list(''.join(x.split('-')[1:]).strip() for x in filter(lambda x: True if '-' in x else False, lines))
+        # # len(invalid_files), len(invalid_class), invalid_class[-1], glob.glob("dataset/train/*").index(invalid_class[-1])
 
         invalid_details = {}
         for line in tqdm(lines):
@@ -106,8 +27,7 @@ def get_error_list(imposter_file):
             elif '.wav' in line:
                 fp = ''.join(line.split(' - ')[1:]).strip()
                 n = line.split('-')[0].strip().replace('[', '').replace(']', '').split('/')
-                
-                
+
                 rate = float(n[0])/float(n[1])
 
                 k = list(invalid_details.keys())[-1]
@@ -121,7 +41,7 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
     root = Path(root)
     print("Getting general information")
 #     invalid_details = get_error_list('Imposter_callbot.txt')
-    _, audio_folder_duration, audio_folder_size = get_dataset_infor(root)
+    _, audio_folder_duration, audio_folder_size = get_dataset_general_infor(root)
     os.makedirs(save_dir, exist_ok=True)
     
     for audio_folder in tqdm(list(root.iterdir()), desc="Processing...", colour='red'):
@@ -143,22 +63,11 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                 fp = str(Path(audio_folder, audio_file.name))
                 duration = audio_folder_duration[audio_folder.name][i]
                 size = audio_folder_size[audio_folder.name][i]
-#                 # db = audio_folder_amplitute[audio_folder.name][i]
-                
-#                 if isinstance(invalid_details, dict):
-#                     if str(root / audio_folder.name) in invalid_details.keys():
-#                         if fp in invalid_details[str(root / audio_folder.name)]:
-#                             error_rate = float(invalid_details[str(root / audio_folder.name)][fp])
-#                         else:
-#                             error_rate = 0
-#                     else:
-#                         error_rate = 0
-#                 else:
-#                     error_rate = 0
+
                 error_rate = 0
                     
                 # get full stats
-                full_infor = list(get_audio_information_stats(fp)) # path
+                full_infor = list(get_audio_ffmpeg_astats(fp)) # path
                 details = {}
                 condition = lambda x: 'Parsed_astats_0' in x
                 filtered_lines = list(filter(condition, full_infor))
@@ -168,6 +77,10 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                     if detail[0] == 'Overall':
                         continue
                     details[detail[0]] = detail[1]
+                for k in header:
+                    if k not in details:
+                        details[k] = None
+                    
                 
                 row = [audio_file.name, duration, size/(1024), details['Min level'],details['Max level'],
                        details['Min difference'],details['Max difference'], details['Mean difference'],details['RMS difference'],
@@ -253,8 +166,27 @@ def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_li
                 blacklist.append(Path(row[-1]))
                 
     return list(set(blacklist))
-        
+
+def remove_low_quality_files(raw_dataset='dataset/train', 
+                             details_dir='dataset/details/train_cskh/',  
+                             duration_limit=1.0,
+                             dB_limit=-10,                          
+                             error_limit=0.5,
+                             noise_limit=-10,
+                             lower_num=10, upper_num = None):
+    pass
+
 if __name__ == "__main__":
-    export_dataset_details(root="dataset/test_callbot/public", save_dir="dataset/details/test_cb_public")
-#     update_dataset_details(root="dataset/train", save_dir="dataset/train_details_full/", error_file="Imposter_v2.txt")
+    parser.add_argument('--root', type=str, default="dataset/test_callbot/public")
+    parser.add_argument('--details_dir', type=str, default="dataset/details/test_cb_public")
+    parser.add_argument('--wrong_id_file', type=str, default="Imposter_v2.txt")
+    parser.add_argument('--mode', type=str, default='export')
+    
+    args = parser.parse_args()
+    if args.mode == 'export':
+        export_dataset_details(root=args.root, save_dir=args.details_dir)
+    elif args.mode == 'update':
+        update_dataset_details(root=args.root, save_dir=args.details_dir, error_file=args.wrong_id_file)
+    elif args.mode == 'remove':
+        remove_low_quality_files(raw_dataset=args.root, details_dir=args.details_dir)
     
