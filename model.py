@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 
-from utils import *
+from utils.utils import *
 
 
 class SpeakerNet(nn.Module):

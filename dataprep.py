@@ -19,7 +19,7 @@ from scipy.io import wavfile
 
 from tqdm.auto import tqdm
 
-from utils import *
+from utils.utils import *
 import wave
 import contextlib
 import csv

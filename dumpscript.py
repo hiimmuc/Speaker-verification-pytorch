@@ -95,7 +95,7 @@ if __name__ == '__main__':
 #     dummy_input = torch.randnt((16240, ))
 #     make_dot(yhat, params=dict(list(model.named_parameters()))).render("rnn_torchviz", format="png")
 #     print(model)
-    from audio_utils import *
+    from utils.audio import *
     
     print(get_audio_ffmpeg_astats(r'Speaker-verification-pytorch-master\dataset\check-log\20220208_101221_ref.wav'))
     pass

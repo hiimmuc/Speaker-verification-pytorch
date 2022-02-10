@@ -4,7 +4,7 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse
 
-from audio_utils import *
+from utils.audio import *
 parser = argparse.ArgumentParser(description="Filtering low quality audio")
 
 def get_error_list(imposter_file):

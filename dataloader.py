@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from utils import *
+from utils.utils import *
 
 
 class Loader(Dataset):

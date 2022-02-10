@@ -5,7 +5,7 @@ import math
 import random
 import numpy
 import numpy as np
-from utils import accuracy
+from utils.utils import accuracy
 
 #from pytorch_metric_learning import miners, losses
 
@@ -115,4 +115,4 @@ class MP(torch.nn.Module):
         prec1 = accuracy(cos_sim_matrix2.detach(), label.detach(), topk=(1,))[0]
         #print(self._lambda)
         
-        return loss.mean() + self._lambda * loss2, prec1
+        return loss.mean() + self._lambda * loss, prec1

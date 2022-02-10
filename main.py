@@ -3,7 +3,7 @@ import os
 
 from inference import inference
 from trainer import train
-from utils import read_config
+from utils.utils import read_config
 
 
 def main(args):

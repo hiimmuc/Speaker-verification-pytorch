@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.ECAPA_utils import Conv1d as _Conv1d
 from models.ECAPA_utils import BatchNorm1d as _BatchNorm1d
-from utils import PreEmphasis
+from utils.utils import PreEmphasis
 import torchaudio
 
 class FbankAug(nn.Module):

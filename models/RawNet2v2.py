@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.utils import data
 from torchsummary import summary
-from utils import *
+from utils.utils import *
 
 
 class RawNetBasicBlock(nn.Module):

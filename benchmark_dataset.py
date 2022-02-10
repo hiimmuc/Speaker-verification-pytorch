@@ -8,7 +8,7 @@ import numpy as np
 from pydub import AudioSegment
 from model import SpeakerNet
 from tqdm import tqdm
-from utils import *
+from utils.utils import *
 import csv
 
 def all_pairs(lst):

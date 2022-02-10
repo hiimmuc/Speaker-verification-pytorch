@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import accuracy
+from utils.utils import accuracy
 
 
 class LossFunction(nn.Module):

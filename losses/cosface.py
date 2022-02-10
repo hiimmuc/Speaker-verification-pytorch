@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time, pdb, numpy
-from accuracy import accuracy
+from utils.utils import accuracy
 
 class LossFunction(nn.Module):
     """
@@ -17,7 +17,7 @@ class LossFunction(nn.Module):
                  n_classes=10,
                  m=0.3,
                  s=15):
-        super(AMSoftmax, self).__init__()
+        super(LossFunction, self).__init__()
         self.m = m
         self.s = s
         self.in_feats = in_feats

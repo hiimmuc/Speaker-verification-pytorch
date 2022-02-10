@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from model import SpeakerNet
-from utils import tuneThresholdfromScore
+from utils.utils import tuneThresholdfromScore
 
 
 def inference(args):

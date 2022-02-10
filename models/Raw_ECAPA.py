@@ -1,17 +1,6 @@
-import math
-from collections import OrderedDict
-
-import numpy as np
 import torch
 import torch.backends.cudnn
-import torch.cuda.amp as amp
 import torch.nn as nn
-import torch.nn.functional as F
-import torchaudio
-from numpy.core.fromnumeric import transpose
-from torch.autograd import Variable
-from torch.nn.parameter import Parameter
-from torch.utils import data
 from models import ECAPA_TDNN, RawNet2v2
 
 torch.backends.cudnn.benchmark = True

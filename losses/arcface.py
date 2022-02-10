@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time, pdb, numpy, math
-from utils import accuracy
+from utils.utils import accuracy
 
 class LossFunction(nn.Module):
     """
@@ -14,20 +14,20 @@ class LossFunction(nn.Module):
     """
     def __init__(self, nOut, nClasses, margin=0.2, scale=30, easy_margin=False, **kwargs):
         super(LossFunction, self).__init__()
-        self.m = m
-        self.s = s
+        self.m = margin
+        self.s = scale
         self.in_feats = nOut
         self.weight = torch.nn.Parameter(torch.FloatTensor(nOut, nClasses), requires_grad=True)
         self.ce = nn.CrossEntropyLoss()
         nn.init.xavier_normal_(self.weight, gain=1)
 
         self.easy_margin = easy_margin
-        self.cos_m = math.cos(m)
-        self.sin_m = math.sin(m)
+        self.cos_m = math.cos(margin)
+        self.sin_m = math.sin(margin)
 
         # make the function cos(theta+m) monotonic decreasing while theta in [0°,180°]
-        self.th = math.cos(math.pi - m)
-        self.mm = math.sin(math.pi - m) * m
+        self.th = math.cos(math.pi - margin)
+        self.mm = math.sin(math.pi - margin) * margin
 
         print('Initialised AAMSoftmax m=%.3f s=%.3f'%(self.m,self.s))
 
