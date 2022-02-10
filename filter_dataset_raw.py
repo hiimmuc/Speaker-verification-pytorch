@@ -4,8 +4,9 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse
 
-from utils.audio import *
+from audio_utils import *
 parser = argparse.ArgumentParser(description="Filtering low quality audio")
+
 
 def get_error_list(imposter_file):
     print("Get information from:", imposter_file)
@@ -92,7 +93,8 @@ def check_valid_audio(files, duration_lim=1.5, sr=8000):
     filtered_list.sort(reverse=True, key = lambda x: get_audio_properties(x)[0])    
     filtered_list = [Path(path) for path in filtered_list]
     return filtered_list
-    
+
+
 def export_dataset_details(root="dataset/train", save_dir="dataset/train_details/"):
     root = Path(root)
     print("Getting general information")
@@ -121,24 +123,9 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                 size = audio_folder_size[audio_folder.name][i]
 
                 error_rate = 0
-                    
-                # get full stats
-                full_infor = list(get_audio_ffmpeg_astats(fp)) # path
-                details = {}
-                condition = lambda x: 'Parsed_astats_0' in x
-                filtered_lines = list(filter(condition, full_infor))
-            
-                for line in filtered_lines:
-                    detail = line.replace(f"[{line.split('[')[-1].split(']')[0]}]", '').strip().split(':')
-                    if detail[0] == 'Overall':
-                        continue
-                    details[detail[0]] = detail[1]
-                for k in header:
-                    if k not in details:
-                        details[k] = None
-                    
+                details = get_audio_ffmpeg_astats(fp)
                 
-                row = [audio_file.name, duration, size/(1024), details['Min level'],details['Max level'],
+                row = [audio_file.name, details['Duration'], details['Size'], details['Min level'],details['Max level'],
                        details['Min difference'],details['Max difference'], details['Mean difference'],details['RMS difference'],
                        details['Peak level dB'],details['RMS level dB'], details['RMS peak dB'],details['RMS trough dB'],
                        details['Crest factor'],details['Flat factor'], details['Peak count'],
@@ -148,6 +135,7 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                 spamwriter.writerow(row)
                 
     return True
+
 
 def update_dataset_details(root="dataset/train", save_dir="dataset/train_details/", error_file="Imposter_callbot2.txt"):
     root = Path(root)
@@ -190,15 +178,11 @@ def update_dataset_details(root="dataset/train", save_dir="dataset/train_details
                         error_rate = 0
                 else:
                     error_rate = 0
-                    
             
                 row_new = rows[i]
                 row_new[-2] = error_rate
-                spamwriter.writerow(row_new)
-                
+                spamwriter.writerow(row_new)  
     return True
-        
-
 
 
 def remove_low_quality_files(raw_dataset='dataset/train', 
@@ -268,6 +252,7 @@ def remove_low_quality_files(raw_dataset='dataset/train',
     return valid_spks, invalid_spks
 
 
+# ======================================================================================================
 if __name__ == "__main__":
     parser.add_argument('--root', type=str, default="dataset/test_callbot/public")
     parser.add_argument('--details_dir', type=str, default="dataset/details/test_cb_public")
@@ -281,4 +266,3 @@ if __name__ == "__main__":
         update_dataset_details(root=args.root, save_dir=args.details_dir, error_file=args.wrong_id_file)
     elif args.mode == 'remove':
         remove_low_quality_files(raw_dataset=args.root, details_dir=args.details_dir)
-    
