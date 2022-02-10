@@ -30,9 +30,9 @@ ALLOWED_EXTENSIONS = set(['wav', 'mp3', 'flac'])
 api = Api(app)
 
 # load model
-threshold = 0.27179449796676636
-model_path = str(Path('exp/dump/RawNet2v3/model/best_state_5000spk.model'))
-config_path = str(Path('config_deploy.yaml'))
+threshold = 0.38524773716926575
+model_path = str(Path('backup/Raw_ECAPA/model/best_state-CB_final_v1.model'))
+config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
 
 t0 = time.time()

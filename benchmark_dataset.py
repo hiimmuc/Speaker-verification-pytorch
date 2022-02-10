@@ -48,8 +48,8 @@ def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_li
         return None
 
 # load model
-threshold = 0.3246918320655823 
-model_path = str(Path('backup/Raw_ECAPA/model/best_state-cb-2501.model'))
+threshold = 0.20233240723609924
+model_path = str(Path('backup/Raw_ECAPA/model/best_state-235e-2.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
 
@@ -61,16 +61,18 @@ print("Model Loaded time: ", time.time() - t0)
 
 
 # ===================================================
-root = 'dataset/train_callbot/train/'
+root = 'dataset/train/'
+details_dir = "dataset/train_details_full"
 folders = glob.glob(str(Path(root, '*')))
 
 for folder in tqdm(folders[:]):
     files = glob.glob(f"{folder}/*.wav")
     blist = read_blacklist(str(Path(folder).name),                
-                           duration_limit=1.0,
-                           dB_limit=-16,
-                           error_limit=0.5,
-                           noise_limit=-5)
+                           duration_limit=1.0, 
+                           dB_limit=-10, 
+                           error_limit=1.0, 
+                           noise_limit=-16,
+                          details_dir=details_dir)
     if not blist:
         continue
                 
@@ -84,6 +86,7 @@ for folder in tqdm(folders[:]):
         emb = model.embed_utterance(fn, eval_frames=100, num_eval=10, normalize=True)
         if fn not in files_emb_dict:
             files_emb_dict[fn] = emb
+            
     for pair in pairs:
         match, score = check_matching(files_emb_dict[pair[0]], files_emb_dict[pair[1]], threshold)
         if not match:
@@ -93,11 +96,11 @@ for folder in tqdm(folders[:]):
                 imposters[pair[1]] = 0
             imposters[pair[0]] += 1
             imposters[pair[1]] += 1
-    imposters_list = [k for k,v in imposters.items() if v >= int(0.2 * len(files))]
+    imposters_list = [k for k,v in imposters.items() if v > 0]
 
-    with open("Imposter_callbot2.txt", 'a+') as f:
+    with open("Imposter_v2.txt", 'a+') as f:
         if len(imposters_list) > 0:
             f.write(f"Folder:{folder}\n")
             for imp in sorted(imposters_list):
-                f.write(f"[{imposters[imp]}/{len(files)}] - {imp}\n")
+                f.write(f"[{imposters[imp]}/{len(filepaths)}] - {imp}\n")
             f.write("//================//\n") 

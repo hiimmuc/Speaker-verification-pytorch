@@ -14,7 +14,7 @@ class ResNetSE(nn.Module):
                  num_filters,
                  nOut,
                  encoder_type='SAP',
-                 n_mels=64,
+                 n_mels=80,
                  log_input=True,
                  preprocess=False,
                  **kwargs):
@@ -48,17 +48,21 @@ class ResNetSE(nn.Module):
                                        num_filters[3],
                                        layers[3],
                                        stride=(2, 2))
-
+        
+        hoplength = 10e-3 * int(kwargs['sample_rate'])
+        winlength = 25e-3 * int(kwargs['sample_rate'])
+        
+        nb_samp = int(int(kwargs['sample_rate']) * (kwargs['max_frames']/100)) + int(winlength - hoplength)
         self.instancenorm = nn.InstanceNorm1d(n_mels)
         self.torchfb = torch.nn.Sequential(
             PreEmphasis(),
             torchaudio.transforms.MFCC(
-                sample_rate=16000,
+                sample_rate=int(kwargs['sample_rate']),
                 n_mfcc=n_mels,
                 melkwargs={'n_fft':512,
-                           'n_mels':80,
-                          'win_length':400,
-                          'hop_length':160}))
+                           'n_mels':n_mels,
+                          'win_length':int(winlength),
+                          'hop_length':int(hoplength)}))
         outmap_size = int(self.n_mels / 8)
 
         self.attention = nn.Sequential(

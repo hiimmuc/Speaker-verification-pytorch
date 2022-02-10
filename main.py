@@ -242,12 +242,18 @@ if __name__ == '__main__':
                         help='Cohorts path')
     parser.add_argument('--test_threshold',
                         type=float,
-                        default=1.81120,
+                        default=0.5,
                         help='Test threshold')
     parser.add_argument('--scoring_mode',
                         type=str,
                         default='cosine',
                         help='norm or cosine for scoring')
+    parser.add_argument('--ref', '-r',
+                       type=str,
+                       default='dataset/test_callbot/valid_speaker/private_test_cb_truth.txt')
+    parser.add_argument('--com', '-c',
+                       type=str,
+                       default='backup/Raw_ECAPA/result/private_test_results.txt')
 
     args = parser.parse_args()
 

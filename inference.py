@@ -78,16 +78,17 @@ def inference(args):
                 best_sum_rate = sum_rate
                 best_tfa = result[0][i]
         
-        print("\n[RESULTS]")
-        print(f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result[3]}")
-        print(f">> EER {result[1]}% at threshold {result[2]}")
-        print(f">> Gmean result: \n>>> EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n>>> ACC: {result[-1][1] * 100}%")
+        print("\n[RESULTS]\n",
+              f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result[3]}\n",
+              f">> EER {result[1]}% at threshold {result[2]}\n",
+              f">> Gmean result: \n>>> EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n>>> ACC: {result[-1][1] * 100}%")
         
-        score_file.write(
-            f"Evaluation result on: [{args.test_list}] with [{args.initial_model_infer}]\n\
-            Best sum rate {best_sum_rate} at {best_tfa}\n\
-            EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n\
-            Gmean result: \nMax accuracy: {result[-1][1] * 100}% at threshold {result[-1][2]}\n=================>\n")
+        score_file.writelines(
+            [f"Evaluation result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
+             f"Best sum rate {best_sum_rate} at {best_tfa}\n",
+             f"EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n",
+             f"Gmean result:\n",
+             f"EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n ACC: {result[-1][1] * 100}%\n=================>\n"])
         score_file.close()
         
         # write to file
@@ -113,8 +114,14 @@ def inference(args):
                            thre_score=threshold,
                            print_interval=1,
                            eval_frames=args.eval_frames,
-                           scoring_mode=scoring_mode)
-        check_result(path="backup/Raw_ECAPA/result/private_test_results.txt")
+                           scoring_mode=scoring_mode,
+                           output_file=args.com)
+        prec = check_result(path=args.com, ref=args.ref)
+        score_file.writelines([f"Test result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
+                               f"Threshold: {threshold}\n",
+                               f"Precision: {prec}\n",            
+                               f"Save to {args.com} and {args.ref} \n=================>\n"])
+        score_file.close()
         sys.exit(1)
 
     # Test pair by pair
@@ -214,8 +221,7 @@ def inference(args):
         sys.exit(1)
 
         
-def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt"):
-    ref = "dataset/train_callbot/private_test_cb_truth.txt"
+def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt", ref="dataset/test_callbot/valid_speaker/private_test_cb_truth.txt"):
     com = path
     
     assert os.path.isfile(ref) and os.path.isfile(com), "Files not exists"
@@ -228,23 +234,45 @@ def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt"):
         spamreader = csv.reader(rf, delimiter=' ')
         for row in spamreader:
             key = f"{row[1]}/{row[-1]}"
-            ref_data[key] = row[0]
+            ref_data[key] = str(row[0])
             
     with open(com, newline='') as rf:
         spamreader = csv.reader(rf, delimiter=',')
         next(spamreader, None)
         for row in spamreader:
             key = f"{row[0]}/{row[1]}"
-            com_data[key] = row[2]
+            com_data[key] = str(row[2])
             
     assert len(ref_data)==len(com_data), "The length of 2 files is not equal"
-    count = 0
-    for k, v in com_data.items():
-        if ref_data[k] == v:
-            count += 1
     
-    precision = count*100/len(ref_data)
-    print(">> Precision:", precision, 'EER:', 100 - precision, f"\n>>> True:  {count} pairs\n>>> Total: {len(ref_data)} pairs\n========//")
+    count_true = 0
+    
+    tta = 0
+    tfr = 0
+    
+    ta = 0
+    fr = 0
+    
+    for k, v in com_data.items():
+        if ref_data[k] == '1':
+            tta += 1
+        else:
+            tfr += 1
+        
+        if v == '1':
+            ta += 1
+        else:
+            fr += 1
+        
+        if ref_data[k] == v:
+            count_true += 1
+    
+    precision = count_true * 100 / len(ref_data)
+    print(">> Precision:", precision, 'Error rate:', 100 - precision, 
+          f"\n>>> True Accepted:  {ta} pairs / Total '1' label: {tta} pairs",
+          f"\n>>> False Rejected:  {fr} pairs / Total '0' label: {tfr} pairs",
+          f"\n>>> True:  {count_true} pairs / Total: {len(ref_data)} pairs\n========//")
+    return precision
     
 if __name__ == '__main__':
     pass

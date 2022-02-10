@@ -46,6 +46,8 @@ def loadWAV(audio_source, max_frames, evalmode=True, num_eval=10, sr=None, desir
         audio = audio_source
         assert sr is not None, "Sample rate is not provided!"
         sample_rate = sr
+    else:
+        audio, sample_rate = sf.read(audio_source) 
     if desired_sr is not None:
         assert sample_rate == desired_sr, "Different desired sampling rate"
       
@@ -574,6 +576,72 @@ def plot_from_file(result_save_path, show=False):
                       figsize=(10, 12),
                       save_path=f"{result_save_path}/graph.png", show=show)
         plt.close()
+# ---------------------------------------------- linh tinh-------------------------------#
+def cprint(text, fg=None, bg=None, style=None):
+    """
+    Colour-printer.
+        cprint( 'Hello!' )                                  # normal
+        cprint( 'Hello!', fg='g' )                          # green
+        cprint( 'Hello!', fg='r', bg='w', style='bx' )      # bold red blinking on white
+    List of colours (for fg and bg):
+        k   black
+        r   red
+        g   green
+        y   yellow
+        b   blue
+        m   magenta
+        c   cyan
+        w   white
+    List of styles:
+        b   bold
+        i   italic
+        u   underline
+        s   strikethrough
+        x   blinking
+        r   reverse
+        y   fast blinking
+        f   faint
+        h   hide
+    """
+
+    COLCODE = {
+        'k': 0, # black
+        'r': 1, # red
+        'g': 2, # green
+        'y': 3, # yellow
+        'b': 4, # blue
+        'm': 5, # magenta
+        'c': 6, # cyan
+        'w': 7  # white
+    }
+
+    FMTCODE = {
+        'b': 1, # bold
+        'f': 2, # faint
+        'i': 3, # italic
+        'u': 4, # underline
+        'x': 5, # blinking
+        'y': 6, # fast blinking
+        'r': 7, # reverse
+        'h': 8, # hide
+        's': 9, # strikethrough
+    }
+
+    # properties
+    props = []
+    if isinstance(style,str):
+        props = [ FMTCODE[s] for s in style ]
+    if isinstance(fg,str):
+        props.append( 30 + COLCODE[fg] )
+    if isinstance(bg,str):
+        props.append( 40 + COLCODE[bg] )
+
+    # display
+    props = ';'.join([ str(x) for x in props ])
+    if props:
+        print(f'\x1b[{props}m' + str(text) + '\x1b[0m')
+    else:
+        print(text)
 
 
 if __name__ == '__main__':

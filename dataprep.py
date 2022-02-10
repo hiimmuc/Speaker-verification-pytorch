@@ -348,9 +348,12 @@ class DataGenerator():
         Generate train test lists for zalo data
         """
         no_spks = 0
+        lower_num=10
+        upper_num=50
+        
         root = Path(self.args.raw_dataset)
-        train_writer = open(Path(root.parent, 'train_def_cb_anbn.txt'), 'w')
-        val_writer = open(Path(root.parent, 'val_def_cb_anbn.txt'), 'w')
+        train_writer = open(Path(root.parent, 'train_def_cskh.txt'), 'w')
+        val_writer = open(Path(root.parent, 'val_def_cskh.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         classpaths.sort()
         
@@ -382,10 +385,10 @@ class DataGenerator():
             filepaths = check_valid_audio(filepaths, 1.0, 8000)
 
             # checknumber of files
-            if len(filepaths) < 10:
+            if len(filepaths) < lower_num:
                 continue
-            elif len(filepaths) >= 40:
-                filepaths = filepaths[:40]
+            elif len(filepaths) >= upper_num:
+                filepaths = filepaths[:upper_num]
             no_spks += 1
             
             random.shuffle(filepaths)

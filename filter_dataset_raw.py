@@ -106,10 +106,11 @@ def get_error_list(imposter_file):
             elif '.wav' in line:
                 fp = ''.join(line.split(' - ')[1:]).strip()
                 n = line.split('-')[0].strip().replace('[', '').replace(']', '').split('/')
+                
+                
                 rate = float(n[0])/float(n[1])
 
                 k = list(invalid_details.keys())[-1]
-
                 invalid_details[k][fp] = rate
 
         return invalid_details
@@ -119,11 +120,11 @@ def get_error_list(imposter_file):
 def export_dataset_details(root="dataset/train", save_dir="dataset/train_details/"):
     root = Path(root)
     print("Getting general information")
-    invalid_details = get_error_list('Imposter_callbot.txt')
+#     invalid_details = get_error_list('Imposter_callbot.txt')
     _, audio_folder_duration, audio_folder_size = get_dataset_infor(root)
     os.makedirs(save_dir, exist_ok=True)
     
-    for audio_folder in tqdm(list(root.iterdir()), desc="Processing..."):
+    for audio_folder in tqdm(list(root.iterdir()), desc="Processing...", colour='red'):
         writefile = os.path.join(save_dir , f"{audio_folder.name}.csv")
         
         with open(writefile, 'w', newline='') as wf:
@@ -142,18 +143,19 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                 fp = str(Path(audio_folder, audio_file.name))
                 duration = audio_folder_duration[audio_folder.name][i]
                 size = audio_folder_size[audio_folder.name][i]
-                # db = audio_folder_amplitute[audio_folder.name][i]
+#                 # db = audio_folder_amplitute[audio_folder.name][i]
                 
-                if isinstance(invalid_details, dict):
-                    if str(root / audio_folder.name) in invalid_details.keys():
-                        if fp in invalid_details[str(root / audio_folder.name)]:
-                            error_rate = float(invalid_details[str(root / audio_folder.name)][fp])
-                        else:
-                            error_rate = 0
-                    else:
-                        error_rate = 0
-                else:
-                    error_rate = 0
+#                 if isinstance(invalid_details, dict):
+#                     if str(root / audio_folder.name) in invalid_details.keys():
+#                         if fp in invalid_details[str(root / audio_folder.name)]:
+#                             error_rate = float(invalid_details[str(root / audio_folder.name)][fp])
+#                         else:
+#                             error_rate = 0
+#                     else:
+#                         error_rate = 0
+#                 else:
+#                     error_rate = 0
+                error_rate = 0
                     
                 # get full stats
                 full_infor = list(get_audio_information_stats(fp)) # path
@@ -167,12 +169,12 @@ def export_dataset_details(root="dataset/train", save_dir="dataset/train_details
                         continue
                     details[detail[0]] = detail[1]
                 
-                row = [audio_file.name, duration, size, details['Min level'],details['Max level'],
+                row = [audio_file.name, duration, size/(1024), details['Min level'],details['Max level'],
                        details['Min difference'],details['Max difference'], details['Mean difference'],details['RMS difference'],
                        details['Peak level dB'],details['RMS level dB'], details['RMS peak dB'],details['RMS trough dB'],
                        details['Crest factor'],details['Flat factor'], details['Peak count'],
                        details['Noise floor dB'],details['Noise floor count'],details['Bit depth'],details['Dynamic range'],
-                       details['Zero crossings'],details['Zero crossings rate'],error_rate,fp]
+                       details['Zero crossings'],details['Zero crossings rate'], error_rate, fp]
 
                 spamwriter.writerow(row)
                 
@@ -253,5 +255,6 @@ def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_li
     return list(set(blacklist))
         
 if __name__ == "__main__":
-    export_dataset_details(root="dataset/test_callbot/private", save_dir="dataset/train_callbot/detail_test")
+    export_dataset_details(root="dataset/test_callbot/public", save_dir="dataset/details/test_cb_public")
+#     update_dataset_details(root="dataset/train", save_dir="dataset/train_details_full/", error_file="Imposter_v2.txt")
     

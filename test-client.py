@@ -14,7 +14,8 @@ import torch
 
 default_path1 = "dataset/dump/thuyth.wav"
 default_path2 = "dataset/dump/366524143-20211229-084534_5.wav"
-URL = "http://0.0.0.0:8111/"
+URL = "http://0.0.0.0:8111/" # http://10.254.136.107:8111/
+
 
 def check_matching(ref_emb, com_emb, threshold=0.5):
     score = cosine_simialrity(ref_emb, com_emb)
@@ -37,7 +38,10 @@ def get_response(path):
     data_json = simplejson.dumps(data)
     
     r = requests.post(URL, json=data_json)
-    print("Success: ",int(r.status_code)==200)
+    print("Success: ", end='')
+    color_text = 'g' if int(r.status_code)==200 else 'r'
+    cprint(text=str(int(r.status_code)==200), fg=color_text)
+    
     response = r.json()
     print("Response time:", time.time() - t)
     
@@ -75,13 +79,26 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     t = time.time()
+    print(f"<[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}]>")
+    
+    print("Getting response...")
     emb_ref, threshold = get_response(args.ref)
     emb_com, threshold = get_response(args.com)
     
 #     print(type(emb_ref), emb_ref.shape)
 #     print(type(emb_com), emb_com.shape)
-   
-    print("Matching:", check_matching(emb_ref, emb_com, threshold), "\nTotal time:", time.time() - t, 's')
+    cprint(text="\n> RESULTS <", fg='k', bg='g')
+       
+    matched = check_matching(emb_ref, emb_com, threshold)
+    
+    print("Matching:", end=' ')
+    
+    if matched:
+        cprint(text=str(matched), fg='g')
+    else:
+        cprint(text=str(matched), fg='r')
+
+    print("Total time:", time.time() - t, 'sec\n=========================================\n')
 
 
         

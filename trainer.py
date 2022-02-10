@@ -159,13 +159,13 @@ def train(args):
 
             plot_from_file(result_save_path, show=False)
         else:
-            # test interval < 0 -> train continuously
+            # test interval < 0 -> train non stop
             print("[INFO] Training at", time.strftime("%H:%M:%S"),
                   "LR %f, Accuracy: %2.2f, Loss: %f" % (max(clr), trainer, loss))
             score_file.write("IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f\n" %
                              (it, max(clr), trainer, loss))
 
-            with open(os.path.join(model_save_path , "/model_state.log"), 'w') as log_file:
+            with open(os.path.join(model_save_path , "/model_state.log"), 'w+') as log_file:
                 log_file.write(f"Epoch:{it}, LR:{max(clr)}, EER: {0}")
 
             score_file.flush()

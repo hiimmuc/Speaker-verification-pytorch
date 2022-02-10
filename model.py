@@ -262,7 +262,8 @@ class SpeakerNet(nn.Module):
                      print_interval=100,
                      num_eval=10,
                      eval_frames=None,
-                     scoring_mode='norm'):
+                     scoring_mode='norm',
+                     output_file='private_test_results.txt'):
         self.eval()
 
         lines = []
@@ -278,10 +279,11 @@ class SpeakerNet(nn.Module):
 
         data_root = Path(root)
         read_file = Path(test_list)
-        write_file = Path(save_root, 'private_test_results.txt')
+        write_file = Path(save_root, output_file) if os.path.split(output_file)[0] == '' else output_file # add parent dir if not provided
         
         # Read all lines from testfile (read_file)
         print(">>>>TESTING...")
+        print(f">>> Threshold: {thre_score}")
         with open(read_file, newline='') as rf:
             spamreader = csv.reader(rf, delimiter=',')
             next(spamreader, None)

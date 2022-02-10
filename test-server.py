@@ -19,9 +19,15 @@ from utils import *
 
 # ==================================================load Model========================================
 # load model
-threshold = 0.32077792286872864
+# backup/Raw_ECAPA/model/best_state-CB_final_v1.model # domain callbot 0.38405078649520874
+# backup/Raw_ECAPA/model/best_state-train_mix_2domains.model # mix 0.3097502887248993
+# backup/Raw_ECAPA/model/best_state-235e-2.model # domain cskh 0.19131483137607574 0.21517927944660187
+
+threshold = 0.21517927944660187
 model_path = str(Path('backup/Raw_ECAPA/model/best_state-235e-2.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
+log_audio_path = str(Path('log_service/audio'))
+
 args = read_config(config_path)
 
 t0 = time.time()
@@ -46,39 +52,50 @@ api = Api(app)
 @app.route('/', methods=['POST'])
 def get_embbeding():
     audio_data = None
+    
+    current_time = str(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())).replace('-','').replace(' ','_').replace(':','')
+    cprint(text=f"\n[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}]", fg='k', bg='g')
+    
     t0 = time.time()
+    
     json_data = request.get_json()
-
+            
     if 'data' in json_data:
         data_json = json.loads(json_data)
         audio_data = data_json["data"]
         sr = int(data_json["sample_rate"])
-        print("Got audio signal", time.time() - t0)
+        print("Got audio signal in", time.time() - t0, 'sec', end=' || ')
     else:
         raise "Error: no data provide"
     # convertstring of base64 to np array
     audio_data_bytes = audio_data.encode('utf-8')
     audio_data_b64 = base64.decodebytes(audio_data_bytes)
     audio_data_np = np.frombuffer(audio_data_b64, dtype=np.float64)
+    print("Audio duration:", len(audio_data_np)/sr ,'s')
 
 #     # convert to AudioSegment
 #     # ....
 #     # none above, because we have convert the posted data to numpy array
 # 
-#     t0 = time.time()
-#     sf.write("dataset/dump/dump.wav", audio_data_np,sr)
-#     audio_path = "dataset/dump/dump.wav"
-#     print("Save audio signal to dump files", audio_path, time.time() - t0)
+    t0 = time.time()
+    save_path = os.path.join(log_audio_path, f'{current_time}_ref.wav')
+    if os.path.isfile(save_path):
+        save_path = save_path.replace('ref', 'com')
+        
+    sf.write(save_path, audio_data_np,sr)
+    print("Save audio signal to file:", save_path, time.time() - t0)
+    
 #     audio_properties = get_audio_information(audio_path)
 #     format = audio_path.split('.')[-1]
 #     valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
 #     if not valid_audio:
 #         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+#     no need to check validity of audio
     
     t0 = time.time()
-    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=10, normalize=True, sr=sr))
+    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=20, normalize=True, sr=sr))
     emb_json = json.dumps(emb.tolist())
-    print("Inference time", time.time() - t0, "Embeding size", emb.shape)
+    print("Inference time:", f"{time.time() - t0} sec", "|| Embeding size:", emb.shape)
     
     return jsonify({"Embedding": emb_json, "Inference_time": time.time() - t0, "Threshold": threshold})
 

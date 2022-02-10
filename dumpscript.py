@@ -16,7 +16,7 @@ from torchviz import make_dot
 from utils import *
 from argparse import Namespace
 
-from models.Raw_ECAPA2 import *
+from models.CoAtNet.CoAtNet import *
 
 def calcualte_similarity_of_test_result():
     test_path = Path("exp/dump/submission_backbone_softmax_normthres.csv")  # 86.55%
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     # create_full_augmented_dataset()
     # check_result("exp\dump\submission_list_test_1310_ambase.csv")
 
-    model = MainModel(n_mels=64, max_frames=100, sample_rate=8000, augment=True)
+    model = MainModel(n_mels=80, max_frames=100, sample_rate=8000, augment=True)
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
     print("nb_params:{}".format(nb_params))
     # audio =
