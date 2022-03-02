@@ -15,7 +15,7 @@ from utils.utils import *
 
 default_path1 = "dataset/train_callbot/325002523/325002523-20211229-143811-in_0.wav"
 default_path2 = "dataset/train_callbot/325002523/325002523-20220107-163500-in_0.wav"
-URL = "http://192.168.0.4:8111/Embedding/"  # http://10.254.136.107:8111/
+URL = "http://0.0.0.0:8111/Embedding/"  # http://10.254.136.107:8111/
 
 
 def check_matching(ref_emb, com_emb, threshold=0.5):
