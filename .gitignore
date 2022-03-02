@@ -9,6 +9,7 @@ venv/
 .venv/
 Winvenv/
 .idea/
+backup/
 .ipynb_checkpoints/
 *.ipynb
 *.zip
