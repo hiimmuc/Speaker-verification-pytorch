@@ -20,7 +20,7 @@ from model import SpeakerNet
 from utils.utils import *
 
 
-def check_matching(ref_emb, com_emb, threshold=0.5):
+def compare_embeddings(ref_emb, com_emb, threshold=0.5):
     score = cosine_simialrity(torch.from_numpy(ref_emb), torch.from_numpy(com_emb))
     ratio = threshold / 0.5
     result = (score / ratio) if (score / ratio) < 1 else 1
@@ -69,8 +69,8 @@ app.config['DEBUG'] = True
 api = Api(app)
 
 
-@app.route('/', methods=['POST'])
-def get_embbeding():
+@app.route('/isMatched/', methods=['POST'])
+def check_matching():
     audio_data = None
 
     current_time = str(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())).replace('-', '').replace(' ', '_').replace(':', '')
@@ -121,8 +121,60 @@ def get_embbeding():
 
     # compare embeding
 
-    isMatch, confidence_score = check_matching(embedding_ref[0], embedding_com[0], threshold)
+    isMatch, confidence_score = compare_embeddings(embedding_ref[0], embedding_com[0], threshold)
     return jsonify({"isMatch": str(bool(isMatch)), "confidence": str(confidence_score), "Threshold": threshold})
+
+
+@app.route('/Embedding/', methods=['POST'])
+def get_embeding():
+    audio_data = None
+
+    current_time = str(time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())).replace('-', '').replace(' ', '_').replace(':', '')
+    cprint(text=f"\n[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}]", fg='k', bg='g')
+
+    t0 = time.time()
+
+    json_data = request.get_json()
+
+    # print("\n> JSON <", json_data)
+    if 'base64Speech' in json_data:
+        data_json = json.loads(json_data)
+        audio_data = data_json["base64Speech"]
+        sr = int(data_json["sample_rate"])
+        print("Got audio signal in", time.time() - t0, 'sec', end=' || ')
+    else:
+        raise "Error: no data provide"
+    # convertstring of base64 to np array
+    audio_data_bytes = audio_data.encode('utf-8')
+    audio_data_b64 = base64.decodebytes(audio_data_bytes)
+    audio_data_np = np.frombuffer(audio_data_b64, dtype=np.float64)
+    print("Audio duration:", len(audio_data_np)/sr, 's')
+
+#     # convert to AudioSegment
+#     # ....
+#     # none above, because we have convert the posted data to numpy array
+#
+    t0 = time.time()
+    save_path = os.path.join(log_audio_path, f'{current_time}_ref.wav')
+    if os.path.isfile(save_path):
+        save_path = save_path.replace('ref', 'com')
+
+    sf.write(save_path, audio_data_np, sr)
+    print("Save audio signal to file:", save_path, time.time() - t0)
+
+#     audio_properties = get_audio_information(audio_path)
+#     format = audio_path.split('.')[-1]
+#     valid_audio = (audio_properties['sample_rate'] == args.sample_rate) and (format == args.target_format)
+#     if not valid_audio:
+#         audio_path = convert_audio(audio_path, new_format=args.target_format, freq=args.sample_rate)
+#     no need to check validity of audio
+
+    t0 = time.time()
+    emb = np.asarray(model.embed_utterance(audio_data_np, eval_frames=100, num_eval=20, normalize=True, sr=sr))
+    emb_json = json.dumps(emb.tolist())
+    print("Inference time:", f"{time.time() - t0} sec", "|| Embeding size:", emb.shape)
+
+    return jsonify({"Embedding": emb_json, "Inference_time": time.time() - t0, "Threshold": threshold})
 
 
 @app.route('/', methods=['GET'])
