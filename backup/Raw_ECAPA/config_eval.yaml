@@ -1,0 +1,32 @@
+device: "cuda" 
+model: Raw_ECAPA
+
+# test_list: log_service/test_lst_truth_v3.txt # test cb
+
+test_list: dataset/test_callbot_raw/val_dump_v3.txt
+
+nDataLoaderThread: 1 
+criterion: softmaxproto 
+sample_rate: 8000
+nClasses: 61018 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 64
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy
+scoring_mode: cosine
+
+save_path: backup 
+
+initial_model_infer: backup/Raw_ECAPA/model/best_state.model
+# backup/Raw_ECAPA/model/best_state_copy_0.model 0.4730052053928375 3.37
+# backup/Raw_ECAPA/model/cb_0309_v4.model 0.4227248728275299 3.49
+# backup/Raw_ECAPA/model/cb_0310_v4_eer3e-1.model 0.4562816619873047 3.16
+# backup/Raw_ECAPA/model/cskh_0112_1736_eer235e-2.model 0.2705834209918976 3.97 *
+# backup/Raw_ECAPA/model/mix_0223_1011_239eer.model 0.27635031938552856 4.43
+# backup/Raw_ECAPA/model/mix_0307_1357_v3.model 0.5229600071907043 4.64

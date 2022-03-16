@@ -1,0 +1,36 @@
+device: 'cuda'
+
+# Architecture
+model: Raw_ECAPA
+nOut: 512
+nClasses: 5863
+
+# Audio input
+sample_rate: 8000
+max_frames: 100
+eval_frames: 100
+target_format: wav
+
+# Optimizer
+lr: 0.001
+max_epoch: 500
+batch_size: 32
+n_mels: 80
+step_size: 5
+weight_decay: 0
+test_interval: 10
+lr_decay: 0.95
+
+preprocess: False
+augment: False
+
+criterion: softmaxproto
+optimizer: adam
+callbacks: auto
+
+# Paths
+train_list: dataset/train_def.txt 
+test_list: dataset/train_callbot/val_def_cb.txt 
+save_path: backup/
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy 
+initial_model_infer:  backup/Raw_ECAPA/model/mix_0307_1357_v3.model

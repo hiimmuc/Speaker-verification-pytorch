@@ -1,0 +1,31 @@
+device: "cuda" 
+train_list: dataset/mixed_data_train_v2.txt
+test_list: dataset/train_callbot/val_def_cb.txt 
+save_path: backup/
+
+model: Raw_ECAPA
+max_epoch: 500 
+batch_size: 64
+nDataLoaderThread: 1
+optimizer: adam
+criterion: amsoftmaxproto
+nPerSpeaker: 2
+
+n_mels: 80 
+margin: 0.1
+scale: 30
+lr: 0.001
+
+callbacks: reduceOnPlateau
+
+max_frames: 100
+eval_frames: 100
+sample_rate: 8000
+
+nClasses: 36636
+test_interval: -1
+step_size: 5
+es_patience: 30
+
+initial_model: backup/Raw_ECAPA/model/best_state_backup.model
+initial_model_infer: backup/Raw_ECAPA/model/best_state.model

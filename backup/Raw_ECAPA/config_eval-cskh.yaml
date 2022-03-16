@@ -1,0 +1,26 @@
+device: "cuda" 
+model: Raw_ECAPA
+# test_list: dataset/val_def_cskh.txt
+# test_list: dataset/test_trial_file_converted.txt
+# test_list: dataset/train_callbot/val_def_cb.txt
+# test_list: dataset/callbot_test_lst.txt
+# test_list: dataset/train_callbot/public_test_from_train_cb.txt # public test
+test_list: dataset/test_callbot/valid_speaker/public_test_cb.txt
+
+nDataLoaderThread: 1 
+criterion: softmaxproto 
+sample_rate: 8000
+nClasses: 5863 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 32
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohort.npy 
+scoring_mode: cosine
+save_path: backup 
+initial_model_infer: backup/Raw_ECAPA/model/best_state-235e-2.model

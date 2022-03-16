@@ -1,0 +1,31 @@
+device: "cuda" 
+model: Raw_ECAPA
+
+test_threshold: 0.5229600071907043
+
+# test_path: dataset/test_callbot/valid_speaker/private
+# test_list: dataset/test_callbot/valid_speaker/private_test_cb.txt # private test 
+
+test_path: log_service/test_cskh
+test_list: log_service/test_lst_cskh_v1.txt # private test 
+ref: log_service/test_lst_truth_cskh_v1.txt
+
+nDataLoaderThread: 1 
+criterion: softmaxproto 
+sample_rate: 8000
+nClasses: 6089 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 32
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy
+scoring_mode: cosine
+
+save_path: backup 
+
+initial_model_infer: backup/Raw_ECAPA/model/mix_0307_1357_v3.model
