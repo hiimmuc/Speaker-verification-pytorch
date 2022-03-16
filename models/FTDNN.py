@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
 from torchsummary import summary
-from utils.utils import PreEmphasis
+from utils import PreEmphasis
 
 
 class SOrthConv(nn.Module):

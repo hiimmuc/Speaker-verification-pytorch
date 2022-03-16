@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torchaudio
 from torch.nn import Parameter
 from torchsummary import summary
-from utils.utils import PreEmphasis
+from utils import PreEmphasis
 
 from models.ResNetBlocks import *
 

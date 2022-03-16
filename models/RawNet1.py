@@ -10,7 +10,7 @@ import torch.nn as nn
 import torchaudio
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-from utils.utils import PreEmphasis
+from utils import PreEmphasis
 
 # TODO: add option block, layers, filter, ... to block
 def conv3x3(in_planes, out_planes, stride=1):

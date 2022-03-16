@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchaudio
 from torchsummary import summary
-from utils.utils import PreEmphasis
+from utils import PreEmphasis
 
 from models.ResNetBlocks import SEBasicBlock
 

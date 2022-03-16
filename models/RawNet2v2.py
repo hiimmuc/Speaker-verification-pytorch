@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.utils import data
 from torchsummary import summary
-from utils.utils import *
+from utils import *
 
 
 class RawNetBasicBlock(nn.Module):
@@ -215,6 +215,7 @@ class RawNet2(nn.Module):
         # speaker embedding layer
         #####
         x = self.fc(x)
+        x= x.squeeze()
 
         return x
 

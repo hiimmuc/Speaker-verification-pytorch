@@ -245,7 +245,7 @@ class SincConv(nn.Module):
     def _to_mel(self, hz):
         """Converts frequency in Hz to the mel scale.
         """
-        return 2595 * np.log10(1 + hz / 700)
+        return float(2595 * torch.log10(torch.tensor(1 + hz / 700)))
 
     def _to_hz(self, mel):
         """Converts frequency in the mel scale to Hz.
