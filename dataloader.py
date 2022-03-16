@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from utils.utils import *
+from utils import *
 
 
 class Loader(Dataset):
@@ -72,19 +72,23 @@ class Loader(Dataset):
                     # for type 1 -> 4
                     audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
 
-            audio = loadWAV(audio_file, self.max_frames, evalmode=False)
+            audio = loadWAV(audio_file, self.max_frames, evalmode=False, augment=self.augment)
 
             if self.augment and self.aug_folder == 'online':  # if exists augmented folder(30GB) separately
-                augtype = random.randint(0, 4)
-                if augtype == 1:
+                # env corruption adding from musan, revberation
+                augtype = np.random.choice(['rev', 'noise', 'both', 'none'], p=[0.125, 0.375, 0.375, 0.125])
+                if augtype == 'rev':
                     audio = self.augment_engine.reverberate(audio)
-                elif augtype == 2:
-                    audio = self.augment_engine.additive_noise('music', audio)
-                elif augtype == 3:
-                    audio = self.augment_engine.additive_noise('speech', audio)
-                elif augtype == 4:
-                    audio = self.augment_engine.additive_noise('noise', audio)
+                elif augtype == 'noise':
+                    mode = random.choice(['music', 'speech', 'noise'])
+                    audio = self.augment_engine.additive_noise(mode, audio)
+                elif augtype == 'both':
+                    # combined reverb and noise
+                    audio = self.augment_engine.reverberate(audio)
+                    mode = random.choice(['music', 'speech', 'noise'])
+                    audio = self.augment_engine.additive_noise(mode, audio)
                 else:
+                    # none type means dont augment
                     pass
 
             feat.append(audio)
@@ -181,11 +185,11 @@ if __name__ == '__main__':
                         help='decide whether use augment data')
     parser.add_argument('--train_list',
                         type=str,
-                        default="dataset/train_def.txt",
+                        default="dataset/train_callbot/train_def_cb.txt",
                         help='Directory to save files(parent root)')
     parser.add_argument('--batch_size',
                         type=int,
-                        default=64,
+                        default=32,
                         help='Batch size, number of speakers per batch')
     parser.add_argument('--max_seg_per_spk',
                         type=int,
@@ -220,9 +224,13 @@ if __name__ == '__main__':
     # Model definition for MFCCs
     parser.add_argument('--n_mels',
                         type=int,
-                        default=64,
+                        default=80,
                         help='Number of mel filter banks')
 
+    parser.add_argument('--sample_rate',
+                        type=int,
+                        default=8000,
+                        help='Number of sample_rate')
     args = parser.parse_args()
     t = time.time()
     train_loader = get_data_loader(args.train_list, **vars(args))
@@ -231,6 +239,6 @@ if __name__ == '__main__':
     print(len(train_loader))
     for (sample, label) in tqdm(train_loader):
         sample = sample.transpose(0, 1)
-#         for inp in sample:
-# #             print(inp.size())
+        for inp in sample:
+            print(inp.size())
         print(sample.size(), label.size())

@@ -6,7 +6,7 @@ import time
 from callbacks.earlyStopping import *
 from dataloader import get_data_loader
 from model import SpeakerNet
-from utils.utils import *
+from utils import *
 
 
 def train(args):
@@ -20,8 +20,8 @@ def train(args):
     min_eer = float("inf")
     
     # load state from log file
-    if os.path.isfile(os.path.join(model_save_path, "model_state.log")):
-        start_it, start_lr, _ = read_log_file(os.path.join(model_save_path, "model_state.log"))
+    if os.path.isfile(os.path.join(model_save_path, "model_state_log.txt")):
+        start_it, start_lr, _ = read_log_file(os.path.join(model_save_path, "model_state_log.txt"))
     else:
         start_it = 1
         start_lr = args.lr
@@ -33,7 +33,7 @@ def train(args):
     eerfiles = glob.glob(os.path.join(model_save_path, 'model_state_*.eer'))
     eerfiles.sort()
 
-    # if exists best model load from it
+    # if exists best model load from it and load state from log model file
     prev_model_state = None
     if start_it > 1:
         if os.path.exists(f'{model_save_path}/best_state.model'):
@@ -54,7 +54,7 @@ def train(args):
             it = 1
     
     # Load models
-    s = SpeakerNet(**vars(args))
+    s = SpeakerNet(**vars(args)).to(args.device)
         
     if args.initial_model:
         s.loadParameters(args.initial_model)
@@ -64,6 +64,7 @@ def train(args):
         s.loadParameters(prev_model_state)
         print("Model %s loaded from previous state!" % prev_model_state)
         args.lr = start_lr
+        it = start_it
     else:
         print("Train model from scratch!")
         it = 1
@@ -73,17 +74,14 @@ def train(args):
         for old_file in eerfiles:
             if os.path.exists(old_file):
                 os.remove(old_file)
+                
+    # init parallelism create net-> load weight -> add to parallelism 
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        s.__S__ = nn.DataParallel(s.__S__, device_ids=[i for i in range(torch.cuda.device_count())])
+    s.__S__ = s.__S__.to(args.device)
 
-    # schedule the learning rate to stopped epoch
-#     if args.callbacks in ['steplr', 'cosinelr']:
-#         for _ in range(0, it - 1):
-#             s.__scheduler__.step()
-#     elif args.callbacks == 'auto':
-#         try:
-#             it, lr, _ = read_log_file(model_save_path + "/model_state.log")
-#         except:
-#             pass
-        
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
     score_file = open(result_save_path + "/scores.txt", "a+")
@@ -94,7 +92,6 @@ def train(args):
         f'\n[TRAIN]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
     # write the settings to settings file
     for items in vars(args):
-        # print(items, vars(args)[items])
         settings_file.write('%s %s\n' % (items, vars(args)[items]))
     settings_file.flush()
 
@@ -109,14 +106,14 @@ def train(args):
         clr = [x['lr'] for x in s.__optimizer__.param_groups]
 
         print(time.strftime("%Y-%m-%d %H:%M:%S"), it,
-              "[INFO] Training %s with LR %f..." % (args.model, max(clr)))
+              "[INFO] Training %s with LR %f ->" % (args.model, max(clr)))
 
         # Train network
         loss, trainer = s.fit(loader=train_loader, epoch=it)
         
         # save best model
         if loss == min(min_loss, loss):
-            print(f"[INFO] Loss reduce from {min_loss} to {loss}. Save the best state")
+            cprint(text=f"[INFO] Loss reduce from {min_loss} to {loss}. Save the best state", fg='y')
             s.saveParameters(model_save_path + "/best_state.model")
             if args.early_stop:
                 early_stopping.counter = 0  # reset counter of early stopping
@@ -154,14 +151,13 @@ def train(args):
             with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
                 eerfile.write('%.4f, ' % result[1])
                 
-            with open(os.path.join(model_save_path , "/model_state.log"), 'w+') as log_file:
+            with open(os.path.join(model_save_path , "/model_state_log.txt"), 'w+') as log_file:
                 log_file.write(f"Epoch:{it}, LR:{max(clr)}, EER: {result[1]}")
 
             plot_from_file(result_save_path, show=False)
         else:
             # test interval < 0 -> train non stop
-            print("[INFO] Training at", time.strftime("%H:%M:%S"),
-                  "LR %f, Accuracy: %2.2f, Loss: %f" % (max(clr), trainer, loss))
+            # print("[INFO] Training at", time.strftime("%H:%M:%S"), "LR %f, Accuracy: %2.2f, Loss: %f \n" % (max(clr), trainer, loss))
             score_file.write("IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f\n" %
                              (it, max(clr), trainer, loss))
 

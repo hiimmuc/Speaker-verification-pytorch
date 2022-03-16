@@ -3,8 +3,8 @@ import os
 
 from inference import inference
 from trainer import train
-from utils.utils import read_config
-
+from utils import read_config
+from export import *
 
 def main(args):
     if args.do_train:
@@ -13,6 +13,8 @@ def main(args):
     elif args.do_infer:
         # TODO: evaluate model
         inference(args)
+    elif args.do_export:
+        export_model(args, check=True)
     else:
         raise 'wrong mode'
 
@@ -25,6 +27,8 @@ if __name__ == '__main__':
     # control flow
     parser.add_argument('--do_train', action='store_true', default=False)
     parser.add_argument('--do_infer', action='store_true', default=False)
+    parser.add_argument('--do_export', action='store_true', default=False)
+
 
     # Data loader
     parser.add_argument('--max_frames',
@@ -127,7 +131,7 @@ if __name__ == '__main__':
                         help='Hard negative mining rank in the batch, only for some loss functions')
     parser.add_argument('--margin',
                         type=float,
-                        default=0.2,
+                        default=0.1,
                         help='Loss margin, only for some loss functions')
     parser.add_argument('--scale_pos',
                         type=float,
@@ -250,7 +254,7 @@ if __name__ == '__main__':
                         help='norm or cosine for scoring')
     parser.add_argument('--ref', '-r',
                        type=str,
-                       default='dataset/test_callbot/valid_speaker/private_test_cb_truth.txt')
+                       default='dataset/test_callbot_raw/test_cb_v1.txt')
     parser.add_argument('--com', '-c',
                        type=str,
                        default='backup/Raw_ECAPA/result/private_test_results.txt')

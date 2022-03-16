@@ -3,6 +3,7 @@ import glob
 import os
 import random
 import sys
+import subprocess
 
 import time
 from math import fabs
@@ -13,8 +14,12 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix, roc_curve
+from sklearn.metrics import fbeta_score, accuracy_score
+
 from model import SpeakerNet
-from utils.utils import tuneThresholdfromScore
+from utils import tuneThresholdfromScore
 
 
 def inference(args):
@@ -24,6 +29,7 @@ def inference(args):
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
     score_file = open(result_save_path + "/Inference_log.txt", "a+")
+    test_log_file = open(result_save_path + "/Testing_log.txt", "a+")
     # summary settings
     settings_file.write(
         f'\n[INFER]------------------{time.strftime("%Y-%m-%d %H:%M:%S")}------------------\n')
@@ -45,17 +51,27 @@ def inference(args):
         model_files = glob.glob(os.path.join(
             model_save_path, 'model_state_*.model'))
         chosen_model_state = model_files[-1]
+    ## duplicate best state to avoid missing best
+    if 'best_state' in chosen_model_state:
+        ver = 0
+        copy_name = chosen_model_state[:-6] + f'_copy_{ver}' + chosen_model_state[-6:]
+        while os.path.exists(copy_name):
+            ver += 1
+            copy_name = chosen_model_state[:-6] + f'_copy_{ver}' + chosen_model_state[-6:]
+        subprocess.call(f"cp {chosen_model_state} {copy_name}", shell=True)
+    else:
+        copy_name = None
 
     print(f'Loading model from {chosen_model_state}')
     model.loadParameters(chosen_model_state)
-
     model.eval()
+    
     # set defalut threshold
     threshold = args.test_threshold
     scoring_mode = args.scoring_mode
     num_eval = 10
 
-    # Evaluation code
+    ############################################## Evaluation from list
     if args.eval is True:
         sc, lab, trials = model.evaluateFromList(
             args.test_list,
@@ -65,26 +81,25 @@ def inference(args):
             scoring_mode=scoring_mode)
         
         target_fa = np.linspace(5, 0, num=50)
-        result = tuneThresholdfromScore(sc, lab, target_fa)
-        
-#         result form : (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
-#         print('tfa [thre, fpr, fnr]')
+        result = tuneThresholdfromScore(sc, lab, target_fa) # (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
+
+        # print('tfa [thre, fpr, fnr]')
         best_sum_rate = 999
         best_tfa = None
         for i, tfa in enumerate(target_fa):
-#             print(tfa, result[0][i])
+            # print(tfa, result[0][i])
             sum_rate = result[0][i][1] + result[0][i][2]
             if sum_rate < best_sum_rate:
                 best_sum_rate = sum_rate
                 best_tfa = result[0][i]
         
-        print("\n[RESULTS]\n",
+        print("\n[RESULTS]\nROC:",
               f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result[3]}\n",
               f">> EER {result[1]}% at threshold {result[2]}\n",
               f">> Gmean result: \n>>> EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n>>> ACC: {result[-1][1] * 100}%")
         
         score_file.writelines(
-            [f"Evaluation result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
+            [f"[Evaluation] result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
              f"Best sum rate {best_sum_rate} at {best_tfa}\n",
              f"EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n",
              f"Gmean result:\n",
@@ -98,15 +113,31 @@ def inference(args):
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
             spamwriter.writerow(['audio_1', 'audio_2','score', 'label', 'predict_label'])
+            preds = []
             for score, label, pair in zip(sc, lab, trials):
-                pred = '1' if score >= result[2] else '0'
+                pred = int(score >= result[2])
                 com, ref = pair.strip().split(' ')
                 spamwriter.writerow([com, ref, score, label, pred])
-            print("=============END===============//\n")
-
+                preds.append(pred)
+            
+            # print out metrics results
+            beta_values=[0.5, 2]
+            prec_recall = evaluate_by_precision_recall(lab, preds, beta_values=beta_values)
+            print("REPORT:\n", prec_recall[0])
+            print("Accuracy for each class:", f"\n0's: {prec_recall[1][0]}\n1's: {prec_recall[1][1]}")
+            for b in beta_values:
+                print(f"F-{b}:", prec_recall[2][b])
+            
+        # decide wether keep the current state
+        if copy_name:
+            keep_file = str(input(f"Keep this version? '{copy_name}' (Y/N): ")).lower()
+            if keep_file.strip() == 'n':
+                subprocess.call(f"rm {copy_name}", shell=True)
+                print("removed copy file...")
+        print("=============END===============//\n")
         sys.exit(1)
 
-    # Test list
+    ########################## Test from list (audio1,audio2) and compare to truth file
     if args.test is True:
         model.testFromList(args.test_path,
                            args.test_list,
@@ -116,15 +147,18 @@ def inference(args):
                            eval_frames=args.eval_frames,
                            scoring_mode=scoring_mode,
                            output_file=args.com)
-        prec = check_result(path=args.com, ref=args.ref)
-        score_file.writelines([f"Test result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
-                               f"Threshold: {threshold}\n",
-                               f"Precision: {prec}\n",            
-                               f"Save to {args.com} and {args.ref} \n=================>\n"])
-        score_file.close()
+        
+        roc, prec_recall = evaluate_result(path=args.com, ref=args.ref)
+        test_log_file.writelines([f">{time.strftime('%Y-%m-%d %H:%M:%S')}<",
+                                  f"Test result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
+                                  f"Threshold: {threshold}\n",
+                                  f"ROC: {roc}\n",
+                                  f"Report: \n{prec_recall}\n",
+                                  f"Save to {args.com} and {args.ref} \n========================================\n"])
+        test_log_file.close()
         sys.exit(1)
 
-    # Test pair by pair
+    ######################################## Test pair by pair
     if args.test_by_pair is True:
         model.test_each_pair(args.test_path,
                              cohorts_path=args.cohorts_path,
@@ -134,7 +168,7 @@ def inference(args):
                              scoring_mode=scoring_mode)
         sys.exit(1)
 
-    # Prepare embeddings for cohorts/verification
+    ###################################### Prepare embeddings for cohorts/verification
     if args.prepare is True:
         model.prepare(eval_frames=args.eval_frames,
                       from_path=args.test_list,
@@ -143,7 +177,7 @@ def inference(args):
                       prepare_type=args.prepare_type)
         sys.exit(1)
 
-    # Predict
+    ######################################## Predict
     if args.predict is True:
         """
         Predict new utterance based on distance between its embedding and saved embeddings.
@@ -152,6 +186,7 @@ def inference(args):
         classes_path = Path(args.save_path, 'classes.npy')
         embeds = torch.load(embeds_path).to(torch.device(args.device))
         classes = np.load(str(classes_path), allow_pickle=True).item()
+        
         if args.test_list.endswith('.txt'):
             files = []
             with open(args.test_list) as listfile:
@@ -160,8 +195,7 @@ def inference(args):
                     if not line:
                         break
                     data = line.split()
-
-                    # Append random label if missing TODO: ? why random
+                    
                     if len(data) == 2:
                         data = [random.randint(0, 1)] + data
 
@@ -207,7 +241,6 @@ def inference(args):
                     diff_biggest_score = score
                 if score > args.test_threshold:
                     indexes = np.argsort(dist)[:3]
-                    # TODO: duplicated from line 112 - 119
                     for i, idx in enumerate(indexes):
                         score = 1 - dist[idx] ** 2 / 2
                         if i == 0:
@@ -221,9 +254,9 @@ def inference(args):
         sys.exit(1)
 
         
-def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt", ref="dataset/test_callbot/valid_speaker/private_test_cb_truth.txt"):
+def evaluate_result(path="backup/Raw_ECAPA/result/private_test_results.txt", 
+                    ref="log_service/test_lst_truth.txt"):
     com = path
-    
     assert os.path.isfile(ref) and os.path.isfile(com), "Files not exists"
     
     ref_data = {}
@@ -234,45 +267,61 @@ def check_result(path="backup/Raw_ECAPA/result/private_test_results.txt", ref="d
         spamreader = csv.reader(rf, delimiter=' ')
         for row in spamreader:
             key = f"{row[1]}/{row[-1]}"
-            ref_data[key] = str(row[0])
+            ref_data[key] = int(row[0])
             
     with open(com, newline='') as rf:
         spamreader = csv.reader(rf, delimiter=',')
         next(spamreader, None)
         for row in spamreader:
             key = f"{row[0]}/{row[1]}"
-            com_data[key] = str(row[2])
+            com_data[key] = int(row[2])
             
     assert len(ref_data)==len(com_data), "The length of 2 files is not equal"
-    
-    count_true = 0
-    
-    tta = 0
-    tfr = 0
-    
-    ta = 0
-    fr = 0
-    
-    for k, v in com_data.items():
-        if ref_data[k] == '1':
-            tta += 1
-        else:
-            tfr += 1
+    assert list(ref_data.keys()) == list(com_data.keys()), "order is not matched"
         
-        if v == '1':
-            ta += 1
-        else:
-            fr += 1
-        
-        if ref_data[k] == v:
-            count_true += 1
+    print("Test list infor:",
+          f"Total '1' label: {list(ref_data.values()).count(1)} pairs",
+          f"Total '0' label: {list(ref_data.values()).count(0)} pairs")
     
-    precision = count_true * 100 / len(ref_data)
-    print(">> Precision:", precision, 'Error rate:', 100 - precision, 
-          f"\n>>> True Accepted:  {ta} pairs / Total '1' label: {tta} pairs",
-          f"\n>>> False Rejected:  {fr} pairs / Total '0' label: {tfr} pairs",
-          f"\n>>> True:  {count_true} pairs / Total: {len(ref_data)} pairs\n========//")
-    return precision
+    # ROC
+    fpr, tpr, thresholds = roc_curve(list(ref_data.values()), list(com_data.values()), pos_label=1)
+    fnr = 1 - tpr
+    tnr = 1 - fpr
+    confussion_roc_matrix = "\nTPR: {:<24} | FNR: {:<24}\nFPR: {:<24} | TNR: {:<24}".format(tpr[1], fnr[1], fpr[1], tnr[1])
+    accuracy = accuracy_score(list(ref_data.values()), list(com_data.values()))
+    print("ROC evaluation:", confussion_roc_matrix, "\nAccuracy:", accuracy)
+    
+    # Precision-Recall
+    beta_values=[0.5, 2]
+    prec_recall = evaluate_by_precision_recall(list(ref_data.values()), list(com_data.values()), beta_values=[0.5, 2])
+    print("Precision-Recall evaluation:\n", prec_recall[0])
+    print("Accuracy for each class:", f"\n0's: {prec_recall[1][0]}\n1's: {prec_recall[1][1]}")
+    for b in beta_values:
+        print(f"f{b} score:", prec_recall[2][b])
+        
+    return confussion_roc_matrix, prec_recall[0]
+
+def evaluate_by_precision_recall(y_true, y_pred, beta_values=[1]):
+    target_names = ['False', 'True']  
+    # get classification report
+    report = classification_report(y_true, y_pred, target_names=target_names, digits=5)
+    
+    # Get the confusion matrix
+    cm = confusion_matrix(y_true, y_pred)
+
+    #Now the normalize the diagonal entries
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    #The diagonal entries are the accuracies of each class
+    accuracy_per_classes = cm.diagonal()
+    
+    # calcualte f_beta
+    fb_scores = {}
+    for b in beta_values:
+        fb_score = fbeta_score(y_true, y_pred, beta=b, pos_label=1)
+        fb_scores[b] = fb_score
+        
+    return report, accuracy_per_classes, fb_scores
     
 if __name__ == '__main__':
     pass

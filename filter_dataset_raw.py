@@ -4,7 +4,7 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse
 
-from utils.audio import *
+from audio_utils import *
 parser = argparse.ArgumentParser(description="Filtering low quality audio")
 
 
@@ -185,18 +185,19 @@ def update_dataset_details(root="dataset/train", save_dir="dataset/train_details
     return True
 
 
-def remove_low_quality_files(raw_dataset='dataset/train', 
-                             details_dir='dataset/details/train_cskh/',  
-                             duration_limit=1.0,
-                             dB_limit=-10,                          
-                             error_limit=0.5,
-                             noise_limit=-10,
-                             lower_num=10, upper_num = None, 
-                             confirm_rm=False):
+def move_low_quality_files(raw_dataset='dataset/train', 
+                           details_dir='dataset/details/train_cskh/', 
+                           duration_limit=1.0,
+                           dB_limit=-10,                          
+                           error_limit=0.5,
+                           noise_limit=-10,
+                           lower_num=None, upper_num = None, 
+                           confirm_mode=None):
     all_spks = []
     valid_spks = []
     
     filepaths_lists = []
+    wrong_files = []
     
     root = Path(raw_dataset)
     classpaths = [d for d in root.iterdir() if d.is_dir()]
@@ -217,46 +218,60 @@ def remove_low_quality_files(raw_dataset='dataset/train',
         if not blist:
             continue
 
-        filepaths = list(set(filepaths).difference(set(blist)))
+        filepaths_ft = list(set(filepaths).difference(set(blist)))
 
         # check duration, sr
-        filepaths = check_valid_audio(filepaths, 1.0, 8000)
+        filepaths_ft = check_valid_audio(filepaths_ft, 1.0, 8000)
 
         # check number of files
         if lower_num:
-            if len(filepaths) < lower_num:
+            if len(filepaths_ft) < lower_num:
                 continue
         if upper_num:
-            if len(filepaths) >= upper_num:
-                filepaths = filepaths[:upper_num]
+            if len(filepaths_ft) >= upper_num:
+                filepaths_ft = filepaths_ft[:upper_num]
                 
-        if len(filepaths) == 0:
+        if len(filepaths_ft) == 0:
             continue
                 
         valid_spks.append(Path(classpath).name)
-        filepaths_lists.extend(filepaths)
+        filepaths_lists.extend(filepaths_ft)
+        wrong_files.extend(list(set(filepaths).difference(set(filepaths_ft))))
     
     invalid_spks = list(set(all_spks).difference(set(valid_spks)))
     
     print("# Valid speakers:", len(valid_spks),
           "over", len(all_spks))
-    print("Total valide audio files:", len(filepaths_lists))
+    print("Total valid audio files:", len(filepaths_lists),
+          "Total wrong files", len(wrong_files))
     
-    if confirm_rm:
+    if confirm_mode == 'remove':
         for spk in tqdm(invalid_spks, desc="Deleting invalid speaker's dir..."):
             path_dir = os.path.join(raw_dataset, spk)
             if os.path.exists(path_dir):
                 subprocess.call(f"rm -rf {path_dir}", shell=True)
+        for f in tqdm(wrong_files, desc="Deleting low quality speaker's files..."):
+            if os.path.exists(f):
+                subprocess.call(f"rm -rf {f}", shell=True)
         print('Done!')
-    
+    elif confirm_mode == 'move':
+        invalid_dir = str(Path(Path(root).parent / 'invalid_spks/'))
+        for spk in tqdm(invalid_spks, desc="Moving invalid speaker's dir..."):
+            new_path_dir = os.path.join(invalid_dir, spk)
+            old_path_dir = os.path.join(raw_dataset, spk)
+            
+            os.makedirs(new_path_dir, exist_ok=True)
+            if os.path.exists(old_path_dir):
+                subprocess.call(f"mv {old_path_dir}/*.wav {new_path_dir}", shell=True)
+                
     return valid_spks, invalid_spks
 
 
 # ======================================================================================================
 if __name__ == "__main__":
-    parser.add_argument('--root', type=str, default="dataset/test_callbot/public")
-    parser.add_argument('--details_dir', type=str, default="dataset/details/test_cb_public")
-    parser.add_argument('--wrong_id_file', type=str, default="Imposter_v2.txt")
+    parser.add_argument('--root', type=str, default="dataset/test_callbot_raw/namdp5")
+    parser.add_argument('--details_dir', type=str, default="dataset/details/test_cb_raw")
+    parser.add_argument('--wrong_id_file', type=str, default=None)
     parser.add_argument('--mode', type=str, default='export')
     
     args = parser.parse_args()
@@ -264,5 +279,13 @@ if __name__ == "__main__":
         export_dataset_details(root=args.root, save_dir=args.details_dir)
     elif args.mode == 'update':
         update_dataset_details(root=args.root, save_dir=args.details_dir, error_file=args.wrong_id_file)
-    elif args.mode == 'remove':
-        remove_low_quality_files(raw_dataset=args.root, details_dir=args.details_dir)
+    elif args.mode == 'move':
+        move_low_quality_files(raw_dataset=args.root, 
+                                 details_dir=args.details_dir,
+                                 duration_limit=1.0,
+                                 dB_limit=-10,
+                                 error_limit=0.5,
+                                 noise_limit=-10,
+                                 lower_num=10, upper_num = None, 
+                                 confirm_mode='move')
+    

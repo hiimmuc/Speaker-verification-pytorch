@@ -19,7 +19,7 @@ from scipy.io import wavfile
 
 from tqdm.auto import tqdm
 
-from utils.utils import *
+from utils import *
 import wave
 import contextlib
 import csv
@@ -376,11 +376,9 @@ class DataGenerator():
                                    error_limit=0.5, 
                                    noise_limit=-10,
                                    details_dir=self.args.details_dir)
-            if not blist:
-                continue
+            if blist is not None:
+                filepaths = list(set(filepaths).difference(set(blist)))           
                 
-            filepaths = list(set(filepaths).difference(set(blist)))
-
             # check duration, sr
             filepaths = check_valid_audio(filepaths, 1.0, 8000)
 

@@ -8,7 +8,7 @@ import numpy as np
 from pydub import AudioSegment
 from model import SpeakerNet
 from tqdm import tqdm
-from utils.utils import *
+from utils import *
 import csv
 
 def all_pairs(lst):
@@ -48,8 +48,8 @@ def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_li
         return None
 
 # load model
-threshold = 0.20233240723609924
-model_path = str(Path('backup/Raw_ECAPA/model/best_state-235e-2.model'))
+threshold = 0.38405078649520874
+model_path = str(Path('backup/Raw_ECAPA/model/best_state-CB_final_v1.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
 args = read_config(config_path)
 
@@ -61,29 +61,29 @@ print("Model Loaded time: ", time.time() - t0)
 
 
 # ===================================================
-root = 'dataset/train/'
-details_dir = "dataset/train_details_full"
+root = 'dataset/train_callbot/train'
+details_dir = "dataset/details/train_cb"
 folders = glob.glob(str(Path(root, '*')))
 
 for folder in tqdm(folders[:]):
-    files = glob.glob(f"{folder}/*.wav")
-    blist = read_blacklist(str(Path(folder).name),                
-                           duration_limit=1.0, 
-                           dB_limit=-10, 
-                           error_limit=1.0, 
-                           noise_limit=-16,
-                          details_dir=details_dir)
-    if not blist:
-        continue
+    filepaths = glob.glob(f"{folder}/*.wav")
+#     blist = read_blacklist(str(Path(folder).name),                
+#                            duration_limit=1.0, 
+#                            dB_limit=-10, 
+#                            error_limit=0.5, 
+#                            noise_limit=-10,
+#                            details_dir=details_dir)
+#     if not blist:
+#         continue
                 
-    filepaths = list(set(files).difference(set(blist)))
+#     filepaths = list(set(filepaths).difference(set(blist)))
     
     pairs = all_pairs(filepaths)
     files_emb_dict = {}
     imposters = {}
     
-    for fn in files:
-        emb = model.embed_utterance(fn, eval_frames=100, num_eval=10, normalize=True)
+    for fn in filepaths:
+        emb = model.embed_utterance(fn, eval_frames=100, num_eval=20, normalize=True)
         if fn not in files_emb_dict:
             files_emb_dict[fn] = emb
             
@@ -98,7 +98,7 @@ for folder in tqdm(folders[:]):
             imposters[pair[1]] += 1
     imposters_list = [k for k,v in imposters.items() if v > 0]
 
-    with open("Imposter_v2.txt", 'a+') as f:
+    with open("Imposter_cb_v2.txt", 'a+') as f:
         if len(imposters_list) > 0:
             f.write(f"Folder:{folder}\n")
             for imp in sorted(imposters_list):

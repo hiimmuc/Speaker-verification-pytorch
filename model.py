@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 
-from utils.utils import *
+from utils import *
 
 
 class SpeakerNet(nn.Module):
@@ -27,7 +27,7 @@ class SpeakerNet(nn.Module):
 
         SpeakerNetModel = importlib.import_module(
             'models.' + self.model_name).__getattribute__('MainModel')
-        self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
+        self.__S__ = SpeakerNetModel(**kwargs).to(self.device)        
         nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
         print(f"Initialize model {self.model_name}: {nb_params} params")
 
@@ -42,7 +42,7 @@ class SpeakerNet(nn.Module):
         # TODO: set up callbacks, add reduce on plateau + early stopping
         self.callback = callbacks
         self.lr_step = ''
-        if self.callback in ['steplr', 'cosinelr']:
+        if self.callback in ['steplr', 'cosinelr', 'cyclicLR']:
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('Scheduler')
             self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **kwargs)
@@ -52,7 +52,7 @@ class SpeakerNet(nn.Module):
         elif self.callback == 'reduceOnPlateau':
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('LRScheduler')
-            self.__scheduler__ = Scheduler(self.__optimizer__, patience=8, min_lr=1e-6, factor=0.9)
+            self.__scheduler__ = Scheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.9)
 
         elif self.callback == 'auto':
             steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
@@ -103,19 +103,9 @@ class SpeakerNet(nn.Module):
             counter += 1
             index += stepsize
 
-            nloss.backward()
+            nloss.mean().backward()
             self.__optimizer__.step()
             loader_bar.set_postfix(TLoss=f"{round(float(loss / counter), 5)}", TAcc=f"{round(float(top1 / counter), 3)}%")
-
-#             telapsed = time.time() - tstart
-#             tstart = time.time()
-
-#             sys.stdout.write(
-#                 f"\rEpoch [{epoch}/{self.max_epoch}] - Processing ({index}): ")
-#             sys.stdout.write(
-#                 "Loss %f TEER/TAcc %2.3f - %.2f Hz " %
-#                 (loss / counter, top1 / counter, stepsize / telapsed))
-#             sys.stdout.flush()
 
             if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
                 self.__scheduler__.step()
@@ -129,14 +119,12 @@ class SpeakerNet(nn.Module):
             self.__scheduler__(loss / counter)
 
         elif self.callback == 'auto':
-            if epoch <= 100:
+            if epoch <= 50:
                 self.__scheduler__['rop'](loss / counter)
             else:
-                if epoch == 101:
-                    print("\n[INFO] # Epochs > 100, switch to steplr callback\n========>\n")
+                if epoch == 51:
+                    cprint("\n[INFO] # Epochs > 50, switch to steplr callback\n========>\n", 'r')
                 self.__scheduler__['steplr'].step()
-
-#         sys.stdout.write("\n")
 
         loss_result = loss / (counter)
         precision = top1 / (counter)
@@ -195,21 +183,12 @@ class SpeakerNet(nn.Module):
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
 
             feats[filename] = ref_feat
-            # telapsed = time.time() - tstart
 
-#             if idx % print_interval == 0:
-#                 sys.stdout.write(
-#                     "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
-#                     (idx, len(setfiles), idx / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
-
-#         print('')
         all_scores = []
         all_labels = []
         all_trials = []
-        # tstart = time.time()
-
-        # Read files and compute all scores
-          
+        
+        # Read files and compute all scores          
         for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
             data = line.split()
 
@@ -243,15 +222,7 @@ class SpeakerNet(nn.Module):
             all_scores.append(score)
             all_labels.append(int(data[0]))
             all_trials.append(data[1] + " " + data[2])             
-                
-
-#             if idx % print_interval == 0:
-#                 telapsed = time.time() - tstart
-#                 sys.stdout.write("Computing %d of %d: %.2f Hz - %.4f s" %
-#                                  (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-#                 sys.stdout.flush()
-
-#         print('\n')
+            
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -310,19 +281,11 @@ class SpeakerNet(nn.Module):
             with torch.no_grad():
                 ref_feat = self.__S__.forward(inp1).detach().cpu()
             feats[filename] = ref_feat
-#             telapsed = time.time() - tstart
-#             if idx % print_interval == 0:
-#                 sys.stdout.write(
-#                     "\rReading %d of %d: %.2f Hz, %.4f s, embedding size %d" %
-#                     (idx, len(setfiles), (idx + 1) / telapsed, telapsed / (idx + 1), ref_feat.size()[1]))
-
-#         print('')
-#         tstart = time.time()
 
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2', 'label', 'score'])
+            spamwriter.writerow(['audio_1', 'audio_2', 'pred_label' , 'score'])
             for idx, data in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -349,17 +312,7 @@ class SpeakerNet(nn.Module):
                 pred = '1' if score >= thre_score else '0'
                 spamwriter.writerow([data[0], data[1], pred, score])
 
-#                 if idx % print_interval == 0:
-#                     telapsed = time.time() - tstart
-#                     sys.stdout.write("\rComputing %d of %d: %.2f Hz, %.4f s" %
-#                                      (idx, len(lines), (idx + 1) / telapsed, telapsed / (idx + 1)))
-#                     sys.stdout.flush()
-
-#         print('\n')
-
-    def test_each_pair(self,
-                       root,
-                       thre_score=0.5,
+    def test_each_pair(self, root, thre_score=0.5, 
                        cohorts_path='data/zalo/cohorts.npy',
                        print_interval=1,
                        num_eval=10,
@@ -452,24 +405,28 @@ class SpeakerNet(nn.Module):
         return score
 
     def prepare(self,
-                from_path='../data/test',
-                save_path='checkpoints',
-                prepare_type='cohorts',
+                save_path=None,
+                prepare_type='embed',
                 num_eval=10,
-                eval_frames=0,
-                print_interval=1):
+                eval_frames=100,
+                source=None):
         """
         Prepared 1 of the 2:
         1. Mean L2-normalized embeddings for known speakers.
         2. Cohorts for score normalization.
         """
-        tstart = time.time()
+        
         self.eval()
+        if not source:
+            raise "Please provide appropriate source!"
+        ########### cohort preparation
         if prepare_type == 'cohorts':
             # Prepare cohorts for score normalization.
             # description: save all id and path of speakers to used_speaker and setfiles
+            # source provided is a root of files -> root/spkID/spkID001.wav
             feats = []
-            read_file = Path(from_path)
+            assert isinstance(soure, str), "Please provide path to test directory"
+            read_file = Path(soure)
             files = []
             used_speakers = []
             with open(read_file, 'r') as listfile:
@@ -491,7 +448,7 @@ class SpeakerNet(nn.Module):
             setfiles.sort()
 
             # Save all features to file
-            # desciption: load file and extrac feature embedding
+            # desciption: load file and extract feature embedding
 
             for idx, f in enumerate(tqdm(setfiles)):
                 audio = loadWAV(f,
@@ -511,46 +468,69 @@ class SpeakerNet(nn.Module):
                 else:
                     feat = feat.detach().cpu().numpy().squeeze()
                 feats.append(feat)
-
-            np.save(save_path, np.array(feats))
-
+            if save_path:
+                np.save(save_path, np.array(feats))
+            return True
+                
+        ############# Embbeding preaparation
         elif prepare_type == 'embed':
             # Prepare mean L2-normalized embeddings for known speakers.
-            speaker_dirs = [x for x in Path(from_path).iterdir() if x.is_dir()]
-            embeds = None
-            classes = {}
-            # Save mean features
-            for idx, speaker_dir in enumerate(speaker_dirs):
-                classes[idx] = speaker_dir.stem
-                files = list(speaker_dir.glob('*.wav'))
+            # load audio from_path (root path)
+            # option 1: from root
+            if isinstance(source, str):
+                speaker_dirs = [x for x in Path(from_path).iterdir() if x.is_dir()]
+                embeds = None
+                classes = {}
+                # Save mean features
+                for idx, speaker_dir in enumerate(speaker_dirs):
+                    classes[idx] = speaker_dir.stem
+                    files = list(speaker_dir.glob('*.wav'))
+                    mean_embed = None
+                    embed = None
+                    for f in files:
+                        embed = self.embed_utterance(
+                            f,
+                            eval_frames=eval_frames,
+                            num_eval=num_eval,
+                            normalize=self.__L__.test_normalize)
+                        if mean_embed is None:
+                            mean_embed = embed.unsqueeze(0)
+                        else:
+                            mean_embed = torch.cat(
+                                (mean_embed, embed.unsqueeze(0)), 0)
+                    mean_embed = torch.mean(mean_embed, dim=0)
+                    if embeds is None:
+                        embeds = mean_embed.unsqueeze(-1)
+                    else:
+                        embeds = torch.cat((embeds, mean_embed.unsqueeze(-1)), -1)
+
+                print(embeds.shape)
+                # embeds = rearrange(embeds, 'n_class n_sam feat -> n_sam feat n_class')
+                if save_path:
+                    torch.save(embeds, Path(save_path, 'embeds.pt'))
+                    np.save(str(Path(save_path, 'classes.npy')), classes)
+                return True
+                
+            elif isinstance(source, list):
+                #option 2: list of audio in numpy format
                 mean_embed = None
                 embed = None
-                for f in files:
-                    embed = self.embed_utterance(
-                        f,
-                        eval_frames=eval_frames,
-                        num_eval=num_eval,
-                        normalize=self.__L__.test_normalize)
+                for audio_data_np in source:
+                    embed = self.embed_utterance(audio_data_np, 
+                                                 eval_frames=eval_frames, 
+                                                 num_eval=num_eval,
+                                                 normalize=self.__L__.test_normalize,
+                                                 sr=8000)
                     if mean_embed is None:
                         mean_embed = embed.unsqueeze(0)
                     else:
                         mean_embed = torch.cat(
                             (mean_embed, embed.unsqueeze(0)), 0)
                 mean_embed = torch.mean(mean_embed, dim=0)
-                if embeds is None:
-                    embeds = mean_embed.unsqueeze(-1)
-                else:
-                    embeds = torch.cat((embeds, mean_embed.unsqueeze(-1)), -1)
-                telapsed = time.time() - tstart
-                if idx % print_interval == 0:
-                    sys.stdout.write(
-                        "\rReading %d of %d: %.4f s, embedding size %d" %
-                        (idx, len(speaker_dirs), telapsed / (idx + 1), embed.size()[1]))
-            print('')
-            print(embeds.shape)
-            # embeds = rearrange(embeds, 'n_class n_sam feat -> n_sam feat n_class')
-            torch.save(embeds, Path(save_path, 'embeds.pt'))
-            np.save(str(Path(save_path, 'classes.npy')), classes)
+                
+                if save_path:
+                    torch.save(mean_embed, Path(save_path, 'embeds.pt'))
+                return mean_embed                
         else:
             raise NotImplementedError
 
@@ -587,6 +567,7 @@ class SpeakerNet(nn.Module):
         if self.device == torch.device('cpu'):
             loaded_state = torch.load(path, map_location=torch.device('cpu'))
         else:
+            print(f"Load model in {torch.cuda.device_count()} GPU(s)")
             loaded_state = torch.load(path, map_location=torch.device(self.device))
         for name, param in loaded_state.items():
             origname = name
@@ -608,18 +589,13 @@ class SpeakerNet(nn.Module):
             self_state[name].copy_(param)
 
     def export_onnx(self, state_path, check=True):
-        save_root = self.save_path + f"/{self.model}/model"
-        save_path = os.path.join(save_root, f"model_{self.model}.onnx")
+        save_root = self.save_path + f"/{self.model_name}/model"
+        save_path = os.path.join(save_root, f"model_eval_{self.model_name}.onnx")
 
         input_names = ["input"]
         output_names = ["output"]
         # NOTE: because using torch.audio -> cant export onnx
-        dummy_input = torch.FloatTensor(
-            loadWAV(r"dataset\wavs\5-F-27\5-3.wav", 100, evalmode=True,
-                    num_eval=10)).to(self.device)
-
-        if self.apply_preprocess:
-            dummy_input = mels_spec_preprocess(dummy_input)
+        dummy_input = torch.randn(10, 8120, device="cuda")
 
         self.loadParameters(state_path)
         self.__S__.eval()
@@ -630,33 +606,25 @@ class SpeakerNet(nn.Module):
                           verbose=False,
                           input_names=input_names,
                           output_names=output_names,
-                          export_params=True)
+                          
+                          export_params=True,
+                          opset_version=11)
 
         # double check
         if os.path.exists(save_path) and check:
+            print("checking export")
             model = onnx.load(save_path)
             onnx.checker.check_model(model)
-            onnx.helper.printable_graph(model.graph)
+            print(onnx.helper.printable_graph(model.graph))
+            cprint("Done!!!", 'r')
 
     def onnx_inference(self, model_path, inp):
+        def to_numpy(tensor):
+            if not torch.is_tensor(tensor):
+                tensor = torch.FloatTensor(tensor)
+            return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+        
         onnx_session = onnxrt.InferenceSession(model_path)
-        onnx_inputs = {onnx_session.get_inputs()[0].name: torch.to_numpy(inp)}
+        onnx_inputs = {onnx_session.get_inputs()[0].name: to_numpy(inp)}
         onnx_output = onnx_session.run(None, onnx_inputs)
         return onnx_output
-    
-    def export_folder(self, folder_path):
-        model_saved_path = os.path.join(folder_path, self.model_name)
-        os.makedirs(model_saved_path, exist_ok=True)
-        
-        saved_state = os.path.join(model_saved_path, 'best_state.model')
-        saved_model = os.path.join(model_saved_path, 'best_model.pt')
-        
-        torch.save(self.state_dict(), saved_state)
-        torch.save(self.__S__, saved_model)
-        
-        config_eval_file = os.path.join(model_saved_path, "config_eval.yaml")
-        config_deploy_file = os.path.join(model_saved_path, "config_deploy.yaml")
-
-        # with open()
-        # save all to 1 file
-        pass
