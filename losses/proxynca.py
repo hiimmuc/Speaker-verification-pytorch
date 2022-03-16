@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import time, pdb, numpy
-from utils.utils import accuracy
+from accuracy import accuracy
 from torch.nn import Parameter
 
 def binarize_and_smooth_labels(T, nb_classes, smoothing_const = 0.1):

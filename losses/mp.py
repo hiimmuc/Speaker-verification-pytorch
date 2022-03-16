@@ -5,8 +5,11 @@ import math
 import random
 import numpy
 import numpy as np
-from utils.utils import accuracy
+from utils import accuracy
 
+# from numba import jit, prange
+# from fastai.core import parallel
+#from pytorch_metric_learning import miners, losses
 
 def binarize(T, nb_classes):
     T = T.cpu().numpy()

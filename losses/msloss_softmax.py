@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-import losses.angleproto as angleproto
+import losses.msloss as msloss
 import losses.softmax as softmax
 
 
@@ -16,17 +16,17 @@ class LossFunction(nn.Module):
         self.test_normalize = True
 
         self.softmax = softmax.LossFunction(**kwargs)
-        self.angleproto = angleproto.LossFunction(**kwargs)
+        self.msloss = msloss.LossFunction(**kwargs)
 
-        print('Initialised SoftmaxPrototypical Loss')
+        print('Initialised Multi Similarity softmax Loss')
 
     def forward(self, x, label=None):
 
-        assert x.size()[1] == 2
+        
 
         nlossS, prec1 = self.softmax(
-            x.reshape(-1, x.size()[-1]), label.repeat_interleave(2))
+            x.reshape(-1, x.size()[-1]), label.repeat_interleave(x.size()[1]))
 
-        nlossP, _ = self.angleproto(x, label)
+        nlossP, _ = self.msloss(x, label)
 
         return nlossS+nlossP, prec1

@@ -10,7 +10,7 @@ import numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.utils import accuracy
+from utils import accuracy
 
 
 class LossFunction(nn.Module):
@@ -23,7 +23,7 @@ class LossFunction(nn.Module):
         self.s = scale
         self.in_feats = nOut
         self.weight = torch.nn.Parameter(
-            torch.FloatTensor(nOut, nClasses), requires_grad=True)
+            torch.FloatTensor(nClasses, nOut), requires_grad=True)
         self.ce = nn.CrossEntropyLoss()
         nn.init.xavier_normal_(self.weight, gain=1)
 

@@ -27,6 +27,6 @@ class LossFunction(nn.Module):
         nlossS, prec1 = self.amsoftmax(
             x.reshape(-1, x.size()[-1]), label.repeat_interleave(2))
 
-        nlossP, _ = self.angleproto(x, None)
+        nlossP, _ = self.angleproto(x, label)
 
-        return 1.0 * nlossS + 1.2 * nlossP, prec1
+        return 1.0 * nlossS + 1.0 * nlossP, prec1

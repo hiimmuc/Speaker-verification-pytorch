@@ -9,7 +9,7 @@ import numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.utils import tuneThresholdfromScore
+from utils import tuneThresholdfromScore
 
 
 class LossFunction(nn.Module):
