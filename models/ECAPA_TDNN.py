@@ -593,6 +593,7 @@ class ECAPA_TDNN(torch.nn.Module):
         assert len(channels) == len(dilations)
         self.channels = channels
         self.aug = kwargs['augment']
+        self.aug_chain = kwargs['augment_chain']
         sample_rate = int(kwargs['sample_rate'])
         hoplength = int(10e-3 * sample_rate)
         winlength = int(25e-3 * sample_rate)
@@ -700,7 +701,7 @@ class ECAPA_TDNN(torch.nn.Module):
             x = self.torchfbank(x) + 1e-6
             x = x.log()   
             x = x - torch.mean(x, dim=-1, keepdim=True)
-            if self.aug == True:
+            if self.aug and 'spec_domain' in self.aug_chain:
                 x = self.specaug(x)
         
         # x shape: batch x n_mels x n_frames of batch x fea x time

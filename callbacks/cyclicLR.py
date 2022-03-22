@@ -1,6 +1,6 @@
 import torch
 
-def Scheduler(optimizer, base_lr=1e-7, max_lr=1e-2, step_size_up=2000, step_size_down=None, 
+def Scheduler(optimizer, base_lr=1e-6, max_lr=1e-2, step_size_up=2000, step_size_down=None, 
               mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=True,  
               base_momentum=0.8, max_momentum=0.9, last_epoch=- 1, verbose=False, **kwargs):
 
