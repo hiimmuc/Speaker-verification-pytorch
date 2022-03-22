@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 import torch.nn.functional as F
-from model import  *
+from model import SpeakerNet
 import argparse
 
 def export_model(args, check=True):

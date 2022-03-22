@@ -19,10 +19,11 @@ from scipy.io import wavfile
 
 from tqdm.auto import tqdm
 
-from utils import *
-import wave
+from processing.audio_loader import AugmentWAV, loadWAV
+from processing.vad_tool import VAD
+from processing.dataset import get_audio_properties, read_blacklist
 import contextlib
-import csv
+
 
 def get_audio_path(folder):
     """
@@ -261,31 +262,7 @@ def clean_dump_files(args):
                                             dst=os.path.join(os.path.join(raw_path, invalid), audio))
                         shutil.rmtree(path_invalid)
 
-def read_blacklist(id, duration_limit=1.0, dB_limit=-16, error_limit=0, noise_limit=-15, details_dir="dataset/train_details_full/"):
-    '''
-    header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
-              'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
-              'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
-              'Crest factor', 'Flat factor', 'Peak count',
-              'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
-              'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
-    '''
-    blacklist = []
-    readfile = str(Path(details_dir, f"{id}.csv"))
-    if os.path.exists(readfile):
-        with open(readfile, 'r', newline='') as rf:
-            spamreader = csv.reader(rf, delimiter=',')
-            next(spamreader, None)
-            for row in spamreader:
-                short_length = (float(row[1]) < duration_limit)
-                low_amplitude = (float(row[9]) < dB_limit)
-                high_err = (float(row[-2]) >= error_limit)
-                high_noise = (float(row[16]) > noise_limit)
-                if short_length or low_amplitude or high_err or high_noise:
-                    blacklist.append(Path(row[-1]))
-        return list(set(blacklist))
-    else:
-        return None
+
                         
 class DataGenerator():
     def __init__(self, args, **kwargs):
@@ -308,9 +285,10 @@ class DataGenerator():
         data_folder = list(set([os.path.split(path)[0]
                            for path in data_paths]))
 
-#         with open(os.path.join(self.args.save_dir, 'data_folders.txt'), 'w') as f:
-#             for path in data_folder:
-#                 f.write(f'{path}\n')
+        with open(os.path.join(self.args.save_dir, 'data_folders.txt'), 'w') as f:
+            for path in data_folder:
+                f.write(f'{path}\n')
+                
         non_augment_path = list(
             filter(lambda x: 'augment' not in str(x), data_paths))
         augment_data_paths = list(filter(lambda x: 'augment' in str(x), data_paths))
@@ -352,8 +330,8 @@ class DataGenerator():
         upper_num=50
         
         root = Path(self.args.raw_dataset)
-        train_writer = open(Path(root.parent, 'train_def_cskh.txt'), 'w')
-        val_writer = open(Path(root.parent, 'val_def_cskh.txt'), 'w')
+        train_writer = open(Path(root.parent, 'train_def-2.txt'), 'w')
+        val_writer = open(Path(root.parent, 'val_def-2.txt'), 'w')
         classpaths = [d for d in root.iterdir() if d.is_dir()]
         classpaths.sort()
         
@@ -372,7 +350,7 @@ class DataGenerator():
             # check duration, volumn
             blist = read_blacklist(str(Path(classpath).name), 
                                    duration_limit=1.0, 
-                                   dB_limit=-10, 
+                                   dB_limit=-12, 
                                    error_limit=0.5, 
                                    noise_limit=-10,
                                    details_dir=self.args.details_dir)
@@ -380,7 +358,7 @@ class DataGenerator():
                 filepaths = list(set(filepaths).difference(set(blist)))           
                 
             # check duration, sr
-            filepaths = check_valid_audio(filepaths, 1.0, 8000)
+            filepaths = check_valid_audio(filepaths, 1.0, 16000)
 
             # checknumber of files
             if len(filepaths) < lower_num:
@@ -425,21 +403,7 @@ class DataGenerator():
         print("Valid speakers:", no_spks)
         train_writer.close()
         val_writer.close()
-
-    def transform(self):
-        """Transform dataset from raw wave to compressed numpy array"""
-        feat_extract_engine = FeatureExtraction(self.args)
-        data = feat_extract_engine.process_raw_dataset()
-        feat_extract_engine.save_as_ndarray(data[0], data[1], data[2], data[3])
-
-        
-def get_audio_properties(fname):
-    with contextlib.closing(wave.open(fname,'r')) as f:
-        frames = f.getnframes()
-        rate = f.getframerate()
-        duration = frames / float(rate)
-        return duration, rate
-    
+  
     
 def check_valid_audio(files, duration_lim=1.5, sr=8000):
     filtered_list = []
@@ -481,7 +445,7 @@ def restore_dataset(raw_dataset):
             pass
 
 
-def vad_on_dataset(raw_dataset, save_dir):
+def vad_on_dataset(raw_dataset):
     raw_data_dir = raw_dataset
     vad_engine = VAD()
 

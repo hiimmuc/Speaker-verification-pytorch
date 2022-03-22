@@ -15,15 +15,16 @@ from flask import (Flask, Markup, flash, jsonify, redirect, render_template,
 from flask_restful import Api, Resource
 from pydub import AudioSegment
 from werkzeug.utils import secure_filename
+import soundfile as sf
 
 from model import SpeakerNet
-from utils import *
+from utils import (read_config, cprint)
 from server_utils import *
 
 # check log folder exists
-log_audio_path = str(Path('log_service/audio_v3_rd0311'))
+log_audio_path = str(Path('log_service/log_audio_0321'))
 os.makedirs(log_audio_path, exist_ok=True)
-log_results_path = str(Path('log_service/results_v3_rd0311'))
+log_results_path = str(Path('log_service/log_result_0321'))
 os.makedirs(log_results_path, exist_ok=True)
 log_audio_path_id = os.path.join(log_audio_path, "unknown_number")
 os.makedirs(log_audio_path_id, exist_ok=True)
@@ -39,7 +40,7 @@ fixed_threshold = 0.5
 
 model_path = str(Path('backup/Raw_ECAPA/model/mix_0307_1357_v3.model'))
 config_path = str(Path('backup/Raw_ECAPA/config_deploy.yaml'))
-print("\n>Loaded from:", model_path, "with threshold:", threshold)
+print("\n<<>> Loaded from:", model_path, "with threshold:", threshold)
 
 # read config and load model
 args = read_config(config_path)
@@ -112,18 +113,22 @@ def check_matching():
     print("Audio informations: ")
     
     print(f"> Ref files:")
+    log_audio_path_id_ref = os.path.join(log_audio_path_id, 'ref')
+    os.makedirs(log_audio_path_id_ref, exist_ok=True)
     for i, audio_data_np in enumerate(ref_audio_data_np):
         # check whether ref audio is exists
         print(len(audio_data_np)/sr, 's', end=' ')
-        if not any(f'ref_{i}' in fname and str(call_id) in fname for fname in os.listdir(log_audio_path_id)):
-            save_path = os.path.join(log_audio_path_id, f'{call_id}_{current_time}_ref_{i}.wav')
+        if not any(str(call_id) in fname for fname in os.listdir(log_audio_path_id_ref)):
+            save_path = os.path.join(log_audio_path_id_ref, f'{call_id}_{current_time}_ref_{i}.wav')
             sf.write(save_path, audio_data_np, sr)
             print(f"> Speaker footprint {i + 1}th saved info:", phone, call_id)
     
     print(f"\n> Com files:")
+    log_audio_path_id_com = os.path.join(log_audio_path_id, 'com')
+    os.makedirs(log_audio_path_id_com, exist_ok=True)
     for i, audio_data_np in enumerate(com_audio_data_np):
         print(len(audio_data_np)/sr, 's', end=' ')
-        save_path = os.path.join(log_audio_path_id, f'{call_id}_{current_time}_com_{i}.wav')
+        save_path = os.path.join(log_audio_path_id_com, f'{call_id}_{current_time}_com_{i}.wav')
         sf.write(save_path, audio_data_np, sr)
         
     ####################
@@ -159,7 +164,9 @@ def check_matching():
         text += (str(bool(final_score >= fixed_threshold)) + f"with score: {final_score}" + '\n>-------------------------------------------------<\n')
         wf.write(text)
         
-    return jsonify({"isMatch": str(bool(final_score >= fixed_threshold)), "confidence": str(final_score), "Threshold": threshold})
+    return jsonify({"isMatch": str(bool(final_score >= fixed_threshold)), 
+                    "confidence": str(final_score), 
+                    "Threshold": threshold})
 
 
 @app.route('/embedding', methods=['POST'])
@@ -181,15 +188,15 @@ def get_embeding():
         
         print("Got audio signal in", time.time() - t0, 'sec', end=' || ')
         #  create dir to save
-        log_audio_path_id = os.path.join(log_audio_path, phone)
-        os.makedirs(log_audio_path_id)
+        log_audio_path_id_emb = os.path.join(log_audio_path, phone, 'emb')
+        os.makedirs(log_audio_path_id_emb, exist_ok=True)
     else:
         raise "Error: no data provide"
     # convertstring of base64 to np array
     audio_data_np = decode_audio(audio_data, sr)
     
     t0 = time.time()
-    save_path = os.path.join(log_audio_path_id, f'{call_id}_{current_time}_com_{i}.wav')
+    save_path = os.path.join(log_audio_path_id_emb, f'{call_id}_{current_time}_ref.wav')
 
     if os.path.isfile(save_path):
         save_path = save_path.replace('ref', 'com')

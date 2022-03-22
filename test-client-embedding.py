@@ -11,7 +11,7 @@ import simplejson
 import soundfile as sf
 import torch
 
-from utils import *
+from utils import (cosine_simialrity, cprint)
 
 default_path1 = "log_service/audio/346165056/346165056-20220304-162652_20220304_092702_ref_0.wav"
 default_path2 = "log_service/audio/346165056/346165056-20220304-162652_20220304_092713_com_0.wav"

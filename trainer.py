@@ -6,8 +6,10 @@ import time
 from callbacks.earlyStopping import *
 from dataloader import get_data_loader
 from model import SpeakerNet
-from utils import *
+from utils import tuneThresholdfromScore, read_log_file, plot_from_file, cprint
 
+from torch.utils.tensorboard import SummaryWriter
+# writer = SummaryWriter()
 
 def train(args):
     # Initialise directories
@@ -20,18 +22,17 @@ def train(args):
     min_eer = float("inf")
     
     # load state from log file
-    if os.path.isfile(os.path.join(model_save_path, "model_state_log.txt")):
-        start_it, start_lr, _ = read_log_file(os.path.join(model_save_path, "model_state_log.txt"))
+    if os.path.isfile(os.path.join(model_save_path, "/model_state_log.txt")):
+        start_it, args.lr, _ = read_log_file(os.path.join(model_save_path, "/model_state_log.txt"))
     else:
         start_it = 1
-        start_lr = args.lr
+        
+    start_lr = args.lr
         
     # Load model weights
     model_files = glob.glob(os.path.join(model_save_path, 'model_state_*.model'))
     model_files.sort()
 
-    eerfiles = glob.glob(os.path.join(model_save_path, 'model_state_*.eer'))
-    eerfiles.sort()
 
     # if exists best model load from it and load state from log model file
     prev_model_state = None
@@ -43,10 +44,6 @@ def train(args):
                 prev_model_state = f'{model_save_path}/last_state.model'
         else:
             prev_model_state = model_files[-1]
-
-        # get the last stopped iteration, model_state_xxxxxx.eer, so 12 is index of number sequence
-#         start_it = int(os.path.splitext(
-#             os.path.basename(eerfiles[-1]))[0][12:]) + 1
 
         if args.max_epoch > start_it:
             it = int(start_it)
@@ -68,19 +65,13 @@ def train(args):
     else:
         print("Train model from scratch!")
         it = 1
-    
-    if it == 1:
-        # remove old eerfiles
-        for old_file in eerfiles:
-            if os.path.exists(old_file):
-                os.remove(old_file)
-                
+                   
     # init parallelism create net-> load weight -> add to parallelism 
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        s.__S__ = nn.DataParallel(s.__S__, device_ids=[i for i in range(torch.cuda.device_count())])
-    s.__S__ = s.__S__.to(args.device)
+#     if torch.cuda.device_count() > 1:
+#         print("Let's use", torch.cuda.device_count(), "GPUs!")
+#         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+#         s.__S__ = nn.DataParallel(s.__S__, device_ids=[i for i in range(torch.cuda.device_count())])
+#     s.__S__ = s.__S__.to(args.device)
 
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
@@ -109,7 +100,7 @@ def train(args):
               "[INFO] Training %s with LR %f ->" % (args.model, max(clr)))
 
         # Train network
-        loss, trainer = s.fit(loader=train_loader, epoch=it)
+        loss, train_acc = s.fit(loader=train_loader, epoch=it)
         
         # save best model
         if loss == min(min_loss, loss):
@@ -117,14 +108,11 @@ def train(args):
             s.saveParameters(model_save_path + "/best_state.model")
             if args.early_stop:
                 early_stopping.counter = 0  # reset counter of early stopping
-
+        
         min_loss = min(min_loss, loss)
 
         # Validate and save
         if args.test_interval > 0 and it % args.test_interval == 0:
-
-            #             print(time.strftime("%Y-%m-%d %H:%M:%S"), it, "[INFO] Evaluating...")
-
             sc, lab, _ = s.evaluateFromList(args.test_list,
                                             cohorts_path=None,
                                             eval_frames=args.eval_frames)
@@ -135,10 +123,10 @@ def train(args):
             print("[INFO] Evaluating ",
                   time.strftime("%H:%M:%S"),
                   "LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f" %
-                  (max(clr), trainer, loss, result[1], min_eer))
+                  (max(clr), train_acc, loss, result[1], min_eer))
             score_file.write(
                 "IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f, VEER %2.4f, MINEER %2.4f\n"
-                % (it, max(clr), trainer, loss, result[1], min_eer))
+                % (it, max(clr), train_acc, loss, result[1], min_eer))
 
             score_file.flush()
 
@@ -147,21 +135,18 @@ def train(args):
                 s.saveParameters(model_save_path + "/last_state.model")
             else:
                 s.saveParameters(model_save_path + "/model_state_%06d.model" % it)
-
-            with open(model_save_path + "/model_state_%06d.eer" % it, 'w') as eerfile:
-                eerfile.write('%.4f, ' % result[1])
-                
-            with open(os.path.join(model_save_path , "/model_state_log.txt"), 'w+') as log_file:
+               
+            with open(os.path.join(result_save_path , "/val_log.txt"), 'a+') as log_file:
                 log_file.write(f"Epoch:{it}, LR:{max(clr)}, EER: {result[1]}")
 
             plot_from_file(result_save_path, show=False)
         else:
             # test interval < 0 -> train non stop
-            # print("[INFO] Training at", time.strftime("%H:%M:%S"), "LR %f, Accuracy: %2.2f, Loss: %f \n" % (max(clr), trainer, loss))
+            # print("[INFO] Training at", time.strftime("%H:%M:%S"), "LR %f, Accuracy: %2.2f, Loss: %f \n" % (max(clr), train_acc, loss))
             score_file.write("IT %d, LR %f, TEER/TAcc %2.2f, TLOSS %f\n" %
-                             (it, max(clr), trainer, loss))
+                             (it, max(clr), train_acc, loss))
 
-            with open(os.path.join(model_save_path , "/model_state.log"), 'w+') as log_file:
+            with open(os.path.join(model_save_path , "/model_state_log.txt"), 'w+') as log_file:
                 log_file.write(f"Epoch:{it}, LR:{max(clr)}, EER: {0}")
 
             score_file.flush()
@@ -170,6 +155,7 @@ def train(args):
 
         if it >= args.max_epoch:
             score_file.close()
+            # writer.close()
             sys.exit(1)
 
         if args.early_stop:
@@ -177,7 +163,8 @@ def train(args):
             if early_stopping.early_stop:
                 score_file.close()
                 sys.exit(1)
-
+                
+        # writer.add_scalar("Loss/train", loss, it)
         it += 1
 
 # ============================ END =============================

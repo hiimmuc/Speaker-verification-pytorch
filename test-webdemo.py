@@ -12,9 +12,8 @@ from flask_restful import Api, Resource
 from werkzeug.utils import secure_filename
 
 from model import SpeakerNet
-from utils import *
-
-
+from utils import (convert_audio, read_config)
+from processing.dataset import get_audio_information
 
 # ==================================================Begin========================================
 # Set up env for flask 

@@ -52,7 +52,7 @@ def inference(args):
             model_save_path, 'model_state_*.model'))
         chosen_model_state = model_files[-1]
     ## duplicate best state to avoid missing best
-    if 'best_state' in chosen_model_state:
+    if 'best_state' in chosen_model_state and args.eval is True:
         ver = 0
         copy_name = chosen_model_state[:-6] + f'_copy_{ver}' + chosen_model_state[-6:]
         while os.path.exists(copy_name):

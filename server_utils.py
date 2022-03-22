@@ -9,10 +9,13 @@ import torch
 from pydub import AudioSegment
 
 from model import SpeakerNet
-from utils import *
+from utils import cosine_simialrity
+from processing.wav_conversion import (normalize_audio_amp, np_to_segment, segment_to_np)
+from processing.augment import gain_target_amplitude
 
 
 def normalize_score(score, threshold, fixed_threshold=0.5):
+    '''How magic works'''
     ratio = threshold / fixed_threshold
     sign = -1 if ratio <= 1 else 1
     

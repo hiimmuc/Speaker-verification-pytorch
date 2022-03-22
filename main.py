@@ -59,6 +59,11 @@ if __name__ == '__main__':
                         action='store_true',
                         default=False,
                         help='Augment input')
+    parser.add_argument('--augment_chain',
+                        nargs='+',
+                        default=None,
+                        help='Augment input chain')
+    
 
     # Training details
     parser.add_argument('--device',
@@ -69,6 +74,10 @@ if __name__ == '__main__':
                         type=int,
                         default=10,
                         help='Test and save every [test_interval] epochs')
+    parser.add_argument('--step_size',
+                       type=int,
+                       default=5,
+                       help='step of learning rate scheduler')
     parser.add_argument('--model',
                         type=str,
                         default="ResNetSE34V2",
@@ -85,10 +94,6 @@ if __name__ == '__main__':
                         type=bool,
                         default=True,
                         help='Save only last checkpoint')
-    parser.add_argument('--preprocess',
-                        action='store_true',
-                        default=False,
-                        help='Apply preprocess by mels at input')
 
     # Optimizer
     parser.add_argument('--optimizer',
@@ -257,7 +262,8 @@ if __name__ == '__main__':
                        default='dataset/test_callbot_raw/test_cb_v1.txt')
     parser.add_argument('--com', '-c',
                        type=str,
-                       default='backup/Raw_ECAPA/result/private_test_results.txt')
+                       default=None,
+                       help='if None, automatic create based on test list name')
 
     args = parser.parse_args()
 
@@ -270,5 +276,7 @@ if __name__ == '__main__':
         os.makedirs(model_save_path, exist_ok=True)
         result_save_path = args.save_path + f"/{args.model}/result"
         os.makedirs(result_save_path, exist_ok=True)
+    elif args.do_infer:
+        args.com = args.test_list.replace('.txt', '_results.txt') if not args.com else args.com
     # Run
     main(args)

@@ -11,62 +11,22 @@ import simplejson
 import soundfile as sf
 import torch
 
-from utils import *
+from utils import cprint
+from processing.wav_conversion import normalize_audio_amp
 
-ref1 = "log_service/audio_v3_rd0311/912582757/912582757-20220313-215037_20220313_145104_ref_0.wav"
-ref2 = "log_service/audio_v3_rd0311/912582757/912582757-20220313-215037_20220313_145104_ref_1.wav"
-ref3 = "log_service/audio_v3_rd0311/912582757/912582757-20220313-215037_20220313_145104_ref_2.wav"
+ref1 = "log_service/audio_bu/ref_bu/auth_ref/366524143/366524143-2022-03-15-08-34-14.wav"
+ref2 = "log_service/audio_bu/ref_bu/auth_ref/366524143/366524143-2022-03-15-08-34-25.wav"
+ref3 = "log_service/audio_bu/ref_bu/auth_ref/366524143/366524143-2022-03-15-08-34-39.wav"
 
-# com_true_0 = "log_service/audio_v2/912582757/912582757-20220311-094535_20220311_024610_com_0.wav" # 1 same id low vol
-# com_true_1 = "log_service/audio_v2/912582757/912582757-20220311-094535_20220311_024610_com_0_rm_noise.wav" # 1 same id low vol
+com_true = ["log_service/log_audio_0317/366524143/com/366524143-20220317-093510_20220317_023540_com_0.wav", 
+            "log_service/log_audio_0317/366524143/com/366524143-20220317-093510_20220317_023552_com_0.wav", 
+            "log_service/log_audio_0317/366524143/com/366524143-20220317-093828_20220317_024049_com_0.wav"]
 
-# com_false_0 = "log_service/audio_v2/912582757/912582757-20220307-170310_20220307_100403_com_0.wav" # 0 same id wrong spk
-# com_false_1 = "log_service/audio_v2/912582757/912582757-20220307-170310_20220307_100403_com_0_rm_noise.wav" # 0 same id wrong spk
-# com_false_2 = "log_service/audio_v2/346165056/346165056-20220307-172258_20220307_102351_com_0.wav" # 0 diff id
-
-# com_true_2 = "log_service/audio_v2/912582757/912582757-20220309-091854_20220309_021947_com_0.wav" # 1 same id 
-# com_true_3 = "log_service/audio_v2/912582757/912582757-20220310-172944_20220310_103009_com_0.wav" # 1 same id noise
-# com_true_4 = "log_service/audio_v2/912582757/912582757-20220310-172944_20220310_103009_com_0_rm_noise.wav" # 1 same id noise
-# com_true_5 = "log_service/audio_v2/912582757/912582757-20220311-094535_20220311_024558_ref_2_rm_noise.wav"
-# com_true_6 = "log_service/audio_v2/912582757/912582757-20220311-094535_20220311_024558_ref_2.wav"
-com_true = ["log_service/audio_v3_rd0311/912582757/912582757-20220311-155624_20220311_085755_com_0.wav", 
-            "log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090412_com_0.wav", 
-            "log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091059_com_0.wav"]
-
-com_false = ['log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_085929_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_085957_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_090009_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090520_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_090957_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091012_com_0.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091217_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091231_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091243_com_0.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091258_com_0.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091322_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090307_com_0.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090319_com_0.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090331_com_0.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-175108_20220311_105118_com_0.wav']
-
-com_true_rn = ["log_service/audio_v3_rd0311/912582757/912582757-20220311-155624_20220311_085755_com_0_rm_noise.wav", 
-            "log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090412_com_0_rm_noise.wav", 
-            "log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091059_com_0_rm_noise.wav"]
-com_false_rn = ['log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_085929_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_085957_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-155904_20220311_090009_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090520_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_090957_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091012_com_0_rm_noise.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091217_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091231_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091243_com_0_rm_noise.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091258_com_0_rm_noise.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160918_20220311_091322_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090307_com_0_rm_noise.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090319_com_0_rm_noise.wav',
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-160203_20220311_090331_com_0_rm_noise.wav' ,
-             'log_service/audio_v3_rd0311/912582757/912582757-20220311-175108_20220311_105118_com_0_rm_noise.wav']
+com_false = ['log_service/log_audio_0317/981192092/com/981192092-20220317-102256_20220317_032341_com_0.wav',
+             'log_service/log_audio_0317/981192092/com/981192092-20220317-102256_20220317_032358_com_0.wav',
+             'log_service/log_audio_0317/981192092/com/981192092-20220317-102256_20220317_032439_com_0.wav',
+             'log_service/log_audio_0317/981192092/ref/981192092-20220317-102256_20220317_032322.wav',
+             'log_service/log_audio_0317/346165056/ref/346165056-20220317-173459_20220317_103510.wav']
 
 
 URL = "http://0.0.0.0:8111/isMatched"  # http://10.254.136.107:8111/
@@ -105,31 +65,29 @@ def get_response(refs, coms):
             'comSpeech': signal_coms}
 
     data_json = json.dumps(data)
+    try:
+        r = requests.post(URL, json=data_json)
+        # print with color state of response
+        print("Connection: ", end='')
+        state = "Success" if int(r.status_code) == 200 else "Failed"
+        color_text = 'g' if int(r.status_code) == 200 else 'r'
+        cprint(text=state, fg=color_text, end=' ')
 
-    r = requests.post(URL, json=data_json)
-    # print with color state of response
-    print("Success: ", end='')
-    color_text = 'g' if int(r.status_code) == 200 else 'r'
-    cprint(text=str(int(r.status_code) == 200), fg=color_text)
+        response = r.json()
+        print("Response time:", time.time() - t)
 
-    response = r.json()
-    print("Response time:", time.time() - t)
-
-    if 'Inference_time' in response:
-        infer_time = float(response["Inference_time"])
-        print("Predict time:", infer_time)
-    else:
-        infer_time = 0.0
-
-    if "isMatch" in response:
         isMatch = response["isMatch"]
         print("isMatch:", end=' ')
-        # print with color match state
+
         color_text = 'g' if (isMatch) == 'True' else 'r'
-        cprint(text=str(isMatch), fg=color_text)
-    if "confidence" in response:
+        cprint(text=str(isMatch), fg=color_text, end=' ') # print with color match state
+
         confidence = response["confidence"]
-        print("confidence:", confidence)
+        print("Confidence:", confidence)
+        
+    except Exception as e:
+            print("Error when getting response ::: " + str(e))
+        
 
 
 if __name__ == '__main__':
@@ -155,10 +113,10 @@ if __name__ == '__main__':
     if args.com:
         coms = [args.com]
     else:
-        for i, com in enumerate(com_true_rn):
+        for i, com in enumerate(com_true):
             print(1 + i, True)
             get_response(refs, [com])
-        for i, com in enumerate(com_false_rn):
+        for i, com in enumerate(com_false):
             print(1 + i, False)
             get_response(refs, [com])
     print('')

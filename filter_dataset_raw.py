@@ -4,96 +4,8 @@ from tqdm import tqdm
 from pathlib import Path
 import argparse
 
-from audio_utils import *
+from processing.dataset import *
 parser = argparse.ArgumentParser(description="Filtering low quality audio")
-
-
-def get_error_list(imposter_file):
-    print("Get information from:", imposter_file)
-    
-    if os.path.isfile(imposter_file):
-        with open(imposter_file, 'r') as rf:
-            lines = [line.strip().replace('\n', '') for line in rf.readlines()]
-
-        # invalid_class = list(''.join(x.split(':')[1:]).strip() for x in filter(lambda x: True if ':' in x else False, lines))
-        # invalid_files = list(''.join(x.split('-')[1:]).strip() for x in filter(lambda x: True if '-' in x else False, lines))
-        # # len(invalid_files), len(invalid_class), invalid_class[-1], glob.glob("dataset/train/*").index(invalid_class[-1])
-
-        invalid_details = {}
-        for line in tqdm(lines):
-            if ':' in line:
-                k = ''.join(line.split(':')[1:]).strip()
-                if k not in invalid_details:
-                    invalid_details[k] = {}
-            elif '.wav' in line:
-                fp = ''.join(line.split(' - ')[1:]).strip()
-                n = line.split('-')[0].strip().replace('[', '').replace(']', '').split('/')
-
-                rate = float(n[0])/float(n[1])
-
-                k = list(invalid_details.keys())[-1]
-                invalid_details[k][fp] = rate
-
-        return invalid_details
-    else:
-        return None
-    
-def read_blacklist(id, duration_limit=1.0, 
-                   dB_limit=-16, 
-                   error_limit=None, 
-                   noise_limit=-15, 
-                   details_dir="dataset/train_details_full/"):
-    '''
-    header = ['File name', 'Duration', 'Size(MB)', 'Min level', 'Max level', 
-              'Min difference', 'Max difference', 'Mean difference', 'RMS difference', 
-              'Peak level dB', 'RMS level dB',   'RMS peak dB', 'RMS trough dB', 
-              'Crest factor', 'Flat factor', 'Peak count',
-              'Noise floor dB', 'Noise floor count', 'Bit depth', 'Dynamic range', 
-              'Zero crossings', 'Zero crossings rate', 'Error rate', 'Full path']
-    '''
-    blacklist = []
-    readfile = str(Path(details_dir, f"{id}.csv"))
-    if not error_limit:
-        # auto choose
-        error_limit = 0.5
-        
-    if os.path.exists(readfile):
-        with open(readfile, 'r', newline='') as rf:
-            spamreader = csv.reader(rf, delimiter=',')
-            next(spamreader, None)
-            for row in spamreader:
-                short_length = (float(row[1]) < duration_limit)
-                low_amplitude = (float(row[9]) < dB_limit)
-                high_err = (float(row[-2]) > error_limit)
-                high_noise = (float(row[16]) > noise_limit)
-                if short_length or low_amplitude or high_err or high_noise:
-                    blacklist.append(Path(row[-1]))
-        return list(set(blacklist))
-    else:
-        return None
-
-def get_audio_properties(fname):
-    with contextlib.closing(wave.open(fname,'r')) as f:
-        frames = f.getnframes()
-        rate = f.getframerate()
-        duration = frames / float(rate)
-        return duration, rate
-    
-    
-def check_valid_audio(files, duration_lim=1.5, sr=8000):
-    filtered_list = []
-    files = [str(path) for path in files]
-    
-    for fname in files:
-        duration, rate = get_audio_properties(fname)
-        if rate == sr and duration >= duration_lim:
-            filtered_list.append(fname)
-        else:
-            pass
-    filtered_list.sort(reverse=True, key = lambda x: get_audio_properties(x)[0])    
-    filtered_list = [Path(path) for path in filtered_list]
-    return filtered_list
-
 
 def export_dataset_details(root="dataset/train", save_dir="dataset/train_details/"):
     root = Path(root)
@@ -167,6 +79,7 @@ def update_dataset_details(root="dataset/train", save_dir="dataset/train_details
             
             for i, audio_file in enumerate(list(audio_folder.iterdir())):
                 fp = rows[i][-1]
+                row_new = rows[i]
                 
                 if isinstance(invalid_details, dict):
                     if str(root / audio_folder.name) in invalid_details.keys():
@@ -178,8 +91,9 @@ def update_dataset_details(root="dataset/train", save_dir="dataset/train_details
                         error_rate = 0
                 else:
                     error_rate = 0
-            
-                row_new = rows[i]
+                    
+                if fp != str(audio_file):
+                    row_new[-1] = str(audio_file)               
                 row_new[-2] = error_rate
                 spamwriter.writerow(row_new)  
     return True

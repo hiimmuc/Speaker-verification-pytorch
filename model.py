@@ -12,18 +12,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm.auto import tqdm
-
-from utils import *
-
+from processing.audio_loader import loadWAV
+from utils import (score_normalization, cosine_simialrity, cprint)
 
 class SpeakerNet(nn.Module):
-    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, preprocess, **kwargs):
+    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
         self.save_path = save_path
         self.model_name = model
         self.max_epoch = max_epoch
-        self.apply_preprocess = preprocess
+        self.step_size = kwargs['step_size']
+        self.kwargs = kwargs
 
         SpeakerNetModel = importlib.import_module(
             'models.' + self.model_name).__getattribute__('MainModel')
@@ -52,7 +52,7 @@ class SpeakerNet(nn.Module):
         elif self.callback == 'reduceOnPlateau':
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('LRScheduler')
-            self.__scheduler__ = Scheduler(self.__optimizer__, patience=5, min_lr=1e-6, factor=0.9)
+            self.__scheduler__ = Scheduler(self.__optimizer__, patience=self.step_size, min_lr=1e-6, factor=0.9)
 
         elif self.callback == 'auto':
             steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
@@ -60,7 +60,7 @@ class SpeakerNet(nn.Module):
 
             self.__scheduler__ = {}
             self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
-            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=7, min_lr=1e-6, factor=0.8)
+            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=self.step_size, min_lr=1e-6, factor=0.8)
 
     def fit(self, loader, epoch=0):
         '''Train
@@ -144,7 +144,6 @@ class SpeakerNet(nn.Module):
         lines = []
         files = []
         feats = {}
-        tstart = time.time()
 
         # Cohorts
         cohorts = None
@@ -173,9 +172,7 @@ class SpeakerNet(nn.Module):
 
         # Save all features to dictionary
         for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
-            audio = loadWAV(filename, eval_frames, evalmode=True, num_eval=num_eval)
-            if self.apply_preprocess:
-                audio = mels_spec_preprocess(audio)
+            audio = loadWAV(filename, evalmode=True, num_eval=num_eval, **self.kwargs)
 
             inp1 = torch.FloatTensor(audio).to(self.device)
 
@@ -234,7 +231,7 @@ class SpeakerNet(nn.Module):
                      num_eval=10,
                      eval_frames=None,
                      scoring_mode='norm',
-                     output_file='private_test_results.txt'):
+                     output_file=None):
         self.eval()
 
         lines = []
@@ -250,6 +247,8 @@ class SpeakerNet(nn.Module):
 
         data_root = Path(root)
         read_file = Path(test_list)
+        if output_file is None:
+            output_file = test_list.replace('.txt','_result.txt')
         write_file = Path(save_root, output_file) if os.path.split(output_file)[0] == '' else output_file # add parent dir if not provided
         
         # Read all lines from testfile (read_file)
@@ -268,14 +267,8 @@ class SpeakerNet(nn.Module):
 
         # Save all features to feat dictionary
         for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
-            audio = loadWAV(filename.replace('\n', ''),
-                            eval_frames,
-                            evalmode=True,
-                            num_eval=num_eval)
-
-            if self.apply_preprocess:
-                audio = mels_spec_preprocess(audio)
-
+            audio = loadWAV(filename.replace('\n', ''), evalmode=True, num_eval=num_eval, **self.kwargs)
+            
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
@@ -456,9 +449,6 @@ class SpeakerNet(nn.Module):
                                 evalmode=True,
                                 num_eval=num_eval)
 
-                if self.apply_preprocess:
-                    audio = mels_spec_preprocess(audio)
-
                 inp1 = torch.FloatTensor(audio).to(self.device)
 
                 feat = self.__S__.forward(inp1)
@@ -547,9 +537,6 @@ class SpeakerNet(nn.Module):
                         evalmode=True,
                         num_eval=num_eval,
                         sr=sr)
-
-        if self.apply_preprocess:
-            audio = mels_spec_preprocess(audio)
 
         inp = torch.FloatTensor(audio).to(self.device)
 
