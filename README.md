@@ -112,7 +112,11 @@ then add the device="cuda:5" to args
 ```
 
 Note: the best model is automaticly saved during the training process, if the initial_model is not provided, automaticly load from the best_state weight if possible.
-
+**OR**
+using config file (.yaml format) <br>
+```
+!python main.py --do_train --augment --config config.yaml
+```
 ## Inference
 
 1. prepare cohorts
@@ -134,7 +138,10 @@ Note: the best model is automaticly saved during the training process, if the in
                 --cohorts_path checkpoints/cohorts_resnet34v2.npy \
                 --initial_model_infer exp/ResNetSE34V2/model/best_state.model
 ```
-
+**OR** <br>
+```
+!python main.py --do_infer --eval --config config.yaml
+```
 3. Run on Test set
 
 ```python
@@ -145,7 +152,10 @@ Note: the best model is automaticly saved during the training process, if the in
                 --test_path dataset \
                 --initial_model_infer exp/ResNetSE34V2/model/best_state.model
 ```
-
+**OR** <br>
+```
+!python main.py --do_infer --test --config config.yaml
+```
 4. test each pair(to get the predict time of each pair):
 
 ```python
