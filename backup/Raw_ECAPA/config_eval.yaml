@@ -1,12 +1,14 @@
 device: "cuda" 
 model: Raw_ECAPA
 
-# test_list: log_service/test_lst_truth_v3.txt # test cb
+test_list: dataset/test_callbot_raw/test_cb_v1.txt # full test
 
-test_list: dataset/test_callbot_raw/val_dump_v3.txt
+# test_list: dataset/test_callbot_raw/val_dump_v3.txt # half test
+
+# test_list: log_service/audio_bu/all_all_truth.txt # eval on log
 
 nDataLoaderThread: 1 
-criterion: softmaxproto 
+criterion: AmSoftmax 
 sample_rate: 8000
 nClasses: 61018 
 eval_frames: 100 
@@ -23,7 +25,7 @@ scoring_mode: cosine
 
 save_path: backup 
 
-initial_model_infer: backup/Raw_ECAPA/model/best_state.model
+initial_model_infer: backup/RawData/Raw_ECAPA/model/best_state.model
 # backup/Raw_ECAPA/model/best_state_copy_0.model 0.4730052053928375 3.37
 # backup/Raw_ECAPA/model/cb_0309_v4.model 0.4227248728275299 3.49
 # backup/Raw_ECAPA/model/cb_0310_v4_eer3e-1.model 0.4562816619873047 3.16

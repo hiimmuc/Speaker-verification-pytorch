@@ -23,8 +23,9 @@ lr_decay: 0.95
 
 preprocess: False
 augment: False
+augment_chain: None
 
-criterion: softmaxproto
+criterion: AmSoftmax
 optimizer: adam
 callbacks: auto
 

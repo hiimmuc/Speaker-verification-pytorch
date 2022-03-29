@@ -1,0 +1,33 @@
+device: "cuda" 
+train_list: dataset/tow/train_def.txt
+test_list: dataset/tow/val_def.txt 
+save_path: backup/tow/
+
+model: Raw_ECAPA
+max_epoch: 500 
+batch_size: 32
+nDataLoaderThread: 1
+optimizer: adam
+criterion: SoftmaxAngularProto
+nPerSpeaker: 2
+
+n_mels: 80 
+margin: 0.2
+scale: 30
+lr: 0.001
+
+callbacks: steplr
+
+max_frames: 100
+eval_frames: 100
+sample_rate: 16000
+
+nClasses: 356
+test_interval: 10
+step_size: 10
+es_patience: 30
+
+augment_chain: time_domain spec_domain
+
+initial_model: backup/tow/Raw_ECAPA/model/best_state.model
+initial_model_infer: backup/tow/Raw_ECAPA/model/best_state.model

@@ -1,0 +1,29 @@
+device: "cuda" 
+model: ECAPA_TDNN
+test_threshold: 0.4620993733406067
+
+test_path: dataset/tow/test
+test_list: dataset/tow/test_def.txt # private test 
+ref: dataset/tow/test_truth.txt
+com: dataset/tow/test_results.txt
+
+nDataLoaderThread: 1 
+criterion: GE2ELossV2 
+sample_rate: 16000
+nClasses: 6089 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 32
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy
+scoring_mode: cosine
+
+save_path: backup 
+
+# initial_model_infer: : backup/Raw_ECAPA/model/mix_0307_1357_v3.model # 0.5394577383995056 0.5229600071907043 0.5437501668930054
+initial_model_infer: backup/ECAPA_TDNN/model/best_state.model

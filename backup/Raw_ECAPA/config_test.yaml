@@ -1,21 +1,19 @@
 device: "cuda" 
 model: Raw_ECAPA
+test_threshold: 0.25866398215293884
 
-test_threshold: 0.5229600071907043
-
-# test_path: dataset/test_callbot/valid_speaker/private
-# test_list: dataset/test_callbot/valid_speaker/private_test_cb.txt # private test 
-
-test_path: log_service/test_cskh
-test_list: log_service/test_lst_cskh_v1.txt # private test 
-ref: log_service/test_lst_truth_cskh_v1.txt
+test_path: log_service/audio_bu
+test_list: log_service/audio_bu/all_all.txt # private test 
+ref: log_service/audio_bu/all_all_truth.txt
+com: log_service/audio_bu/all_all_result.txt
 
 nDataLoaderThread: 1 
-criterion: softmaxproto 
+criterion: AmSoftmax 
 sample_rate: 8000
 nClasses: 6089 
 eval_frames: 100 
-max_frames: 100 
+max_frames: 100
+num_eval: 20
 
 batch_size: 32
 n_mels: 80
@@ -28,4 +26,7 @@ scoring_mode: cosine
 
 save_path: backup 
 
-initial_model_infer: backup/Raw_ECAPA/model/mix_0307_1357_v3.model
+# initial_model_infer: backup/Raw_ECAPA/model/mix_0307_1357_v3.model # 0.5394577383995056 0.5229600071907043 0.5437501668930054
+# initial_model_infer: backup/Raw_ECAPA/model/cb_0325_v1.model # 0.34933072328567505
+# initial_model_infer: backup/Raw_ECAPA/model/cb_0324_ge2e_v1.model # 0.3272123336791992
+initial_model_infer: backup/Raw_ECAPA/model/cb_0329_v0.model # 0.25866398215293884

@@ -1,0 +1,26 @@
+device: "cuda" 
+model: ECAPA_TDNN
+
+test_list: dataset/tow/val_def.txt # test cb
+
+# test_list: dataset/test_callbot_raw/val_dump_v3.txt
+
+nDataLoaderThread: 1 
+criterion: AmSoftmax 
+sample_rate: 16000
+nClasses: 61018 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 64
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy
+scoring_mode: cosine
+
+save_path: backup/tow 
+
+initial_model_infer: backup/tow/ECAPA_TDNN/model/best_state.model

@@ -1,0 +1,28 @@
+device: "cuda" 
+model: ECAPA_TDNN
+
+test_list: dataset/test_callbot_raw/test_cb_v1.txt # full test
+
+# test_list: dataset/test_callbot_raw/val_dump_v3.txt # half test
+
+# test_list: log_service/audio_bu/all_all_truth.txt # eval on log
+
+nDataLoaderThread: 1 
+criterion: AmSoftmax 
+sample_rate: 8000
+nClasses: 61018 
+eval_frames: 100 
+max_frames: 100 
+
+batch_size: 64
+n_mels: 80
+step_size: 5
+
+augment: False
+test_recognize: False
+cohorts_path: backup/Raw_ECAPA/cohorts_callbot.npy
+scoring_mode: cosine
+
+save_path: backup 
+
+initial_model_infer: backup/ECAPA_TDNN/model/best_state.model
