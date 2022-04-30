@@ -1,3 +1,6 @@
+'''
+Fusion 2 rawnet model: original and rawnet 2 to take advantages of the independent on hyperparams in Ranwet2 and the fixed sinc of the origin
+'''
 import math
 from collections import OrderedDict
 

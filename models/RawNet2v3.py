@@ -1,3 +1,6 @@
+'''
+this model combined different types of frame aggregation: using GRU and ASP, then take mean of them
+'''
 import math
 from collections import OrderedDict
 
@@ -251,7 +254,6 @@ class RawNet2(nn.Module):
             nb_filters,
             code_dim=512,
             in_channels=1,
-            n_mels=64,
             log_input=True,
             nb_gru_layers=1, 
             gru_node=1024,
@@ -261,7 +263,6 @@ class RawNet2(nn.Module):
         super(RawNet2, self).__init__()
 #         self.device = kwargs['device']
         self.inplanes = nb_filters[0]
-        self.n_mels = n_mels
         self.log_input = log_input
         #####
         # first layers before residual blocks

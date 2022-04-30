@@ -14,8 +14,8 @@ def export_model(args, check=True):
     # priority: define weight -> best weight -> last weight
     if args.initial_model_infer:
         chosen_model_state = args.initial_model_infer
-    elif os.path.exists(f'{model_save_path}/best_state.model'):
-        chosen_model_state = f'{model_save_path}/best_state.model'
+    elif os.path.exists(f'{model_save_path}/best_state.pt'):
+        chosen_model_state = f'{model_save_path}/best_state.pt'
     else:
         model_files = glob.glob(os.path.join(
             model_save_path, 'model_state_*.model'))

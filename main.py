@@ -1,10 +1,11 @@
 import argparse
 import os
 
+from export import *
 from inference import inference
 from trainer import train
 from utils import read_config
-from export import *
+
 
 def main(args):
     if args.do_train:
@@ -29,7 +30,6 @@ if __name__ == '__main__':
     parser.add_argument('--do_infer', action='store_true', default=False)
     parser.add_argument('--do_export', action='store_true', default=False)
 
-
     # Data loader
     parser.add_argument('--max_frames',
                         type=int,
@@ -43,6 +43,22 @@ if __name__ == '__main__':
                         type=int,
                         default=8000,
                         help='samplerate for audio')
+    parser.add_argument('--max_epoch',
+                        type=int,
+                        default=50,
+                        help='Maximum number of epochs')
+
+    # Augmentation
+    parser.add_argument('--augment',
+                        action='store_true',
+                        default=False,
+                        help='Augment input')
+    parser.add_argument('--augment_chain',
+                        nargs='+',
+                        default=None,
+                        help='Augment input chain')
+
+    # Batch settings
     parser.add_argument('--batch_size',
                         type=int,
                         default=128,
@@ -55,45 +71,55 @@ if __name__ == '__main__':
                         type=int,
                         default=2,
                         help='Number of loader threads')
-    parser.add_argument('--augment',
-                        action='store_true',
-                        default=False,
-                        help='Augment input')
-    parser.add_argument('--augment_chain',
-                        nargs='+',
-                        default=None,
-                        help='Augment input chain')
-    
+
+    parser.add_argument('--nPerSpeaker',
+                        type=int,
+                        default=2,
+                        help='Number of utterances per speaker per batch, only for metric learning based losses')
 
     # Training details
     parser.add_argument('--device',
                         type=str,
                         default="cpu",
                         help='cuda or cpu')
-    parser.add_argument('--test_interval',
-                        type=int,
-                        default=10,
-                        help='Test and save every [test_interval] epochs')
-    parser.add_argument('--step_size',
-                       type=int,
-                       default=5,
-                       help='step of learning rate scheduler')
     parser.add_argument('--model',
                         type=str,
                         default="ResNetSE34V2",
                         help='Name of model definition')
-    parser.add_argument('--max_epoch',
-                        type=int,
-                        default=50,
-                        help='Maximum number of epochs')
     parser.add_argument('--criterion',
                         type=str,
                         default="amsoftmax",
                         help='Loss function')
-    parser.add_argument('--save_model_last',
+    parser.add_argument('--features',
+                        type=str,
+                        default='mfcc',
+                        help='Features extractions')
+    parser.add_argument('--lib',
+                        type=str,
+                        default='nnAudio',
+                        help='Libray for Features extractions. Available: nnAudio, torchaudio')
+
+    # Model definition
+    parser.add_argument('--n_mels',
+                        type=int,
+                        default=64,
+                        help='Number of mel filter banks')
+    parser.add_argument('--log_input',
                         type=bool,
                         default=True,
-                        help='Save only last checkpoint')
+                        help='Log input features')
+    parser.add_argument('--encoder_type',
+                        type=str,
+                        default="ASP",
+                        help='Type of encoder')
+    parser.add_argument('--nOut',
+                        type=int,
+                        default=512,
+                        help='Embedding size in the last FC layer')
+    parser.add_argument('--nClasses',
+                        type=int,
+                        default=400,
+                        help='Number of speakers in the softmax layer, only for softmax-based losses')
 
     # Optimizer
     parser.add_argument('--optimizer',
@@ -104,6 +130,14 @@ if __name__ == '__main__':
                         type=str,
                         default="steplr",
                         help='Learning rate scheduler: steplr or reduceOnPlateau')
+    parser.add_argument('--step_size',
+                        type=int,
+                        default=5,
+                        help='step of learning rate scheduler')
+    parser.add_argument('--scheduler_step',
+                        type=int,
+                        default=5,
+                        help='patience of learning rate scheduler')
     parser.add_argument('--early_stop',
                         action='store_true',
                         default=False,
@@ -150,16 +184,17 @@ if __name__ == '__main__':
                         type=float,
                         default=30.0,
                         help='Loss scale, only for some loss functions')
-    parser.add_argument('--nPerSpeaker',
-                        type=int,
-                        default=2,
-                        help='Number of utterances per speaker per batch, only for metric learning based losses')
-    parser.add_argument('--nClasses',
-                        type=int,
-                        default=400,
-                        help='Number of speakers in the softmax layer, only for softmax-based losses')
 
     # Load and save
+    parser.add_argument('--test_interval',
+                        type=int,
+                        default=10,
+                        help='Test and save every [test_interval] epochs')
+
+    parser.add_argument('--save_model_last',
+                        type=bool,
+                        default=True,
+                        help='Save only last checkpoint')
     parser.add_argument('--initial_model',
                         type=str,
                         default=None,
@@ -190,24 +225,6 @@ if __name__ == '__main__':
                         type=str,
                         default="dataset/augment_data/RIRS_NOISES/simulated_rirs",
                         help='Absolute path to the augment set')
-
-    # Model definition 
-    parser.add_argument('--n_mels',
-                        type=int,
-                        default=64,
-                        help='Number of mel filter banks')
-    parser.add_argument('--log_input',
-                        type=bool,
-                        default=True,
-                        help='Log input features')
-    parser.add_argument('--encoder_type',
-                        type=str,
-                        default="ASP",
-                        help='Type of encoder')
-    parser.add_argument('--nOut',
-                        type=int,
-                        default=512,
-                        help='Embedding size in the last FC layer')
 
     # Infer mode
     parser.add_argument('--eval',
@@ -262,12 +279,13 @@ if __name__ == '__main__':
                         default='cosine',
                         help='norm or cosine for scoring')
     parser.add_argument('--ref', '-r',
-                       type=str,
-                       default='dataset/test_callbot_raw/test_cb_v1.txt')
+                        type=str,
+                        default='dataset/test_callbot_raw/test_cb_v1.txt')
     parser.add_argument('--com', '-c',
-                       type=str,
-                       default=None,
-                       help='if None, automatic create based on test list name')
+                        type=str,
+                        default=None,
+                        help='if None, automatic create based on test list name')
+    #######################################################################################
 
     args = parser.parse_args()
 
@@ -276,9 +294,9 @@ if __name__ == '__main__':
 
     # Initialise directories
     if args.do_train:
-        model_save_path = args.save_path + f"/{args.model}/model"
+        model_save_path = args.save_path + f"/{args.model}/{args.criterion}/model"
         os.makedirs(model_save_path, exist_ok=True)
-        result_save_path = args.save_path + f"/{args.model}/result"
+        result_save_path = args.save_path + f"/{args.model}/{args.criterion}/result"
         os.makedirs(result_save_path, exist_ok=True)
     elif args.do_infer:
         args.com = args.test_list.replace('.txt', '_results.txt') if not args.com else args.com

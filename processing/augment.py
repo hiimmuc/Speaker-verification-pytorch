@@ -25,7 +25,7 @@ def gain_target_amplitude(sound, target_dBFS=-10):
     
 def random_augment_volume(signal, volume=6):
     states = ['higher', 'lower', 'unchange']
-    state = np.random.choice(states, p=[0.4, 0.4, 0.2])
+    state = np.random.choice(states, p=[0.5, 0.5, 0])
     
     if state == 'higher':
         gain = np.random.uniform(low=0, high=volume, size=None)
@@ -52,7 +52,7 @@ def speed_change(sound, speed=1.0):
 
 def random_augment_speed(sound, low=0.95, high=1.05):
     states = ['faster', 'slower', 'unchange']
-    state = np.random.choice(states, p=[0.4, 0.4, 0.2])
+    state = np.random.choice(states, p=[0.5, 0.5, 0])
     
     if state == 'faster':
         speed = np.random.uniform(low=1.0, high=high, size=None)
@@ -81,7 +81,7 @@ def pitch_shift(sound, n_step=0.0, n_octave_bin=12, sr=8000):
 
 def random_augment_pitch_shift(x, nstep_low=-0.5, n_step_high=0.5):
     states = ['higher', 'lower', 'unchange']
-    state = np.random.choice(states, p=[0.4, 0.4, 0.2])
+    state = np.random.choice(states, p=[0.5, 0.5, 0])
     
     if state == 'higher':
         n_step = np.random.uniform(low=0, high=n_step_high, size=None)

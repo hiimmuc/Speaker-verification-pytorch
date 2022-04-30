@@ -1,5 +1,5 @@
-import os
 import argparse
+import os
 import random
 import time
 
@@ -8,9 +8,10 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from processing.audio_loader import loadWAV, AugmentWAV
+from processing.audio_loader import AugmentWAV, loadWAV
 from processing.vad_tool import VAD
 from utils import round_down, worker_init_fn
+
 
 class Loader(Dataset):
     def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, n_mels, aug_folder='offline', **kwargs):
@@ -27,13 +28,14 @@ class Loader(Dataset):
         self.musan_path = musan_path
         self.rir_path = rir_path
         self.augment_chain = kwargs['augment_chain'] if 'augment_chain' in kwargs else ['env_corrupt', 'time_domain']
-        
-        if self.augment and 'env_corrupt' in self.augment_chain:
+
+        if self.augment and ('env_corrupt' in self.augment_chain):
             if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
                 self.augment_engine = AugmentWAV(musan_path=musan_path,
                                                  rir_path=rir_path,
                                                  max_frames=max_frames,
-                                                 sample_rate=self.sr)
+                                                 sample_rate=self.sr,
+                                                 target_db=None)
             else:
                 self.augment_engine = None
 
@@ -67,40 +69,42 @@ class Loader(Dataset):
         for index in indices:
             # Load audio
             audio_file = self.data_list[index]
-            if self.augment and 'env_corrupt' in self.augment_chain and self.aug_folder == 'offline':  
-                # if aug audio files and raw audio files is in the same folder
-                aug_type = random.randint(0, 4)
-                if aug_type == 0:
-                    pass
-                else:
-                    # for type 1 -> 4
-                    audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
+#             if self.augment and ('env_corrupt' in self.augment_chain) and (self.aug_folder == 'offline'):
+#                 # if aug audio files and raw audio files is in the same folder
+#                 aug_type = random.randint(0, 4)
+#                 if aug_type == 0:
+#                     pass
+#                 else:
+#                     # for type 1 -> 4
+#                     audio_file = f"{self.data_list[index].replace('.wav', '')}_augmented_{aug_type}.wav"
+
             # time domain augment
-            audio = loadWAV(audio_file, self.max_frames, 
-                            evalmode=False, 
-                            augment=self.augment, 
-                            sample_rate=self.sr, 
+            audio = loadWAV(audio_file, self.max_frames,
+                            evalmode=False,
+                            augment=self.augment,
+                            sample_rate=self.sr,
                             augment_chain=self.augment_chain)
-            #env corrupt augment
-            if self.augment and ('env_corrupt' in self.augment_chain) and (self.aug_folder == 'online'):  
+
+            # env corrupt augment
+            if self.augment and ('env_corrupt' in self.augment_chain) and (self.aug_folder == 'online'):
                 # if exists augmented folder(30GB) separately
                 # env corruption adding from musan, revberation
-                augtype = np.random.choice(['rev', 'noise', 'both', 'none'], p=[0.3, 0.4, 0.2, 0.1])
+                augtype = np.random.choice(['rev', 'noise', 'both', 'none'], p=[0.2, 0.4, 0.2, 0.2])
                 if augtype == 'rev':
                     audio = self.augment_engine.reverberate(audio)
                 elif augtype == 'noise':
-                    mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.2, 0.2, 0.3, 0.3])
+                    mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.5, 0, 0.5, 0])
                     audio = self.augment_engine.additive_noise(mode, audio)
                 elif augtype == 'both':
                     # combined reverb and noise
                     order = np.random.choice(['noise_first', 'rev_first'], p=[0.5, 0.5])
                     if order == 'rev_first':
                         audio = self.augment_engine.reverberate(audio)
-                        mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.2, 0.2, 0.3, 0.3])
+                        mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.5, 0, 0.5, 0])
                         audio = self.augment_engine.additive_noise(mode, audio)
                     else:
-                        mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.2, 0.2, 0.3, 0.3])
-                        audio = self.augment_engine.additive_noise(mode, audio)   
+                        mode = np.random.choice(['music', 'speech', 'noise', 'noise_vad'], p=[0.5, 0, 0.5, 0])
+                        audio = self.augment_engine.additive_noise(mode, audio)
                         audio = self.augment_engine.reverberate(audio)
                 else:
                     # none type means dont augment

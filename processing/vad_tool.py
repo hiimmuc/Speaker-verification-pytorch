@@ -5,10 +5,10 @@ import os
 import sys
 import time
 import wave
-import numpy as np
 
+import numpy as np
 import webrtcvad
- 
+
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 # VAD utilities
 
@@ -102,7 +102,7 @@ class VAD:
 
         voiced_frames = []
         unvoiced_frames = []
-        
+
         for frame in frames:
             is_speech = self.vad.is_speech(frame.bytes, sample_rate)
             if show:
@@ -141,11 +141,11 @@ class VAD:
                             unvoiced_frames.append(f)
 
                     triggered = False
-                    
+
                     yield b''.join([f.bytes for f in voiced_frames])
                     ring_buffer.clear()
                     voiced_frames = []
-                    
+
         if triggered:
             if show:
                 sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
@@ -174,4 +174,3 @@ class VAD:
 
         segments = [np.frombuffer(seg) for seg in segments]
         return segments
-

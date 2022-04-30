@@ -51,10 +51,10 @@ class Conformer(nn.Module):
     """
     def __init__(
             self,
-            num_classes: int,
+            num_classes: int = 512,
             input_dim: int = 80,
-            encoder_dim: int = 512,
-            num_encoder_layers: int = 17,
+            encoder_dim: int = 144,
+            num_encoder_layers: int = 16,
             num_attention_heads: int = 8,
             feed_forward_expansion_factor: int = 4,
             conv_expansion_factor: int = 2,
@@ -62,7 +62,7 @@ class Conformer(nn.Module):
             feed_forward_dropout_p: float = 0.1,
             attention_dropout_p: float = 0.1,
             conv_dropout_p: float = 0.1,
-            conv_kernel_size: int = 31,
+            conv_kernel_size: int = 3,
             half_step_residual: bool = True,
     ) -> None:
         super(Conformer, self).__init__()

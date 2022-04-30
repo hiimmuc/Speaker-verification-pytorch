@@ -1,33 +1,39 @@
 device: "cuda" 
-train_list: dataset/train_callbot_v2/train_def.txt
-test_list: dataset/train_callbot/val_def_cb.txt 
-save_path: backup/MsLoss/
+train_list: dataset/train_callbot_v2/train_def_waug_shuffle.txt
+test_list: dataset/train_callbot_v2/val_def_20.txt 
+save_path: backup/
 
 model: Raw_ECAPA
-max_epoch: 500 
-batch_size: 32
+
+features: raw
+
+max_epoch: 500
+batch_size: 16
+nPerSpeaker: 2
 nDataLoaderThread: 0
-optimizer: adam
-criterion: MSAmSoftmax
-nPerSpeaker: 5
 
-n_mels: 80 
-margin: 0.2
-scale: 30
-lr: 0.001
-
-callbacks: steplr
-
-max_frames: 100
-eval_frames: 100
-sample_rate: 8000
-
-nClasses: 13897 # cb: 13897 cskh: 20000 mix 33897
-test_interval: -1
+callbacks: cycliclr
+optimizer: AdaBelief
 step_size: 10
 es_patience: 15
 
-augment_chain: env_corrupt time_domain spec_domain
+criterion: AmSoftmaxProto
+weight_decay: 0.00002
+lr_decay: 0.95
+margin: 0.3
+scale: 30
+lr: 0.001
 
-initial_model: backup/MsLoss/Raw_ECAPA/model/best_state.model
+n_mels: 80 
+max_frames: 200
+eval_frames: 200
+sample_rate: 8000
+
+nClasses: 3153 # cb: 13897 cskh: 20000 mix 33897
+
+test_interval: -1
+
+augment_chain: time_domain spec_domain
+
+initial_model: backup/Raw_ECAPA/model/cb_0310_v4_eer3e-1.model
 initial_model_infer: backup/Raw_ECAPA/model/best_state.model

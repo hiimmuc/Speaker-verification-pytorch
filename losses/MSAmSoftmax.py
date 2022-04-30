@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 import losses.MultiSimilarity_v2 as msloss
-import losses.AmSoftmax as amsoftmax
+import losses.ARmSoftmax as armsoftmax
 
 
 class MSAmSoftmax(nn.Module):
@@ -15,15 +15,14 @@ class MSAmSoftmax(nn.Module):
 
         self.test_normalize = True
 
-        self.amsoftmax = amsoftmax.AmSoftmax(**kwargs)
+        self.armsoftmax = armsoftmax.ARmSoftmax(**kwargs)
         self.msloss = msloss.MultiSimilarity_v2(**kwargs)
 
-        print('Initialised Multi Similarity softmax Loss')
+        print('Initialised Multi Similarity V2 Loss')
 
     def forward(self, x, label=None):
         weight = 0.6
-        nlossCE, prec1 = self.amsoftmax(
-            x.reshape(-1, x.size()[-1]), label.repeat_interleave(x.size()[1]))
+        nlossCE, prec1 = self.armsoftmax(x, label)
 
         nlossML, _ = self.msloss(x, label)
 

@@ -1,7 +1,7 @@
 import torch
 
 
-def Optimizer(parameters, lr, weight_decay, **kwargs):
+def sgd(parameters, lr, weight_decay, **kwargs):
     # print('Initialised SGD optimizer')
     return torch.optim.SGD(parameters,
                            lr=float(lr),

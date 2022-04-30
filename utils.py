@@ -9,31 +9,28 @@ import wave
 from argparse import Namespace
 
 import numpy as np
-from numpy.linalg import norm
-
+import scipy.signal as sps
 import soundfile as sf
-from pydub import AudioSegment
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchaudio
-
 import webrtcvad
 import yaml
-from matplotlib import pyplot as plt
 from matplotlib import cm, colors
-
-
-from scipy import signal
-from sklearn import metrics
-from scipy import spatial
+from matplotlib import pyplot as plt
+from numpy.linalg import norm
+from pydub import AudioSegment
+from scipy import signal, spatial
 from scipy.io import wavfile
-import scipy.signal as sps
-from losses.pytorch_metric_learning.distances.lp_distance import LpDistance
-from losses.pytorch_metric_learning.distances.cosine_similarity import CosineSimilarity
+from sklearn import metrics
+from sklearn.metrics import precision_recall_curve
 
-## model utils
+from losses.pytorch_metric_learning.distances.cosine_similarity import \
+    CosineSimilarity
+from losses.pytorch_metric_learning.distances.lp_distance import LpDistance
+
+
+# model utils
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
@@ -50,10 +47,6 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
-
-def accuracy_from_emb(embeddings, labels, **kwargs):
-    
-    pass
 
 
 class PreEmphasis(torch.nn.Module):
@@ -72,19 +65,22 @@ class PreEmphasis(torch.nn.Module):
         # reflect padding to match lengths of in/out
         input = input.unsqueeze(1)
         input = F.pad(input, (1, 0), 'reflect')
+
         return F.conv1d(input, self.flipped_filter).squeeze(1)
 
 
 def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
+    results = {}
+
     labels = np.nan_to_num(labels)
     scores = np.nan_to_num(scores)
-    
+
     fpr, tpr, thresholds = metrics.roc_curve(labels, scores, pos_label=1)
     # G-mean
     gmean = np.sqrt(tpr * (1 - fpr))
     idxG = np.argmax(gmean)
     G_mean_result = [idxG, gmean[idxG], thresholds[idxG]]
-    
+
     # ROC
     fnr = 1 - tpr
 
@@ -105,9 +101,22 @@ def tuneThresholdfromScore(scores, labels, target_fa, target_fr=None):
     eer = np.mean([fpr[idxE], fnr[idxE]])  # EER in % = (fpr + fnr) /2
     optimal_threshold = thresholds[idxE]
 
-    return (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
+    # precision recall
+    precision, recall, thresholds_ = precision_recall_curve(labels, scores, pos_label=1)
+    # convert to f score
+    fscore = (2 * precision * recall) / (precision + recall)
+
+    # locate the index of the largest f score
+    ixPR = np.argmax(fscore)
+    #
+    results['gmean'] = G_mean_result
+    results['roc'] = [tunedThreshold, eer, metrics.auc(fpr, tpr), optimal_threshold]
+    results['prec_recall'] = [precision, recall, fscore[ixPR], thresholds_[ixPR]]
+    return results
 
 # ===================================Similarity===================================
+
+
 def similarity_measure(method='cosine', ref=None, com=None, **kwargs):
     if method == 'cosine':
         return cosine_similarity(ref, com, **kwargs)
@@ -115,7 +124,7 @@ def similarity_measure(method='cosine', ref=None, com=None, **kwargs):
         return pnorm_similarity(ref, com, **kwargs)
     elif method == 'zt_norm':
         return ZT_norm_similarity(ref, com, **kwargs)
-    
+
 
 def ZT_norm_similarity(ref, com, cohorts, top=-1):
     """
@@ -143,21 +152,27 @@ def ZT_norm_similarity(ref, com, cohorts, top=-1):
     ref = ref.cpu().numpy()
     com = com.cpu().numpy()
     return S_norm(ref, com, top=top)
-    
+
+
 def cosine_similarity(ref, com, **kwargs):
+    ref = torch.FloatTensor(ref)
+    com = torch.FloatTensor(com)
     return np.mean(abs(F.cosine_similarity(ref, com, dim=-1, eps=1e-05)).cpu().numpy())
+
 
 def pnorm_similarity(ref, com, p=2, **kwargs):
     pdist = F.pairwise_distance(ref, com, p=p, eps=1e-06, keepdim=True)
     # pdist = LpDistance(normalize_embeddings=normalize_embeddings, p=p, power=power, is_inverted=is_inverted)
     return np.mean(pdist.numpy())
 
-## mainpy utils
+# mainpy utils
+
+
 def read_config(config_path, args=None):
     if args is None:
         args = Namespace()
     with open(config_path, "r") as f:
-        yml_config = yaml.load(f, Loader=yaml.FullLoader)
+        yml_config = yaml.load(f, Loader=yaml.Loader)
     for k, v in yml_config.items():
         args.__dict__[k] = v
     return args
@@ -169,6 +184,7 @@ def read_log_file(log_file):
         data = [float(d.split(':')[-1]) for d in data]
     return data
 
+
 def round_down(num, divisor):
     return num - (num % divisor)
 
@@ -178,6 +194,7 @@ def worker_init_fn(worker_id):
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # plot loss graph along with training process
+
 
 def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', mono=True, figsize=(10, 6)):
     plt.figure(figsize=figsize)
@@ -194,17 +211,18 @@ def plot_graph(data, x_label, y_label, title, save_path, show=True, color='b-', 
         plt.show()
     plt.close()
 
+
 def plot_acc_loss(acc, loss, x_label, y_label, title, save_path, show=True, colors=['b-', 'r-'], figsize=(10, 6)):
     # Make an example plot with two subplots...
     fig = plt.figure(figsize=figsize)
-    ax1 = fig.add_subplot(2,1,1)
+    ax1 = fig.add_subplot(2, 1, 1)
     ax1.plot(acc, colors[0])
     ax1.set(xlabel=x_label[0], ylabel=y_label[0], title=title[0])
 
-    ax2 = fig.add_subplot(2,1,2)
+    ax2 = fig.add_subplot(2, 1, 2)
     ax2.plot(loss, colors[1])
     ax2.set(xlabel=x_label[1], ylabel=y_label[1], title=title[1])
-    
+
     fig.tight_layout()
     # Save the full figure...
     fig.savefig(save_path)
@@ -212,16 +230,16 @@ def plot_acc_loss(acc, loss, x_label, y_label, title, save_path, show=True, colo
         plt.show()
     plt.close()
 
-    
+
 def plot_embeds(embeds, labels, fig_path='./example.pdf'):
-    embeds = np.mean(np.array(embeds), axis = 1)
-    
+    embeds = np.mean(np.array(embeds), axis=1)
+
     label_to_number = {label: i for i, label in enumerate(set(labels), 1)}
     labels = np.array([label_to_number[label] for label in labels])
-    
+
     print(embeds.shape, labels.shape)
-    
-    fig = plt.figure(figsize=(10,10))
+
+    fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
 
     # Create a sphere
@@ -235,7 +253,7 @@ def plot_embeds(embeds, labels, fig_path='./example.pdf'):
     z = r*cos(phi)
     ax.plot_surface(
         x, y, z,  rstride=1, cstride=1, color='w', alpha=0.3, linewidth=0)
-    ax.scatter(embeds[:,0], embeds[:,1], embeds[:,2], c=labels, s=20)
+    ax.scatter(embeds[:, 0], embeds[:, 1], embeds[:, 2], c=labels, s=20)
 
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
@@ -245,7 +263,7 @@ def plot_embeds(embeds, labels, fig_path='./example.pdf'):
     plt.savefig(fig_path)
     plt.close()
 
-    
+
 def plot_from_file(result_save_path, show=False):
     '''Plot graph from score file
 
@@ -253,7 +271,7 @@ def plot_from_file(result_save_path, show=False):
         result_save_path (str): path to model folder
         show (bool, optional): Whether to show the graph. Defaults to False.
     '''
-    with open(f"{result_save_path}/scores.txt") as f:
+    with open(os.path.join(result_save_path, 'scores.txt')) as f:
         line_data = f.readlines()
 
     line_data = [line.strip().replace('\n', '').split(',')
@@ -278,22 +296,22 @@ def plot_from_file(result_save_path, show=False):
                      for _, line in dt.items()]
         data_acc = [float(line[2].strip().split(' ')[1])
                     for _, line in dt.items()]
-        plot_acc_loss(acc=data_acc, 
-                      loss=data_loss, 
-                      x_label=['epoch', 'epoch'], 
+        plot_acc_loss(acc=data_acc,
+                      loss=data_loss,
+                      x_label=['epoch', 'epoch'],
                       y_label=['accuracy', 'loss'],
                       title=['Accuracy', 'Loss'],
                       figsize=(10, 12),
                       save_path=f"{result_save_path}/graph.png", show=show)
         plt.close()
-        
+
     # val plot
     if os.path.isfile(f"{result_save_path}/val_log.txt"):
         with open(f"{result_save_path}/val_log.txt") as f:
             val_line_data = f.readlines()
 
         val_line_data = [line.strip().replace('\n', '').split(',')
-                     for line in val_line_data]
+                         for line in val_line_data]
 
         for line in val_line_data:
             if 'IT' in line[0]:
@@ -311,8 +329,10 @@ def plot_from_file(result_save_path, show=False):
             plot_graph(data_loss, 'epoch', 'loss', 'Loss',
                        f"{result_save_path}/val_graph_{i}.png", color='b', mono=True, show=show)
             plt.close()
-        
+
 # ---------------------------------------------- linh tinh-------------------------------#
+
+
 def cprint(text, fg=None, bg=None, style=None, **kwargs):
     """
     Colour-printer.
@@ -341,43 +361,44 @@ def cprint(text, fg=None, bg=None, style=None, **kwargs):
     """
 
     COLCODE = {
-        'k': 0, # black
-        'r': 1, # red
-        'g': 2, # green
-        'y': 3, # yellow
-        'b': 4, # blue
-        'm': 5, # magenta
-        'c': 6, # cyan
+        'k': 0,  # black
+        'r': 1,  # red
+        'g': 2,  # green
+        'y': 3,  # yellow
+        'b': 4,  # blue
+        'm': 5,  # magenta
+        'c': 6,  # cyan
         'w': 7  # white
     }
 
     FMTCODE = {
-        'b': 1, # bold
-        'f': 2, # faint
-        'i': 3, # italic
-        'u': 4, # underline
-        'x': 5, # blinking
-        'y': 6, # fast blinking
-        'r': 7, # reverse
-        'h': 8, # hide
-        's': 9, # strikethrough
+        'b': 1,  # bold
+        'f': 2,  # faint
+        'i': 3,  # italic
+        'u': 4,  # underline
+        'x': 5,  # blinking
+        'y': 6,  # fast blinking
+        'r': 7,  # reverse
+        'h': 8,  # hide
+        's': 9,  # strikethrough
     }
 
     # properties
     props = []
-    if isinstance(style,str):
-        props = [ FMTCODE[s] for s in style ]
-    if isinstance(fg,str):
-        props.append( 30 + COLCODE[fg] )
-    if isinstance(bg,str):
-        props.append( 40 + COLCODE[bg] )
+    if isinstance(style, str):
+        props = [FMTCODE[s] for s in style]
+    if isinstance(fg, str):
+        props.append(30 + COLCODE[fg])
+    if isinstance(bg, str):
+        props.append(40 + COLCODE[bg])
 
     # display
-    props = ';'.join([ str(x) for x in props ])
+    props = ';'.join([str(x) for x in props])
     if props:
         print(f'\x1b[{props}m' + str(text) + '\x1b[0m', **kwargs)
     else:
         print(text, **kwargs)
+
 
 if __name__ == '__main__':
     pass

@@ -1,6 +1,6 @@
-import os
 import csv
 import importlib
+import os
 import random
 import sys
 import time
@@ -12,59 +12,63 @@ import onnxruntime as onnxrt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from tqdm.auto import tqdm
+
 from processing.audio_loader import loadWAV
-from utils import (similarity_measure, cprint)
+from utils import cprint, similarity_measure
 
 
 class SpeakerNet(nn.Module):
-    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, **kwargs):
+    def __init__(self, save_path, model, optimizer, callbacks, criterion, device, max_epoch, features, **kwargs):
         super(SpeakerNet, self).__init__()
         self.device = torch.device(device)
         self.save_path = save_path
         self.model_name = model
         self.max_epoch = max_epoch
-        self.step_size = kwargs['step_size']
+        self.scheduler_step = kwargs['scheduler_step']
         self.kwargs = kwargs
+        self.T_max = 0 if 'T_max' not in kwargs else kwargs['T_max']
 
         SpeakerNetModel = importlib.import_module(
             'models.' + self.model_name).__getattribute__('MainModel')
-        self.__S__ = SpeakerNetModel(**kwargs).to(self.device)        
-        nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
-        print(f"Initialize model {self.model_name}: {nb_params} params")
+        self.__S__ = SpeakerNetModel(**kwargs).to(self.device)
 
         LossFunction = importlib.import_module(
             'losses.' + criterion).__getattribute__(f"{criterion}")
         self.__L__ = LossFunction(**kwargs).to(self.device)
-        print("Embedding normalize: ", self.__L__.test_normalize)
-        
+
         Optimizer = importlib.import_module(
-            'optimizer.' + optimizer).__getattribute__('Optimizer')
+            'optimizer.' + optimizer).__getattribute__(f"{optimizer}")
         self.__optimizer__ = Optimizer(self.parameters(), **kwargs)
+
+        if features.lower() in ['mfcc', 'melspectrogram']:
+            Features_extractor = importlib.import_module(
+                'models.FeatureExtraction.feature').__getattribute__(f"{features.lower()}")
+            self.compute_features = Features_extractor(**kwargs).to(self.device)
+        else:
+            Features_extractor = None
+            self.compute_features = None
 
         # TODO: set up callbacks, add reduce on plateau + early stopping
         self.callback = callbacks
         self.lr_step = ''
-        if self.callback in ['steplr', 'cosinelr', 'cyclicLR']:
+
+        if self.callback in ['steplr', 'cosinelr', 'cycliclr']:
             Scheduler = importlib.import_module(
-                'callbacks.' + callbacks).__getattribute__('Scheduler')
-            self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **kwargs)
+                'callbacks.torch_callbacks').__getattribute__(f"{callbacks.lower()}")
+            self.__scheduler__, self.lr_step = Scheduler(self.__optimizer__, **dict(kwargs, T_max=self.T_max))
 
             assert self.lr_step in ['epoch', 'iteration']
 
         elif self.callback == 'reduceOnPlateau':
             Scheduler = importlib.import_module(
                 'callbacks.' + callbacks).__getattribute__('LRScheduler')
-            self.__scheduler__ = Scheduler(self.__optimizer__, patience=self.step_size, min_lr=1e-6, factor=0.9)
+            self.__scheduler__ = Scheduler(self.__optimizer__, patience=self.scheduler_step, min_lr=1e-8, factor=0.95)
 
-        elif self.callback == 'auto':
-            steplrScheduler = importlib.import_module('callbacks.' + 'steplr').__getattribute__('Scheduler')
-            ropScheduler = importlib.import_module('callbacks.' + 'reduceOnPlateau').__getattribute__('LRScheduler')
-
-            self.__scheduler__ = {}
-            self.__scheduler__['steplr'], self.lr_step = steplrScheduler(self.__optimizer__, **kwargs)
-            self.__scheduler__['rop'] = ropScheduler(self.__optimizer__, patience=self.step_size, min_lr=1e-6, factor=0.8)
+        ####
+        nb_params = sum([param.view(-1).size()[0] for param in self.__S__.parameters()])
+        print(f"Initialize model {self.model_name}: {nb_params:,} params")
+        print("Embedding normalize: ", self.__L__.test_normalize)
 
     def fit(self, loader, epoch=0):
         '''Train
@@ -84,16 +88,17 @@ class SpeakerNet(nn.Module):
         index = 0
         loss = 0
         top1 = 0  # EER or accuracy
-        
-        tstart = time.time()
-        
-        loader_bar = tqdm(loader, desc=f">>>EPOCH {epoch}: ", unit="it", colour="green")
+
+        loader_bar = tqdm(loader, desc=f">EPOCH_{epoch}", unit="it", colour="green")
+
         for (data, data_label) in loader_bar:
             data = data.transpose(0, 1)
             self.zero_grad()
             feat = []
             # forward n utterances per speaker and stack the output
             for inp in data:
+                if self.compute_features is not None:
+                    inp = self.compute_features(inp.to(self.device))
                 outp = self.__S__(inp.to(self.device))
                 feat.append(outp)
 
@@ -109,13 +114,16 @@ class SpeakerNet(nn.Module):
 
             nloss.mean().backward()
             self.__optimizer__.step()
-            loader_bar.set_postfix(TLoss=f"{round(float(loss / counter), 5)}", TAcc=f"{round(float(top1 / counter), 3)}%")
 
-            if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr']:
+            loader_bar.set_postfix(LR=f"{round(float(self.__optimizer__.param_groups[0]['lr']), 8)}",
+                                   TLoss=f"{round(float(loss / counter), 5)}",
+                                   TAcc=f"{round(float(top1 / counter), 3)}%")
+
+            if self.lr_step == 'iteration' and self.callback in ['steplr', 'cosinelr', 'cycliclr']:
                 self.__scheduler__.step()
 
         # select mode for callbacks
-        if self.lr_step == 'epoch' and self.callback in ['steplr', 'cosinelr']:
+        if self.lr_step == 'epoch' and self.callback in ['steplr', 'cosinelr', 'cycliclr']:
             self.__scheduler__.step()
 
         elif self.callback == 'reduceOnPlateau':
@@ -177,19 +185,20 @@ class SpeakerNet(nn.Module):
         # Save all features to dictionary
         for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
             audio = loadWAV(filename, evalmode=True,  **self.kwargs)
-
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
-                ref_feat = self.__S__.forward(inp1).detach().cpu()
+                if self.compute_features is not None:
+                    inp1 = self.compute_features(inp1)
+                ref_feat = self.__S__.forward(inp1.to(self.device)).detach().cpu()
 
             feats[filename] = ref_feat
 
         all_scores = []
         all_labels = []
         all_trials = []
-        
-        # Read files and compute all scores          
+
+        # Read files and compute all scores
         for idx, line in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
             data = line.split()
 
@@ -215,18 +224,18 @@ class SpeakerNet(nn.Module):
                 if scoring_mode == 'norm':
                     score = similarity_measure('zt_norm',
                                                ref_feat,
-                                               com_feat,                                                
+                                               com_feat,
                                                cohorts,
                                                top=200)
                 elif scoring_mode == 'cosine':
-                    score = similarity_measure('cosine',ref_feat, com_feat)
-                elif scoring_mode == 'pnorm' :
-                    score = similarity_measure('pnorm', ref_feat, com_feat, p = 2)
+                    score = similarity_measure('cosine', ref_feat, com_feat)
+                elif scoring_mode == 'pnorm':
+                    score = similarity_measure('pnorm', ref_feat, com_feat, p=2)
 
             all_scores.append(score)
             all_labels.append(int(data[0]))
-            all_trials.append(data[1] + " " + data[2])             
-            
+            all_trials.append(data[1] + " " + data[2])
+
         return all_scores, all_labels, all_trials
 
     def testFromList(self,
@@ -255,9 +264,9 @@ class SpeakerNet(nn.Module):
         data_root = Path(root)
         read_file = Path(test_list)
         if output_file is None:
-            output_file = test_list.replace('.txt','_result.txt')
-        write_file = Path(save_root, output_file) if os.path.split(output_file)[0] == '' else output_file # add parent dir if not provided
-        
+            output_file = test_list.replace('.txt', '_result.txt')
+        write_file = Path(save_root, output_file) if os.path.split(output_file)[0] == '' else output_file  # add parent dir if not provided
+
         # Read all lines from testfile (read_file)
         print(">>>>TESTING...")
         print(f">>> Threshold: {thre_score}")
@@ -275,17 +284,20 @@ class SpeakerNet(nn.Module):
         # Save all features to feat dictionary
         for idx, filename in enumerate(tqdm(setfiles, desc=">>>>Reading file: ", unit="files", colour="red")):
             audio = loadWAV(filename.replace('\n', ''), evalmode=True, **self.kwargs)
-            
+
             inp1 = torch.FloatTensor(audio).to(self.device)
 
             with torch.no_grad():
-                ref_feat = self.__S__.forward(inp1).detach().cpu()
+                if self.compute_features is not None:
+                    inp1 = self.compute_features(inp1)
+                ref_feat = self.__S__.forward(inp1.to(self.device)).detach().cpu()
+
             feats[filename] = ref_feat
 
         # Read files and compute all scores
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2', 'pred_label' , 'score'])
+            spamwriter.writerow(['audio_1', 'audio_2', 'pred_label', 'score'])
             for idx, data in enumerate(tqdm(lines, desc=">>>>Computing files", unit="pairs", colour="MAGENTA")):
                 ref_feat = feats[data[0]].to(self.device)
                 com_feat = feats[data[1]].to(self.device)
@@ -302,19 +314,19 @@ class SpeakerNet(nn.Module):
                     score = -1 * np.mean(dist)
                 else:
                     if scoring_mode == 'norm':
-                        score = similarity_measure('zt_norm',ref_feat,
-                                                    com_feat,
-                                                    cohorts,
-                                                    top=200)
+                        score = similarity_measure('zt_norm', ref_feat,
+                                                   com_feat,
+                                                   cohorts,
+                                                   top=200)
                     elif scoring_mode == 'cosine':
-                        score = similarity_measure('cosine',ref_feat, com_feat)
-                    elif scoring_mode == 'pnorm' :
-                        score = similarity_measure('pnorm', ref_feat, com_feat, p = 2)
+                        score = similarity_measure('cosine', ref_feat, com_feat)
+                    elif scoring_mode == 'pnorm':
+                        score = similarity_measure('pnorm', ref_feat, com_feat, p=2)
 
                 pred = '1' if score >= thre_score else '0'
                 spamwriter.writerow([data[0], data[1], pred, score])
 
-    def test_each_pair(self, root, thre_score=0.5, 
+    def test_each_pair(self, root, thre_score=0.5,
                        cohorts_path='data/zalo/cohorts.npy',
                        print_interval=1,
                        num_eval=10,
@@ -377,7 +389,7 @@ class SpeakerNet(nn.Module):
     def pair_test(self, audio_1, audio_2, eval_frames, num_eval, data_root, scoring_mode='cosine', cohorts=None):
         assert isinstance(audio_1, str)
         assert isinstance(audio_2, str)
-        
+
         audio_1 = audio_1.replace('\n', '')
         audio_2 = audio_2.replace('\n', '')
 
@@ -397,14 +409,14 @@ class SpeakerNet(nn.Module):
             com_feat = F.normalize(com_feat, p=2, dim=1)
 
         if scoring_mode == 'norm':
-            score = similarity_measure('zt_norm',ref_feat,
-                                        com_feat,
-                                        cohorts,
-                                        top=200)
+            score = similarity_measure('zt_norm', ref_feat,
+                                       com_feat,
+                                       cohorts,
+                                       top=200)
         elif scoring_mode == 'cosine':
-            score = similarity_measure('cosine',ref_feat, com_feat)
-        elif scoring_mode == 'pnorm' :
-            score = similarity_measure('pnorm', ref_feat, com_feat, p = 2)
+            score = similarity_measure('cosine', ref_feat, com_feat)
+        elif scoring_mode == 'pnorm':
+            score = similarity_measure('pnorm', ref_feat, com_feat, p=2)
 
         return score
 
@@ -419,11 +431,11 @@ class SpeakerNet(nn.Module):
         1. Mean L2-normalized embeddings for known speakers.
         2. Cohorts for score normalization.
         """
-        
+
         self.eval()
         if not source:
             raise "Please provide appropriate source!"
-        ########### cohort preparation
+        # cohort preparation
         if prepare_type == 'cohorts':
             # Prepare cohorts for score normalization.
             # description: save all id and path of speakers to used_speaker and setfiles
@@ -462,7 +474,10 @@ class SpeakerNet(nn.Module):
 
                 inp1 = torch.FloatTensor(audio).to(self.device)
 
-                feat = self.__S__.forward(inp1)
+                if self.compute_features is not None:
+                    inp1 = self.compute_features(inp1)
+
+                feat = self.__S__.forward(inp1.to(self.device))
                 if self.__L__.test_normalize:
                     feat = F.normalize(feat, p=2,
                                        dim=1).detach().cpu().numpy().squeeze()
@@ -472,8 +487,8 @@ class SpeakerNet(nn.Module):
             if save_path:
                 np.save(save_path, np.array(feats))
             return True
-                
-        ############# Embbeding preaparation
+
+        # Embbeding preaparation
         elif prepare_type == 'embed':
             # Prepare mean L2-normalized embeddings for known speakers.
             # load audio from_path (root path)
@@ -511,14 +526,14 @@ class SpeakerNet(nn.Module):
                     torch.save(embeds, Path(save_path, 'embeds.pt'))
                     np.save(str(Path(save_path, 'classes.npy')), classes)
                 return True
-                
+
             elif isinstance(source, list):
-                #option 2: list of audio in numpy format
+                # option 2: list of audio in numpy format
                 mean_embed = None
                 embed = None
                 for audio_data_np in source:
-                    embed = self.embed_utterance(audio_data_np, 
-                                                 eval_frames=eval_frames, 
+                    embed = self.embed_utterance(audio_data_np,
+                                                 eval_frames=eval_frames,
                                                  num_eval=num_eval,
                                                  normalize=self.__L__.test_normalize,
                                                  sr=8000)
@@ -528,10 +543,10 @@ class SpeakerNet(nn.Module):
                         mean_embed = torch.cat(
                             (mean_embed, embed.unsqueeze(0)), 0)
                 mean_embed = torch.mean(mean_embed, dim=0)
-                
+
                 if save_path:
                     torch.save(mean_embed, Path(save_path, 'embeds.pt'))
-                return mean_embed                
+                return mean_embed
         else:
             raise NotImplementedError
 
@@ -552,7 +567,9 @@ class SpeakerNet(nn.Module):
         inp = torch.FloatTensor(audio).to(self.device)
 
         with torch.no_grad():
-            embed = self.__S__.forward(inp).detach().cpu()
+            if self.compute_features is not None:
+                inp = self.compute_features(inp)
+            embed = self.__S__.forward(inp.to(self.device)).detach().cpu()
         if normalize:
             embed = F.normalize(embed, p=2, dim=1)
         return embed
@@ -604,7 +621,7 @@ class SpeakerNet(nn.Module):
                           verbose=False,
                           input_names=input_names,
                           output_names=output_names,
-                          
+
                           export_params=True,
                           opset_version=11)
 
@@ -621,11 +638,9 @@ class SpeakerNet(nn.Module):
             if not torch.is_tensor(tensor):
                 tensor = torch.FloatTensor(tensor)
             return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-        
+
         onnx_session = onnxrt.InferenceSession(model_path)
         onnx_inputs = {onnx_session.get_inputs()[0].name: to_numpy(inp)}
         onnx_output = onnx_session.run(None, onnx_inputs)
         return onnx_output
-    
-    def display_net(self):
-        pass
+##################################################################################################

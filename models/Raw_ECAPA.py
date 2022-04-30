@@ -1,20 +1,11 @@
-import math
-from collections import OrderedDict
-
-import numpy as np
 import torch
-import torch.backends.cudnn
-import torch.cuda.amp as amp
 import torch.nn as nn
 import torch.nn.functional as F
-import torchaudio
-from numpy.core.fromnumeric import transpose
-from torch.autograd import Variable
-from torch.nn.parameter import Parameter
-from torch.utils import data
+import importlib
+
 from models import ECAPA_TDNN, RawNet2v2
 
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = False
 
 
@@ -27,10 +18,15 @@ class Raw_ECAPA(nn.Module):
     TDNN Based Speaker Verification" (https://arxiv.org/abs/2005.07143)
     """
 
-    def __init__(self,nOut=512, **kwargs):
+    def __init__(self, nOut=512, **kwargs):
         super(Raw_ECAPA, self).__init__()
-        self.ECAPA_TDNN = ECAPA_TDNN.MainModel(nOut=192,**kwargs)
-        self.rawnet2v2 = RawNet2v2.MainModel(nOut=nOut-192,**kwargs)
+        self.ECAPA_TDNN = ECAPA_TDNN.MainModel(nOut=192, channels= [512, 512, 512, 512, 1536], **kwargs)
+        self.rawnet2v2 = RawNet2v2.MainModel(nOut=nOut-192,**kwargs) # if error,change between self.rawmet2v2 and self.rawnet
+        
+        features = 'melspectrogram'
+        Features_extractor = importlib.import_module(
+            'models.FeatureExtraction.feature').__getattribute__(f"{features}")
+        self.compute_features = Features_extractor(**kwargs) 
 
     def forward(self, x):
         #####
@@ -38,15 +34,14 @@ class Raw_ECAPA(nn.Module):
         # #####
         # # forward model 1
         # #####
-        out1 = self.ECAPA_TDNN(x)
+        x_spec = self.compute_features(x)
+        out1 = self.ECAPA_TDNN(x_spec)
         
         # #####
         # # forward model 2
         # #####
         out2 = self.rawnet2v2(x)
         #
-
-#         out = torch.cat([out1.squeeze(), out2.squeeze()], dim=-1).unsqueeze(0)
         out = torch.cat([out1, out2], dim=-1)
 #         out = torch.mean(out, dim=-1)
         return out

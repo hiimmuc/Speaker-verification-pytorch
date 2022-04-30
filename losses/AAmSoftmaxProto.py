@@ -24,9 +24,8 @@ class AAmSoftmaxProto(nn.Module):
 
         assert x.size()[1] == 2
 
-        nlossS, prec1 = self.aamsoftmax(
-            x.reshape(-1, x.size()[-1]), label.repeat_interleave(2))
+        nlossS, prec1 = self.aamsoftmax(x, label)
 
-        nlossP, _ = self.angleproto(x, None)
+        nlossP, _ = self.angleproto(x, label)
 
         return nlossS+nlossP, prec1

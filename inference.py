@@ -24,8 +24,8 @@ from utils import tuneThresholdfromScore
 
 def inference(args):
     model = SpeakerNet(**vars(args))
-    model_save_path = args.save_path + f"/{args.model}/model"
-    result_save_path = args.save_path + f"/{args.model}/result"
+    model_save_path = os.path.join(args.save_path , f"{args.model}/{args.criterion}/model")
+    result_save_path = os.path.join(args.save_path , f"{args.model}/{args.criterion}/result")
     # Write args to score_file
     settings_file = open(result_save_path + '/settings.txt', 'a+')
     score_file = open(result_save_path + "/Inference_log.txt", "a+")
@@ -45,19 +45,19 @@ def inference(args):
     # priority: define weight -> best weight -> last weight
     if args.initial_model_infer:
         chosen_model_state = args.initial_model_infer
-    elif os.path.exists(f'{model_save_path}/best_state.model'):
-        chosen_model_state = f'{model_save_path}/best_state.model'
+    elif os.path.exists(f'{model_save_path}/best_state.pt'):
+        chosen_model_state = f'{model_save_path}/best_state.pt'
     else:
         model_files = glob.glob(os.path.join(
-            model_save_path, 'model_state_*.model'))
+            model_save_path, 'model_state_*.pt'))
         chosen_model_state = model_files[-1]
     ## duplicate best state to avoid missing best
     if 'best_state' in chosen_model_state and args.eval is True:
         ver = 0
-        copy_name = chosen_model_state[:-6] + f'_copy_{ver}' + chosen_model_state[-6:]
+        copy_name = chosen_model_state.split('.')[0] + f'_copy_{ver}' + '.' + chosen_model_state.split('.')[-1]
         while os.path.exists(copy_name):
             ver += 1
-            copy_name = chosen_model_state[:-6] + f'_copy_{ver}' + chosen_model_state[-6:]
+            copy_name = chosen_model_state.split('.')[0] + f'_copy_{ver}' + '.' + chosen_model_state.split('.')[-1]
         subprocess.call(f"cp {chosen_model_state} {copy_name}", shell=True)
     else:
         copy_name = None
@@ -81,43 +81,48 @@ def inference(args):
             scoring_mode=scoring_mode)
         
         target_fa = np.linspace(5, 0, num=50)
-        result = tuneThresholdfromScore(sc, lab, target_fa) # (tunedThreshold, eer, optimal_threshold, metrics.auc(fpr, tpr), G_mean_result)
+        
+        # results['gmean'] = [idxG, gmean[idxG], thresholds[idxG]]
+        # results['roc'] = [tunedThreshold, eer, metrics.auc(fpr, tpr), optimal_threshold]
+        # results['prec_recall'] = [precision, recall, fscore[ixPR], thresholds_[ixPR]]
+
+        result = tuneThresholdfromScore(sc, lab, target_fa) 
 
         # print('tfa [thre, fpr, fnr]')
         best_sum_rate = 999
         best_tfa = None
         for i, tfa in enumerate(target_fa):
             # print(tfa, result[0][i])
-            sum_rate = result[0][i][1] + result[0][i][2]
+            sum_rate = result['roc'][0][i][1] + result['roc'][0][i][2]
             if sum_rate < best_sum_rate:
                 best_sum_rate = sum_rate
-                best_tfa = result[0][i]
+                best_tfa = result['roc'][0][i]
         
         print("\n[RESULTS]\nROC:",
-              f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result[3]}\n",
-              f">> EER {result[1]}% at threshold {result[2]}\n",
-              f">> Gmean result: \n>>> EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n>>> ACC: {result[-1][1] * 100}%")
+              f"Best sum rate {best_sum_rate} at {best_tfa}, AUC {result['roc'][2]}\n",
+              f">> EER {result['roc'][1]}% at threshold {result['roc'][-1]}\n",
+              f">> Gmean result: \n>>> EER: {(1 - result['gmean'][1]) * 100}% at threshold {result['gmean'][2]}\n>>> ACC: {result['gmean'][1] * 100}%\n",
+              f">> F-score {result['prec_recall'][2]}% at threshold {result['prec_recall'][-1]}\n")
         
         score_file.writelines(
             [f"[Evaluation] result on: [{args.test_list}] with [{args.initial_model_infer}]\n",
              f"Best sum rate {best_sum_rate} at {best_tfa}\n",
-             f"EER {result[1]} at threshold {result[2]}\nAUC {result[3]}\n",
+             f" EER {result['roc'][1]}% at threshold {result['roc'][-1]}\nAUC {result['roc'][2]}\n",
              f"Gmean result:\n",
-             f"EER: {(1 - result[-1][1]) * 100}% at threshold {result[-1][2]}\n ACC: {result[-1][1] * 100}%\n=================>\n"])
+             f"EER: {(1 - result['gmean'][1]) * 100}% at threshold {result['gmean'][2]}\n>>> ACC: {result['gmean'][1] * 100}%\n=================>\n"])
         score_file.close()
         
         # write to file
-        save_root = args.save_path + f"/{args.model}/result"
-        write_file = Path(save_root, 'evaluation_results.txt')
+        write_file = Path(result_save_path, 'evaluation_results.txt')
         
         with open(write_file, 'w', newline='') as wf:
             spamwriter = csv.writer(wf, delimiter=',')
-            spamwriter.writerow(['audio_1', 'audio_2','score', 'label', 'predict_label'])
+            spamwriter.writerow(['audio_1', 'audio_2', 'label', 'predict_label','score'])
             preds = []
             for score, label, pair in zip(sc, lab, trials):
-                pred = int(score >= result[2])
+                pred = int(score >= result['gmean'][2])
                 com, ref = pair.strip().split(' ')
-                spamwriter.writerow([com, ref, score, label, pred])
+                spamwriter.writerow([com, ref, label, pred, score])
                 preds.append(pred)
             
             # print out metrics results
@@ -302,7 +307,7 @@ def evaluate_result(path="backup/Raw_ECAPA/result/private_test_results.txt",
     return confussion_roc_matrix, prec_recall[0]
 
 def evaluate_by_precision_recall(y_true, y_pred, beta_values=[1]):
-    target_names = ['False', 'True']  
+    target_names = ["Label '0'", "Label '1'"]  
     # get classification report
     report = classification_report(y_true, y_pred, target_names=target_names, digits=5)
     

@@ -29,6 +29,13 @@ class AmSoftmax(nn.Module):
         print('Initialised AMSoftmax m=%.3f s=%.3f' % (self.m, self.s))
 
     def forward(self, x, label=None):
+        if len(x.shape) == 3:
+            label = label.repeat_interleave(x.shape[1])
+            x = x.reshape(-1, self.in_feats)
+        elif len(x.shape) == 2:
+            pass
+        else:
+            raise "Invalid shape of input"
         assert x.size()[0] == label.size()[0]
         assert x.size()[1] == self.in_feats
 

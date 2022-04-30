@@ -1,60 +1,18 @@
+'''
+This is the ECAPA-TDNN model.
+https://github.com/speechbrain/speechbrain/blob/96077e9a1afff89d3f5ff47cab4bca0202770e4f/speechbrain/lobes/models/ECAPA_TDNN.py
+'''
+
 import torch  # noqa: F401
 import torch.nn as nn
 import torch.nn.functional as F
-import torchaudio
 import numpy as np
 
 from models.ECAPA_utils import Conv1d as _Conv1d
 from models.ECAPA_utils import BatchNorm1d as _BatchNorm1d
+from models.ECAPA_utils import Linear, length_to_mask
+
 from models.SpecAugment.specaugment import SpecAugment
-
-from utils import PreEmphasis
-from nnAudio import features
-
-
-
-def length_to_mask(length, max_len=None, dtype=None, device=None):
-    """Creates a binary mask for each sequence.
-    Reference: https://discuss.pytorch.org/t/how-to-generate-variable-length-mask/23397/3
-    Arguments
-    ---------
-    length : torch.LongTensor
-        Containing the length of each sequence in the batch. Must be 1D.
-    max_len : int
-        Max length for the mask, also the size of the second dimension.
-    dtype : torch.dtype, default: None
-        The dtype of the generated mask.
-    device: torch.device, default: None
-        The device to put the mask variable.
-    Returns
-    -------
-    mask : tensor
-        The binary mask.
-    Example
-    -------
-    >>> length=torch.Tensor([1,2,3])
-    >>> mask=length_to_mask(length)
-    >>> mask
-    tensor([[1., 0., 0.],
-            [1., 1., 0.],
-            [1., 1., 1.]])
-    """
-    assert len(length.shape) == 1
-
-    if max_len is None:
-        max_len = length.max().long().item()  # using arange to generate mask
-    mask = torch.arange(
-        max_len, device=length.device, dtype=length.dtype
-    ).expand(len(length), max_len) < length.unsqueeze(1)
-
-    if dtype is None:
-        dtype = length.dtype
-
-    if device is None:
-        device = length.device
-
-    mask = torch.as_tensor(mask, dtype=dtype, device=device)
-    return mask
 
 
 # Skip transpose as much as possible for efficiency
@@ -301,7 +259,6 @@ class AttentiveStatisticsPooling(nn.Module):
         # Append mean and std of the batch
         pooled_stats = torch.cat((mean, std), dim=1)
         pooled_stats = pooled_stats.unsqueeze(2)
-
         return pooled_stats
 
 
@@ -405,7 +362,14 @@ class ECAPA_TDNN(torch.nn.Module):
     >>> compute_embedding = ECAPA_TDNN(80, lin_neurons=192)
     >>> outputs = compute_embedding(input_feats)
     >>> outputs.shape
+    speechbrain settings
     torch.Size([5, 1, 192])
+    channels: [1024, 1024, 1024, 1024, 3072]
+    kernel_sizes: [5, 3, 3, 3, 1]
+    dilations: [1, 2, 3, 4, 1]
+    groups: [1, 1, 1, 1, 1]
+    attention_channels: 128
+    lin_neurons: 192
     """
 
     def __init__(
@@ -414,7 +378,7 @@ class ECAPA_TDNN(torch.nn.Module):
         device="cpu",
         lin_neurons=192,
         activation=torch.nn.GELU,
-        channels=[512, 512, 512, 512, 1536],
+        channels=[1024, 1024, 1024, 1024, 3072],
         kernel_sizes=[5, 3, 3, 3, 1],
         dilations=[1, 2, 3, 4, 1],
         attention_channels=128,
@@ -437,47 +401,6 @@ class ECAPA_TDNN(torch.nn.Module):
         input_size = n_mels
         
         self.blocks = nn.ModuleList()
-        
-        # we have 2 version of mels here before 0215 is old
-        # check version of model
-        # model saved name: path/domain_date_time_desc.model
-        if 'initial_model_infer' in kwargs:
-            if (kwargs['initial_model_infer'] is not None):
-                if 'best_state' not in kwargs['initial_model_infer']:
-                    version = int(kwargs['initial_model_infer'].split('/')[-1].split('_')[1])
-                    fb_type = 'nnAudio'
-                elif 'best_state' in kwargs['initial_model_infer']:
-                    fb_type = 'nnAudio'
-            else:
-                fb_type = 'torchaudio'
-                version = -1
-                
-        if  fb_type == 'nnAudio' or version >= 215:
-            self.torchfbank = torch.nn.Sequential(
-                PreEmphasis(),
-                features.mel.MelSpectrogram(sr=sample_rate, 
-                                            n_fft=512, 
-                                            win_length=winlength, 
-                                            n_mels=n_mels, 
-                                            hop_length=hoplength, 
-                                            window='hamming', 
-                                            fmin=0.0, fmax=4000,  
-                                            trainable_mel=False, 
-                                            trainable_STFT=False,
-                                            verbose=False)
-            )
-        else:
-            self.torchfbank = torch.nn.Sequential(
-                PreEmphasis(),
-                torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, 
-                                                     n_fft=512, 
-                                                     win_length=winlength, 
-                                                     hop_length=hoplength,
-                                                     f_min=10, f_max=4000,
-                                                     window_fn=torch.hamming_window, 
-                                                     n_mels=n_mels)
-            )
-
 
         self.specaug = SpecAugment() # Spec augmentation
 
@@ -540,7 +463,7 @@ class ECAPA_TDNN(torch.nn.Module):
         # Minimize transpose for efficiency
         
         with torch.no_grad():
-            x = self.torchfbank(x) + 1e-6
+            x = x + 1e-6
             x = x.log()   
             x = x - torch.mean(x, dim=-1, keepdim=True)
             if self.aug and 'spec_domain' in self.aug_chain:
