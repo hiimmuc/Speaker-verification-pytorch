@@ -228,7 +228,7 @@ class SpeakerNet(nn.Module):
                                                cohorts,
                                                top=200)
                 elif scoring_mode == 'cosine':
-                    score = similarity_measure('cosine', ref_feat, com_feat)
+                    score = similarity_measure('cosine', ref_feat.cpu(), com_feat.cpu())
                 elif scoring_mode == 'pnorm':
                     score = similarity_measure('pnorm', ref_feat, com_feat, p=2)
 
@@ -441,8 +441,8 @@ class SpeakerNet(nn.Module):
             # description: save all id and path of speakers to used_speaker and setfiles
             # source provided is a root of files -> root/spkID/spkID001.wav
             feats = []
-            assert isinstance(soure, str), "Please provide path to test directory"
-            read_file = Path(soure)
+            assert isinstance(source, str), "Please provide path to test directory"
+            read_file = Path(source)
             files = []
             used_speakers = []
             with open(read_file, 'r') as listfile:
@@ -494,7 +494,7 @@ class SpeakerNet(nn.Module):
             # load audio from_path (root path)
             # option 1: from root
             if isinstance(source, str):
-                speaker_dirs = [x for x in Path(from_path).iterdir() if x.is_dir()]
+                speaker_dirs = [x for x in Path(source).iterdir() if x.is_dir()]
                 embeds = None
                 classes = {}
                 # Save mean features

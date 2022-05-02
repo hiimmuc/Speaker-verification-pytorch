@@ -339,7 +339,7 @@ class DataGenerator():
                 filepaths = list(set(filepaths).difference(set(blist)))
 
             # check duration, sr
-            filepaths = check_valid_audio(filepaths, 1.0, 16000)
+            filepaths = check_valid_audio(filepaths, 0.5, 16000)
 
             # checknumber of files
             if len(filepaths) < lower_num:
