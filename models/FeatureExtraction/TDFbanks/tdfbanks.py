@@ -13,8 +13,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-import melfilters
-import utils
+from models.FeatureExtraction.TDFbanks import melfilters
+from models.FeatureExtraction.TDFbanks import utils
 
 
 class TDFbanks(nn.Module):
@@ -89,6 +89,7 @@ class TDFbanks(nn.Module):
                 torch.from_numpy(self.lowpass_init))
 
     def forward(self, x):
+
         # Reshape waveform to format (1,1,seq_length)
         x = x.view(1, 1, -1)
         # Preemphasis

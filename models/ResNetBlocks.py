@@ -20,6 +20,47 @@ from typing import Type, Any, Callable, Union, List, Optional
 from enum import Enum
 
 
+from torch.nn.modules.batchnorm import _BatchNorm
+from torch.nn.parameter import Parameter
+
+
+class _BatchAttNorm(_BatchNorm):
+    def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=False):
+        super(_BatchAttNorm, self).__init__(num_features, eps, momentum, affine)
+        self.avg = nn.AdaptiveAvgPool2d((1, 1))
+        self.sigmoid = nn.Sigmoid()
+        self.weight = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.bias = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.weight_readjust = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.bias_readjust = Parameter(torch.Tensor(1, num_features, 1, 1))
+        self.weight_readjust.data.fill_(0)
+        self.bias_readjust.data.fill_(-1)
+        self.weight.data.fill_(1)
+        self.bias.data.fill_(0)
+
+    def forward(self, input):
+        self._check_input_dim(input)
+
+        # Batch norm
+        attention = self.sigmoid(self.avg(input) * self.weight_readjust + self.bias_readjust)
+        bn_w = self.weight * attention
+
+        out_bn = F.batch_norm(
+            input, self.running_mean, self.running_var, None, None,
+            self.training, self.momentum, self.eps)
+        out_bn = out_bn * bn_w + self.bias
+
+        return out_bn
+
+class BAN2d(_BatchAttNorm):
+    '''
+    https://github.com/gbup-group/IEBN/blob/master/models/cifar/iebn_resnet.py
+    '''
+    def _check_input_dim(self, input):
+        if input.dim() != 4:
+            raise ValueError('expected 4D input (got {}D input)'.format(input.dim()))
+
+
 class ChannelSELayer(nn.Module):
     """
     Re-implementation of Squeeze-and-Excitation (SE) block described in:
@@ -46,7 +87,8 @@ class ChannelSELayer(nn.Module):
         """
         batch_size, num_channels, H, W = input_tensor.size()
         # Average along each channel
-        squeeze_tensor = input_tensor.view(batch_size, num_channels, -1).mean(dim=2)
+        squeeze_tensor = input_tensor.view(
+            batch_size, num_channels, -1).mean(dim=2)
 
         # channel excitation
         fc_out_1 = self.relu(self.fc1(squeeze_tensor))
@@ -116,7 +158,8 @@ class ChannelSpatialSELayer(nn.Module):
         :param input_tensor: X, shape = (batch_size, num_channels, H, W)
         :return: output_tensor
         """
-        output_tensor = torch.max(self.cSE(input_tensor), self.sSE(input_tensor))
+        output_tensor = torch.max(
+            self.cSE(input_tensor), self.sSE(input_tensor))
         return output_tensor
 
 
@@ -131,6 +174,46 @@ class SEBasicBlock(nn.Module):
                  base_width=64, dilation=1, norm_layer=None,
                  *, reduction=16):
         super(SEBasicBlock, self).__init__()
+        
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        
+        self.conv2 = conv3x3(planes, planes, 1)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.se = SELayer(planes, reduction)
+        
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+        out = self.conv1(x)
+        out = self.relu(out)
+        out = self.bn1(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.se(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+class SEBasicBlockV2(nn.Module):
+    """https://www.isca-speech.org/archive/pdfs/interspeech_2021/yan21_interspeech.pdf
+    """
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None,
+                 *, reduction=16):
+        super(SEBasicBlockV2, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
@@ -142,12 +225,13 @@ class SEBasicBlock(nn.Module):
 
     def forward(self, x):
         residual = x
-        out = self.conv1(x)
+        out = self.relu(x)
+        out = self.conv1(out)
         out = self.bn1(out)
-        out = self.relu(out)
 
+        out = self.relu(x)
         out = self.conv2(out)
-        out = self.bn2(out)
+        # out = self.bn2(out)
         out = self.se(out)
 
         if self.downsample is not None:
@@ -203,7 +287,7 @@ class SEBottleneck(nn.Module):
 
 
 class SELayer(nn.Module):
-    def __init__(self,input_channels, internal_neurons):
+    def __init__(self, input_channels, internal_neurons):
         super(SELayer, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
@@ -240,7 +324,7 @@ class SEBlock(nn.Module):
         return inputs * x
 
 
-### res basic block
+# res basic block
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
@@ -279,9 +363,11 @@ class BasicBlock(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
-            raise ValueError("BasicBlock only supports groups=1 and base_width=64")
+            raise ValueError(
+                "BasicBlock only supports groups=1 and base_width=64")
         if dilation > 1:
-            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
+            raise NotImplementedError(
+                "Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
@@ -366,7 +452,7 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
 
         return out
-    
+
 
 if __name__ == '__main__':
     pass

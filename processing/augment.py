@@ -1,7 +1,3 @@
-import os
-import random
-import time
-import wave
 
 import numpy as np
 import soundfile as sf
@@ -14,86 +10,91 @@ from .audio_signal import compute_amplitude
 from .wav_conversion import np_to_segment, segment_to_np, padding_np, normalize_audio_amp
 
 # ====================================================Audio Augmentation utils==================================
-## Time domain
-    
+# Time domain
+
+
 def gain_target_amplitude(sound, target_dBFS=-10):
     if target_dBFS > 0:
         return sound
     change_in_dBFS = target_dBFS - sound.dBFS
     return sound.apply_gain(change_in_dBFS)
 
-    
+
 def random_augment_volume(signal, volume=6):
     states = ['higher', 'lower', 'unchange']
     state = np.random.choice(states, p=[0.5, 0.5, 0])
-    
+
     if state == 'higher':
         gain = np.random.uniform(low=0, high=volume, size=None)
     elif state == 'lower':
         gain = np.random.uniform(low=-volume, high=0, size=None)
     else:
-        gain = 0 # unchange speed
-        
+        gain = 0  # unchange speed
+
     return signal.apply_gain(gain)
+
 
 def speed_change(sound, speed=1.0):
     # Manually override the frame_rate. This tells the computer how many
     # samples to play per second
     # slow_sound = speed_change(sound, 0.75)
     # fast_sound = speed_change(sound, 2.0)
-    
+
     sound_with_altered_frame_rate = sound._spawn(sound.raw_data, overrides={
-         "frame_rate": int(sound.frame_rate * speed)
-      })
+        "frame_rate": int(sound.frame_rate * speed)
+    })
     # convert the sound with altered frame rate to a standard frame rate
     # so that regular playback programs will work right. They often only
     # know how to play audio at standard frame rate (like 44.1k)
     return sound_with_altered_frame_rate.set_frame_rate(sound.frame_rate)
 
+
 def random_augment_speed(sound, low=0.95, high=1.05):
     states = ['faster', 'slower', 'unchange']
     state = np.random.choice(states, p=[0.5, 0.5, 0])
-    
+
     if state == 'faster':
         speed = np.random.uniform(low=1.0, high=high, size=None)
     elif state == 'slower':
         speed = np.random.uniform(low=low, high=1.0, size=None)
     else:
-        speed = 1.0 # unchange speed
-        
+        speed = 1.0  # unchange speed
+
     return speed_change(sound, speed)
 
 
 def pitch_shift(sound, n_step=0.0, n_octave_bin=12, sr=8000):
     # shift the pitch up by half an octave (speed will increase proportionally)
-    
+
     new_sample_rate = int(sound.frame_rate * (2.0 ** (n_step/n_octave_bin)))
 
-    # keep the same samples but tell the computer they ought to be played at the 
+    # keep the same samples but tell the computer they ought to be played at the
     # new, higher sample rate. This file sounds like a chipmunk but has a weird sample rate.
-    hipitch_sound = sound._spawn(sound.raw_data, overrides={'frame_rate': new_sample_rate})
+    hipitch_sound = sound._spawn(sound.raw_data, overrides={
+                                 'frame_rate': new_sample_rate})
 
-    # now we just convert it to a common sample rate (44.1k - standard audio CD) to 
+    # now we just convert it to a common sample rate (44.1k - standard audio CD) to
     # make sure it works in regular audio players. Other than potentially losing audio quality (if
     # you set it too low - 44.1k is plenty) this should now noticeable change how the audio sounds.
-    hipitch_sound = hipitch_sound.set_frame_rate(sr)    
+    hipitch_sound = hipitch_sound.set_frame_rate(sr)
     return hipitch_sound
+
 
 def random_augment_pitch_shift(x, nstep_low=-0.5, n_step_high=0.5):
     states = ['higher', 'lower', 'unchange']
     state = np.random.choice(states, p=[0.5, 0.5, 0])
-    
+
     if state == 'higher':
         n_step = np.random.uniform(low=0, high=n_step_high, size=None)
     elif state == 'lower':
         n_step = np.random.uniform(low=nstep_low, high=0, size=None)
     else:
-        n_step = 0 # unchange speed
-        
-    return pitch_shift(x, n_step)
-    
+        n_step = 0  # unchange speed
 
-def random_drop_chunk(sound, lengths,         
+    return pitch_shift(x, n_step)
+
+
+def random_drop_chunk(sound, lengths,
                       drop_length_low=100,
                       drop_length_high=1000,
                       drop_count_low=1,
@@ -155,16 +156,16 @@ def random_drop_chunk(sound, lengths,
         drop_range = drop_end - drop_start
         drop_length_low = min(drop_length_low, drop_range)
         drop_length_high = min(drop_length_high, drop_range)
-    
+
     batch_size = 1
     sound = np.expand_dims(sound, 0)
 
     lengths = (lengths * sound.shape[0])
     dropped_waveform = np.copy(sound)
-    
+
     if np.random.rand(1) > drop_prob:
         return dropped_waveform
-    
+
     clean_amplitude = compute_amplitude(sound)
 
     # Pick a number of times to drop
@@ -207,7 +208,7 @@ def random_drop_chunk(sound, lengths,
         # Update waveform
         if not noise_factor:
             for j in range(drop_times[i]):
-                dropped_waveform[i, start[j] : end[j]] = 0.0
+                dropped_waveform[i, start[j]: end[j]] = 0.0
         else:
             # Uniform distribution of -2 to +2 * avg amplitude should
             # preserve the average for normalization
@@ -216,5 +217,5 @@ def random_drop_chunk(sound, lengths,
                 # zero-center the noise distribution
                 noise_vec = np.random.rand(length[j])
                 noise_vec = 2 * noise_max * noise_vec - noise_max
-                dropped_waveform[i, start[j] : end[j]] = noise_vec
+                dropped_waveform[i, start[j]: end[j]] = noise_vec
     return dropped_waveform.squeeze().to_numpy()

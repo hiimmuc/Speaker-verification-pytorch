@@ -1,5 +1,14 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from models.SpecAugment.specaugment import SpecAugment
+from models.ECAPA_TDNN import *
+from models.ResNetBlocks import SEBasicBlock, SEBottleneck
+
+
 ## baseline for se resnet
-class ResNetSE(nn.Module):
+class ResNetSE_no_head(nn.Module):
     def __init__(self,
                  block,
                  layers,
@@ -9,11 +18,11 @@ class ResNetSE(nn.Module):
                  n_mels=80,
                  att_dim=128,
                  **kwargs):
-        super(ResNetSE, self).__init__()
+        super(ResNetSE_no_head, self).__init__()
 
         print('Embedding size is %d, encoder %s.' % (nOut, encoder_type))
-        self.aug = kwargs['augment']
-        self.aug_chain = kwargs['augment_chain']
+        self.aug = None if 'augment' in kwargs else kwargs['augment']
+        self.aug_chain = None if 'augment_chain' in kwargs else kwargs['augment_chain']
         self.inplanes = num_filters[0]
         self.encoder_type = encoder_type
         self.n_mels = n_mels
@@ -21,61 +30,29 @@ class ResNetSE(nn.Module):
         self.conv1 = nn.Conv2d(1,
                                num_filters[0],
                                kernel_size=3,
-                               stride=1,
+                               stride=(2,1),
                                padding=1)
         self.relu = nn.ReLU(inplace=True)
         self.bn1 = nn.BatchNorm2d(num_filters[0])
-
-        self.layer1 = self._make_layer(block, num_filters[0], layers[0])
-        self.layer2 = self._make_layer(block,
-                                       num_filters[1],
-                                       layers[1],
-                                       stride=(2, 2))
-        self.layer3 = self._make_layer(block,
-                                       num_filters[2],
-                                       layers[2],
-                                       stride=(2, 2))
-        self.layer4 = self._make_layer(block,
-                                       num_filters[3],
-                                       layers[3],
-                                       stride=(2, 2))
-        sample_rate = int(kwargs['sample_rate'])
-        hoplength = int(10e-3 * sample_rate)
-        winlength = int(25e-3 * sample_rate)
+        self.layers = []
         
+        self.layers.append(self._make_layer(block, num_filters[0], layers[0]))
+        for i in range(len(layers) - 1):
+            self.layers.append(self._make_layer(block, num_filters[i + 1], 
+                                                layers[i+1], 
+                                                stride=(1, 1)))
+        self.resnet_se_module = nn.Sequential(*self.layers)
+        
+        self.conv2 = nn.Conv2d(num_filters[-1],
+                               nOut,
+                               kernel_size=3,
+                               stride=(2,1),
+                               padding=1)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.bn2 = nn.BatchNorm2d(nOut)
+                               
         self.specaug = SpecAugment()
         self.instancenorm = nn.InstanceNorm1d(n_mels)
-        self.torchfbank = torch.nn.Sequential(
-            PreEmphasis(),
-            features.mel.MelSpectrogram(sr=sample_rate, 
-                                        n_fft=512, 
-                                        win_length=winlength, 
-                                        n_mels=n_mels, 
-                                        hop_length=hoplength, 
-                                        window='hamming', 
-                                        fmin=20, fmax=4000,  
-                                        trainable_mel=False, 
-                                        trainable_STFT=False,
-                                        verbose=False)
-        )
-        outmap_size = int(self.n_mels / 8)
-
-        self.attention = nn.Sequential(
-            nn.Conv1d(num_filters[3] * block.expansion * outmap_size, att_dim, kernel_size=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(att_dim),
-            nn.Conv1d(att_dim, num_filters[3] * block.expansion * outmap_size, kernel_size=1),
-            nn.Softmax(dim=2),
-        )
-
-        if self.encoder_type == "SAP":
-            out_dim = num_filters[3] * block.expansion * outmap_size
-        elif self.encoder_type == "ASP":
-            out_dim = num_filters[3] * block.expansion * outmap_size * 2
-        else:
-            raise ValueError('Undefined encoder')
-
-        self.fc = nn.Linear(out_dim, nOut)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -108,40 +85,192 @@ class ResNetSE(nn.Module):
 
     def forward(self, x):
         with torch.no_grad():
-            x = self.torchfbank(x) + 1e-6
+            x = x + 1e-6
             x = x.log()   
             x = x - torch.mean(x, dim=-1, keepdim=True)
             if self.aug and 'spec_domain' in self.aug_chain:
                 x = self.specaug(x)
+                
         x = self.instancenorm(x).unsqueeze(1)
 
-        assert len(x.size()) == 4  # batch x channel x n_mels x n_frames
+        assert len(x.size()) == 4  # batch x Channels x n_mels x n_frames 
+        
         x = self.conv1(x)
         x = self.relu(x)
         x = self.bn1(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-
-        if self.encoder_type == "SAP":
-            x = torch.mean(x, dim=2, keepdim=True)
-            x = x.permute(0, 2, 1, 3)
-            x = x.squeeze(dim=1).permute(0, 2, 1)  # batch * L * D
-            h = torch.tanh(self.sap_linear(x))
-            w = torch.matmul(h, self.attention).squeeze(dim=2)
-            w = F.softmax(w, dim=1).view(x.size(0), x.size(1), 1)
-            x = torch.sum(x * w, dim=1)
-            
-        elif self.encoder_type == "ASP":
-            x = x.reshape(x.size()[0], -1, x.size()[-1])
-            w = self.attention(x)
-            mu = torch.sum(x * w, dim=2)
-            sg = torch.sqrt((torch.sum((x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
-            x = torch.cat((mu, sg), 1)
-
-        x = x.view(x.size()[0], -1)
-        x = self.fc(x)
-
+        x = self.resnet_se_module(x)
+                               
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.bn2(x)
+                               
         return x
+
+class ECAPA_TDNN_core(torch.nn.Module):
+    """An implementation of the speaker embedding model in a paper.
+    "ECAPA-TDNN: Emphasized Channel Attention, Propagation and Aggregation in
+    TDNN Based Speaker Verification" (https://arxiv.org/abs/2005.07143).
+    Arguments
+    ---------
+    device : str
+        Device used, e.g., "cpu" or "cuda".
+    activation : torch class
+        A class for constructing the activation layers.
+    channels : list of ints
+        Output channels for TDNN/SERes2Net layer.
+    kernel_sizes : list of ints
+        List of kernel sizes for each layer.
+    dilations : list of ints
+        List of dilations for kernels in each layer.
+    lin_neurons : int
+        Number of neurons in linear layers.
+    Example
+    -------
+    >>> input_feats = torch.rand([5, 120, 80])
+    >>> compute_embedding = ECAPA_TDNN(80, lin_neurons=192)
+    >>> outputs = compute_embedding(input_feats)
+    >>> outputs.shape
+    speechbrain settings
+    torch.Size([5, 1, 192])
+    channels: [1024, 1024, 1024, 1024, 3072]
+    kernel_sizes: [5, 3, 3, 3, 1]
+    dilations: [1, 2, 3, 4, 1]
+    groups: [1, 1, 1, 1, 1]
+    attention_channels: 128
+    lin_neurons: 192
+    """
+
+    def __init__(
+        self,
+        input_size=80,
+        device="cpu",
+        lin_neurons=192,
+        activation=torch.nn.ReLU,
+        channels=[512, 512, 512, 512, 1536],
+        kernel_sizes=[5, 3, 3, 3, 1],
+        dilations=[1, 2, 3, 4, 1],
+        attention_channels=128,
+        res2net_scale=8,
+        se_channels=128,
+        global_context=True,
+        **kwargs
+    ):
+
+        super().__init__()
+        assert len(channels) == len(kernel_sizes)
+        assert len(channels) == len(dilations)
+        self.channels = channels
+        
+        self.blocks = nn.ModuleList()
+
+        # The initial TDNN layer
+        self.blocks.append(
+            TDNNBlock(
+                input_size,
+                channels[0],
+                kernel_sizes[0],
+                dilations[0],
+                activation,
+            )
+        )
+
+        # SE-Res2Net layers
+        for i in range(1, len(channels) - 1):
+            self.blocks.append(
+                SERes2NetBlock(
+                    channels[i - 1],
+                    channels[i],
+                    res2net_scale=res2net_scale,
+                    se_channels=se_channels,
+                    kernel_size=kernel_sizes[i],
+                    dilation=dilations[i],
+                    activation=activation,
+                )
+            )
+
+        # Multi-layer feature aggregation
+        self.mfa = TDNNBlock(
+            channels[-1],
+            channels[-1],
+            kernel_sizes[-1],
+            dilations[-1],
+            activation,
+        )
+
+        # Attentive Statistical Pooling
+        self.asp = AttentiveStatisticsPooling(
+            channels[-1],
+            attention_channels=attention_channels,
+            global_context=global_context,
+        )
+        self.asp_bn = BatchNorm1d(input_size=channels[-1] * 2)
+
+        # Final linear transformation
+        self.fc = Conv1d(
+            in_channels=channels[-1] * 2,
+            out_channels=lin_neurons,
+            kernel_size=1,
+        )
+
+    def forward(self, x, lengths=None):
+        """Returns the embedding vector.
+        Arguments
+        ---------
+        x : torch.Tensor
+            Tensor of shape (batch, time, channel).
+        """
+        # x shape: batch x n_mels x n_frames of batch x fea x time
+        b, c, f, t = x.size()
+        x = x.view((b, c * f, t))
+       
+        xl = []
+
+        for layer in self.blocks:
+            try:
+                x = layer(x, lengths=lengths)
+            except TypeError:
+                x = layer(x)
+            xl.append(x)
+
+        # Multi-layer feature aggregation
+        x = torch.cat(xl[1:], dim=1)
+        x = self.mfa(x)
+        
+        # Attentive Statistical Pooling
+        x = self.asp(x, lengths=lengths)
+        x = self.asp_bn(x)
+
+        # Final linear transformation
+        x = self.fc(x)
+        x = x.squeeze()
+       
+        return x
+
+
+def MainModel(nOut=128, **kwargs):
+    num_filters = [32, 64]
+    res_blocks = ResNetSE_no_head(SEBasicBlock, [1, 1], num_filters, num_filters[-1], **kwargs)
+    
+    n_features = kwargs['n_mels']
+    input_size_tdnn = int(num_filters[-1] * n_features * (2 ** (-1 * len(num_filters))))
+    
+    ecapa_blocks = ECAPA_TDNN_core(input_size=input_size_tdnn, device="cpu",  
+                                   lin_neurons=nOut, activation=torch.nn.ReLU,
+                                   channels=[512, 512, 512, 512, 1536],        
+                                   kernel_sizes=[5, 3, 3, 3, 1],
+                                   dilations=[1, 2, 3, 4, 1],
+                                   attention_channels=128,
+                                   res2net_scale=8,
+                                   se_channels=128,
+                                   global_context=True)
+    
+    model = nn.Sequential(res_blocks,
+                          ecapa_blocks)
+    return model
+
+
+# from torchsummary import  summary
+# net = ECAPA_TDNN(23)
+# print(net)
+# summary(net.cuda(), (100, 23))

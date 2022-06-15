@@ -1,7 +1,6 @@
+from asyncio import subprocess
 import os
-import subprocess
 import wave
-
 import numpy as np
 from pydub import AudioSegment
 from scipy import signal
@@ -19,12 +18,12 @@ def np_to_segment(np_array, sr=8000):
     return audio_segment
 
 
-def segment_to_np(segment, normalize=False):
+def segment_to_np(segment, normalize=False, dtype=np.float64):
     audio_array = segment.get_array_of_samples()
     audio_np = np.array(audio_array)
     if normalize:
         audio_np = normalize_audio_amp(audio_np)
-    return audio_np.astype(np.float64)
+    return audio_np.astype(dtype)
 
 
 def padding_np(audio, length_target):
@@ -42,40 +41,40 @@ def normalize_audio_amp(signal):
         return signal / max(signal.max(), -signal.min())
 
 
-def convert_audio(audio_path, new_format='wav', freq=8000, out_path=None):
+def convert_audio_pydub(src, ext='wav', sample_rate=8000, channels=1, codec='pcm_s16le ', dst=None):
     """Convert audio format and samplerate to target"""
     try:
-        org_format = audio_path.split('.')[-1].strip()
-        if new_format != org_format:
-            audio = AudioSegment.from_file(audio_path)
+        org_format = src.split('.')[-1].strip()
+        if ext != org_format:
+            audio = AudioSegment.from_file(src)
             # export file as new format
-            audio_path = audio_path.replace(org_format, new_format)
-            audio.export(audio_path, format=new_format)
+            src = src.replace(org_format, ext)
+            audio.export(src, format=ext)
     except Exception as e:
         raise e
 
     try:
-        sound = AudioSegment.from_file(audio_path, format='wav')
-        sound = sound.set_frame_rate(freq)
-        sound = sound.set_channels(1)
+        sound = AudioSegment.from_file(src, format='wav')
+        sound = sound.set_frame_rate(sample_rate)
+        sound = sound.set_channels(channels)
 
-        if out_path is not None:
-            audio_path = out_path
-        sound.export(audio_path, format='wav')
+        dst = src if not dst else dst
+
+        sound.export(dst, format='wav')
     except Exception as e:
         raise e
 
-    return audio_path
+    return dst
 
 
-def convert_audio_file(fpath, save_file=None, codec='pcm_s16le', rate=16000, channels=1, format='wav', ):
-    """Convert audio file to target format and samplerate"""
-    try:
-        old_format = fpath.split('.')[-1].strip()
-        if save_file is None:
-            save_file = fpath.replace(old_format, format)
-        subprocess.run(['ffmpeg', '-i', fpath, '-acodec', codec, '-ar', str(rate), '-ac', str(channels), '-f', format, save_file])
-    except Exception as e:
-        raise e
+def convert_audio_shell(src, ext='wav', sample_rate=8000, channels=1, codec='pcm_s16le ', dst=None):
+    dst = src if not dst else dst
+    old_ext = str(src).split('.')[-1]
+    dst = str(dst).replace(old_ext, ext)
+    cmd = f'ffmpeg -i {src} -acodec {codec} -ar {sample_rate} -ac {channels} {dst}'
+    subprocess.call(cmd, shell=True)
+    return dst
 
-    return save_file
+
+if __name__ == '__main__':
+    pass

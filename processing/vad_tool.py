@@ -5,8 +5,8 @@ import os
 import sys
 import time
 import wave
-
 import numpy as np
+
 import webrtcvad
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
@@ -116,7 +116,8 @@ class VAD:
                 if num_voiced > 0.9 * ring_buffer.maxlen:
                     triggered = True
                     if show:
-                        sys.stdout.write('+(%s)' % (ring_buffer[0][0].timestamp,))
+                        sys.stdout.write('+(%s)' %
+                                         (ring_buffer[0][0].timestamp,))
                     # We want to yield all the audio we see from now until
                     # we are NOTTRIGGERED, but we have to start with the
                     # audio that's already in the ring buffer.
@@ -130,13 +131,15 @@ class VAD:
                 # and add it to the ring buffer.
                 voiced_frames.append(frame)
                 ring_buffer.append((frame, is_speech))
-                num_unvoiced = len([f for f, speech in ring_buffer if not speech])
+                num_unvoiced = len(
+                    [f for f, speech in ring_buffer if not speech])
                 # If more than 90% of the frames in the ring buffer are
                 # unvoiced, then enter NOTTRIGGERED and yield whatever
                 # audio we've collected.
                 if num_unvoiced > 0.9 * ring_buffer.maxlen:
                     if show:
-                        sys.stdout.write('-(%s)' % (frame.timestamp + frame.duration))
+                        sys.stdout.write('-(%s)' %
+                                         (frame.timestamp + frame.duration))
                         for f, s in ring_buffer:
                             unvoiced_frames.append(f)
 

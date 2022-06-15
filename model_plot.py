@@ -1,19 +1,28 @@
 import argparse
 import importlib
 from torchsummary import summary
+from utils import read_config
+
 
 parser = argparse.ArgumentParser(description="Model plot")
 if __name__ == '__main__':
-    parser.add_argument('--model', type=str, default='ECAPA_TDNN')
-    parser.add_argument('--nOut', type=int, default=512)
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--config', type=str, default=None)
+    sys_args = parser.parse_args()
+    if sys_args.config is not None:
+        args = read_config(sys_args.config, sys_args)
+        args = argparse.Namespace(**args)
 
+    model_options = args.model
+    if isinstance(model_options['name'], str):
+        SpeakerNetModel = importlib.import_module(
+            'models.' + model_options['name']).__getattribute__('MainModel')
+        model = SpeakerNetModel(
+            nOut=model_options['nOut'], **vars(args)).to('cpu')
+    else:
+        del args.features
+        model = importlib.import_module('models.' + 'Mixed_model').__getattribute__(
+            'MainModel')(model_options=model_options, **vars(args)).to('cpu')
 
-    args = parser.parse_args()
-    
-    model = importlib.import_module('models.' + args.model).__getattribute__('MainModel')(nOut=args.nOut, n_mels=80, max_frames=100, sample_rate=8000, augment=True, augment_chain=['spec_domain'], initial_model_infer=None).to('cpu')
     nb_params = sum([param.view(-1).size()[0] for param in model.parameters()])
     print("nb_params:{}".format(nb_params))
-    model.to('cpu')
-    summary(model, (80, 102), batch_size=args.batch_size, device='cpu')
-    
+    summary(model, (16000,), device='cpu', depth=2, col_width=16, col_names=["input_size", "output_size", "num_params", "mult_adds"])
