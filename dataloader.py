@@ -1,85 +1,48 @@
-import math
 import os
-import csv
 import argparse
-import time
 import random
+import time
 
 import numpy as np
-
 import torch
 from torch.utils.data import DataLoader, Dataset
-import torch.distributed as dist
-
-from processing.audio_loader import loadWAV, AugmentWAV
-from utils import read_config
-from pathlib import Path
 from tqdm.auto import tqdm
 
+from processing.audio_loader import loadWAV, AugmentWAV
+from processing.vad_tool import VAD
+from utils import round_down, worker_init_fn
 
-def round_down(num, divisor):
-    """
-    To reduce number of iteration due to the increase of number of subcenters
-    """
-    return num - (num % divisor)
-
-# def worker_init_fn(worker_id):
-#     np.random.seed(np.random.get_state()[1][0] + worker_id)
-
-def worker_init_fn(worker_id):
-    """
-    Create the init fn for worker id
-    """
-    torch_seed = torch.initial_seed()
-    random.seed(torch_seed + worker_id)
-    if torch_seed >= 2**30:  # make sure torch_seed + workder_id < 2**32
-        torch_seed = torch_seed % (2**30)
-    np.random.seed(torch_seed + worker_id)    
-
-
-class TrainLoader(Dataset):
-    def __init__(self, dataset_file_name,
-                 augment,
-                 augment_options,
-                 audio_spec,
-                 aug_folder='offline', random_chunk=True, **kwargs):
+class Loader(Dataset):
+    def __init__(self, dataset_file_name, augment, musan_path, rir_path, max_frames, n_mels, aug_folder='offline', **kwargs):
 
         self.dataset_file_name = dataset_file_name
-        self.audio_spec = audio_spec
-
-        self.random_chunk = random_chunk
-        self.max_frames = round(audio_spec['sample_rate'] * (
-            audio_spec['sentence_len'] - audio_spec['win_len']) / audio_spec['hop_len'])
-
+        self.max_frames = max_frames
         self.augment = augment
-        self.augment_options = augment_options
-
-        self.sr = audio_spec['sample_rate']
+        self.n_mels = n_mels
+        self.kwargs = kwargs
+        self.sr = kwargs['sample_rate']
 
         # augmented folder files
         self.aug_folder = aug_folder
-        self.augment_paths = augment_options['augment_paths']
-        self.augment_chain = augment_options['augment_chain']
-
+        self.musan_path = musan_path
+        self.rir_path = rir_path
+        self.augment_chain = kwargs['augment_chain'] if 'augment_chain' in kwargs else ['env_corrupt', 'time_domain']
+        
         if self.augment and ('env_corrupt' in self.augment_chain):
-
-            if all(os.path.exists(Path(path)) for path in self.augment_paths.values()):
-                self.augment_engine = AugmentWAV(
-                    augment_options, audio_spec, target_db=None)
+            if all(os.path.exists(path) for path in [self.musan_path, self.rir_path]):
+                self.augment_engine = AugmentWAV(musan_path=musan_path,
+                                                 rir_path=rir_path,
+                                                 max_frames=max_frames,
+                                                 sample_rate=self.sr, 
+                                                 target_db=None)
             else:
                 self.augment_engine = None
-                self.augment = False
 
         # Read Training Files...
-        lines = []
-        with open(dataset_file_name, 'r', newline='') as rf:
-            spamreader = csv.reader(rf, delimiter=',')
-            next(spamreader, None)
-            for row in spamreader:
-                # spkid, path, duration, audio_format take only 'spkid path'
-                lines.append(row[:2])
+        with open(dataset_file_name) as dataset_file:
+            lines = dataset_file.readlines()
 
-        dictkeys = list(set([x[0] for x in lines]))
+        dictkeys = list(set([x.split()[0] for x in lines]))
         dictkeys.sort()
         dictkeys = {key: ii for ii, key in enumerate(dictkeys)}
 
@@ -87,14 +50,17 @@ class TrainLoader(Dataset):
         self.data_list = []
         self.data_label = []
 
-        for lidx, data in enumerate(lines):
+        for lidx, line in enumerate(lines):
+            data = line.strip().split()
+
             speaker_label = dictkeys[data[0]]
-            filename = data[1]
 
-            self.label_dict.setdefault(speaker_label, []).append(lidx)
+            if not (speaker_label in self.label_dict):
+                self.label_dict[speaker_label] = []
 
+            self.label_dict[speaker_label].append(lidx)
             self.data_label.append(speaker_label)
-            self.data_list.append(filename)
+            self.data_list.append(data[1])
 
     def __getitem__(self, indices):
         feat = []
@@ -102,44 +68,37 @@ class TrainLoader(Dataset):
         for index in indices:
             # Load audio
             audio_file = self.data_list[index]
+                    
             # time domain augment
-            audio = loadWAV(audio_file, self.audio_spec,
-                            evalmode=False,
-                            augment=self.augment,
-                            augment_options=self.augment_options,
-                            random_chunk=self.random_chunk)
-
-            # env corrupt augment
-            if self.augment and ('env_corrupt' in self.augment_chain) and (self.aug_folder == 'online'):
+            audio = loadWAV(audio_file, self.max_frames, 
+                            evalmode=False, 
+                            augment=self.augment, 
+                            sample_rate=self.sr, 
+                            augment_chain=self.augment_chain)
+            
+            #env corrupt augment
+            if self.augment and ('env_corrupt' in self.augment_chain) and (self.aug_folder == 'online'):  
                 # if exists augmented folder(30GB) separately
                 # env corruption adding from musan, revberation
-                env_corrupt_proportions = self.augment_options['noise_proportion']
-
-                augtype = np.random.choice(
-                    ['rev', 'noise', 'both', 'none'], p=[0.2, 0.4, 0.2, 0.2])
-
+                augtype = np.random.choice(['rev', 'noise', 'both', 'none'], p=[0.2, 0.4, 0.2, 0.2])
                 if augtype == 'rev':
                     audio = self.augment_engine.reverberate(audio)
                 elif augtype == 'noise':
-                    mode = np.random.choice(
-                        ['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=env_corrupt_proportions)
+                    mode = np.random.choice(['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=[0.25, 0.25, 0.25, 0, 0.25])
                     audio = self.augment_engine.additive_noise(mode, audio)
                 elif augtype == 'both':
                     # combined reverb and noise
-                    order = np.random.choice(
-                        ['noise_first', 'rev_first'], p=[0.5, 0.5])
+                    order = np.random.choice(['noise_first', 'rev_first'], p=[0.5, 0.5])
                     if order == 'rev_first':
                         audio = self.augment_engine.reverberate(audio)
-                        mode = np.random.choice(
-                            ['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=env_corrupt_proportions)
+                        mode = np.random.choice(['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=[0.25, 0.25, 0.25, 0, 0.25])
                         audio = self.augment_engine.additive_noise(mode, audio)
                     else:
-                        mode = np.random.choice(
-                            ['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=env_corrupt_proportions)
-                        audio = self.augment_engine.additive_noise(mode, audio)
+                        mode = np.random.choice(['noise', 'speech', 'music', 'noise_vad', 'noise_rirs'], p=[0.25, 0.25, 0.25, 0, 0.25])
+                        audio = self.augment_engine.additive_noise(mode, audio)   
                         audio = self.augment_engine.reverberate(audio)
                 else:
-                    # none type means don't augment
+                    # none type means dont augment
                     pass
 
             feat.append(audio)
@@ -152,205 +111,135 @@ class TrainLoader(Dataset):
         return len(self.data_list)
 
 
-class TrainSampler(torch.utils.data.Sampler):
-    def __init__(self, data_source, nPerSpeaker, max_seg_per_spk, batch_size, distributed, seed, **kwargs):
-        self.epoch = 0
-        self.seed = seed
-        self.distributed = distributed
-
+class Sampler(torch.utils.data.Sampler):
+    def __init__(self, data_source, nPerSpeaker, max_seg_per_spk, batch_size, **kwargs):
+        self.data_source = data_source
+        self.label_dict = data_source.label_dict
         self.nPerSpeaker = nPerSpeaker
         self.max_seg_per_spk = max_seg_per_spk
         self.batch_size = batch_size
 
-        self.data_source = data_source
-        self.data_label = data_source.data_label
-
     def __iter__(self):
-
-        g = torch.Generator()
-        g.manual_seed(self.seed + self.epoch)
-        indices = torch.randperm(len(self.data_label), generator=g).tolist()
-
-        data_dict = {}
-
-        # Sort into dictionary of file indices for each ID
-        for index in indices:
-            speaker_label = self.data_label[index]
-            if not (speaker_label in data_dict):
-                data_dict[speaker_label] = []
-            data_dict[speaker_label].append(index)
-
-        # Group file indices for each class
-        dictkeys = list(data_dict.keys())
+        dictkeys = list(self.label_dict.keys())
         dictkeys.sort()
 
-        def lol(lst, sz): return [lst[i:i+sz] for i in range(0, len(lst), sz)]
+        def lol(lst, sz): return [lst[i:i + sz]
+                                  for i in range(0, len(lst), sz)]
 
         flattened_list = []
         flattened_label = []
 
         # Data for each class
         for findex, key in enumerate(dictkeys):
-            data = data_dict[key]
-            numSeg = round_down(
-                min(len(data), self.max_seg_per_spk), self.nPerSpeaker)
+            data = self.label_dict[key]
+            numSeg = round_down(min(len(data), self.max_seg_per_spk),
+                                self.nPerSpeaker)
 
-            rp = lol(np.arange(numSeg), self.nPerSpeaker)
+            rp = lol(
+                np.random.permutation(len(data))[:numSeg], self.nPerSpeaker)
             flattened_label.extend([findex] * (len(rp)))
             for indices in rp:
                 flattened_list.append([data[i] for i in indices])
 
-        # Mix data in random order
-        mixid = torch.randperm(len(flattened_label), generator=g).tolist()
+        # Data in random order
+        mixid = np.random.permutation(len(flattened_label))
         mixlabel = []
         mixmap = []
 
         # Prevent two pairs of the same speaker in the same batch
         for ii in mixid:
-            startbatch = round_down(len(mixlabel), self.batch_size)
+            startbatch = len(mixlabel) - len(mixlabel) % self.batch_size
             if flattened_label[ii] not in mixlabel[startbatch:]:
                 mixlabel.append(flattened_label[ii])
                 mixmap.append(ii)
 
-        mixed_list = [flattened_list[i] for i in mixmap]
+        return iter([flattened_list[i] for i in mixmap])
 
-        # Divide data to each GPU
-
-        if self.distributed:
-            total_size = round_down(
-                len(mixed_list), self.batch_size * dist.get_world_size())
-            start_index = int((dist.get_rank()) /
-                              dist.get_world_size() * total_size)
-            end_index = int((dist.get_rank() + 1) /
-                            dist.get_world_size() * total_size)
-            self.num_samples = end_index - start_index
-            return iter(mixed_list[start_index:end_index])
-        else:
-            total_size = round_down(len(mixed_list), self.batch_size)
-            self.num_samples = total_size
-            return iter(mixed_list[:total_size])
-
-    def __len__(self) -> int:
-        # self.num_samples
+    def __len__(self):
         return len(self.data_source)
 
-    def set_epoch(self, epoch: int) -> None:
-        self.epoch = epoch
 
+def get_data_loader(dataset_file_name, batch_size, augment, musan_path,
+                    rir_path, max_frames, max_seg_per_spk, nDataLoaderThread,
+                    nPerSpeaker, n_mels, **kwargs):
+    train_dataset = Loader(dataset_file_name, augment, musan_path,
+                           rir_path, max_frames, n_mels, aug_folder='online', **kwargs)
 
-def train_data_loader(args):
-    train_annotation = args.train_annotation
-
-    batch_size = args.dataloader_options['batch_size']
-    shuffle = args.dataloader_options['shuffle']
-    num_workers = args.dataloader_options['num_workers']
-    nPerSpeaker = args.dataloader_options['nPerSpeaker']
-    max_seg_per_spk = args.dataloader_options['max_seg_per_spk']
-
-    augment = args.augment
-
-    train_dataset = TrainLoader(train_annotation,
-                                augment,
-                                args.augment_options,
-                                args.audio_spec,
-                                aug_folder='online')
-
-    train_sampler = TrainSampler(
-        train_dataset, nPerSpeaker=nPerSpeaker, max_seg_per_spk=max_seg_per_spk, **vars(args))
+    train_sampler = Sampler(train_dataset, nPerSpeaker,
+                            max_seg_per_spk, batch_size, **kwargs)
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        num_workers=num_workers,
+        num_workers=nDataLoaderThread,
         sampler=train_sampler,
-        pin_memory=True,
+        pin_memory=False,
         worker_init_fn=worker_init_fn,
         drop_last=True,
-        shuffle=shuffle,
     )
 
     return train_loader
 
 
-class test_data_loader(Dataset):
-    def __init__(self, test_list, audio_spec, num_eval, **kwargs):
-        self.num_eval = num_eval
-        self.audio_spec = audio_spec
-        self.test_list = test_list
-
-    def __getitem__(self, index):
-        audio = loadWAV(self.test_list[index],
-                        self.audio_spec,
-                        evalmode=True,
-                        augment=False,
-                        augment_options=[],
-                        num_eval=self.num_eval,
-                        random_chunk=False)
-        return torch.FloatTensor(audio), self.test_list[index]
-
-    def __len__(self):
-        return len(self.test_list)
-
-
+# Test Data Loader
 parser = argparse.ArgumentParser(description="Data loader")
 if __name__ == '__main__':
     # Test for data loader
-    # YAML
-    parser.add_argument('--config', type=str, default=None)
-
-    # Device settings
-    parser.add_argument('--device',
-                        type=str,
-                        default="cuda",
-                        help='cuda or cpu')
-    parser.add_argument('--distributed',
-                        action='store_true',
-                        default=False,
-                        help='Decise wether use multi gpus')
-
-    # Distributed and mixed precision training
-    parser.add_argument('--port',
-                        type=str,
-                        default="8888",
-                        help='Port for distributed training, input as text')
-    parser.add_argument('--mixedprec',
-                        dest='mixedprec',
-                        action='store_true',
-                        help='Enable mixed precision training')
-
     parser.add_argument('--augment',
                         action='store_true',
-                        default=False,
-                        help='Augment input')
-
-    parser.add_argument('--early_stopping',
-                        action='store_true',
-                        default=False,
-                        help='Early stopping')
-
-    parser.add_argument('--seed',
+                        default=True,
+                        help='decide whether use augment data')
+    parser.add_argument('--train_list',
+                        type=str,
+                        default="dataset/train_callbot_v2/train_def.txt",
+                        help='Directory to save files(parent root)')
+    parser.add_argument('--batch_size',
                         type=int,
-                        default=1000,
-                        help='seed')
-  #--------------------------------------------------------------------------------------#
+                        default=32,
+                        help='Batch size, number of speakers per batch')
+    parser.add_argument('--max_seg_per_spk',
+                        type=int,
+                        default=100,
+                        help='Maximum number of utterances per speaker per epoch')
+    parser.add_argument('--nDataLoaderThread',
+                        type=int,
+                        default=0,
+                        help='Number of loader threads')
+    parser.add_argument('--nPerSpeaker',
+                        type=int,
+                        default=2,
+                        help='Number of utterances per speaker per batch, only for metric learning based losses')
+    parser.add_argument('--max_frames',
+                        type=int,
+                        default=100,
+                        help='Input length to the network for training, 1s ~ 100 frames')
+    parser.add_argument('--musan_path',
+                        type=str,
+                        default="dataset/augment_data/16kHz/musan_split",
+                        help='Absolute path to the augment set')
+    parser.add_argument('--rir_path',
+                        type=str,
+                        default="dataset/augment_data/16kHz/RIRS_NOISES/simulated_rirs",
+                        help='Absolute path to the augment set')
 
-    sys_args = parser.parse_args()
+    # Model definition for MFCCs
+    parser.add_argument('--n_mels',
+                        type=int,
+                        default=80,
+                        help='Number of mel filter banks')
 
-    if sys_args.config is not None:
-        args = read_config(sys_args.config, sys_args)
-        args = argparse.Namespace(**args)
-    else:
-        args = sys_args
-
+    parser.add_argument('--sample_rate',
+                        type=int,
+                        default=8000,
+                        help='Number of sample_rate')
+    args = parser.parse_args()
     t = time.time()
-    train_loader = train_data_loader(args)
+    train_loader = get_data_loader(args.train_list, **vars(args))
 
     print("Delay: ", time.time() - t)
     print(len(train_loader))
-
     for (sample, label) in tqdm(train_loader):
         sample = sample.transpose(0, 1)
-        print(sample.device)
         for inp in sample:
-            print(inp.size(), inp.reshape(-1, inp.size()[-1]).size())
+            print(inp.size())
         print(sample.size(), label.size())
