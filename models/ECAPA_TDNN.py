@@ -375,6 +375,7 @@ class ECAPA_TDNN(torch.nn.Module):
     def __init__(
         self,
         input_size=80,
+        device="cpu",
         lin_neurons=192,
         activation=torch.nn.GELU,
         channels=[1024, 1024, 1024, 1024, 3072],
@@ -388,23 +389,20 @@ class ECAPA_TDNN(torch.nn.Module):
     ):
 
         super().__init__()
-        
         assert len(channels) == len(kernel_sizes)
         assert len(channels) == len(dilations)
-        assert input_size == kwargs['n_mels'], "inappropriate input size, should equal feature_dim"
-        
         self.channels = channels
         self.aug = kwargs['augment']
-        self.aug_chain = kwargs['augment_options']['augment_chain']        
-        self.kwargs = kwargs
+        self.aug_chain = kwargs['augment_chain']
+        sample_rate = int(kwargs['sample_rate'])
+        hoplength = int(10e-3 * sample_rate)
+        winlength = int(25e-3 * sample_rate)
+        n_mels = kwargs['n_mels']
+        input_size = n_mels
         
         self.blocks = nn.ModuleList()
 
-        self.specaug = SpecAugment()  # Spec augmentation
-        
-        self.instance_norm = nn.InstanceNorm1d(input_size, affine=True, 
-                                               eps=1e-05, momentum=0.1, 
-                                               track_running_stats=False)
+        self.specaug = SpecAugment() # Spec augmentation
 
         # The initial TDNN layer
         self.blocks.append(
@@ -463,17 +461,15 @@ class ECAPA_TDNN(torch.nn.Module):
             Tensor of shape (batch, time, channel).
         """
         # Minimize transpose for efficiency
-
+        
         with torch.no_grad():
+            x = x + 1e-6
+            x = x.log()   
+            x = x - torch.mean(x, dim=-1, keepdim=True)
             if self.aug and 'spec_domain' in self.aug_chain:
                 x = self.specaug(x)
-            if self.kwargs['features'] == 'melspectrogram':
-                x = x + 1e-6
-                x = x.log() # this will cause nan value for MFCC features
-                x = x - torch.mean(x, dim=-1, keepdim=True)
-            x = self.instance_norm(x)
-
-        # x shape: batch x n_mels x n_frames or batch x fea x time
+        
+        # x shape: batch x n_mels x n_frames of batch x fea x time
 
         xl = []
         for layer in self.blocks:
@@ -486,7 +482,7 @@ class ECAPA_TDNN(torch.nn.Module):
         # Multi-layer feature aggregation
         x = torch.cat(xl[1:], dim=1)
         x = self.mfa(x)
-
+        
         # Attentive Statistical Pooling
         x = self.asp(x, lengths=lengths)
         x = self.asp_bn(x)
@@ -494,10 +490,9 @@ class ECAPA_TDNN(torch.nn.Module):
         # Final linear transformation
         x = self.fc(x)
         x = x.squeeze()
-
+       
         return x
-
-
+    
 def MainModel(nOut=512, **kwargs):
     model = ECAPA_TDNN(lin_neurons=nOut, **kwargs)
     return model

@@ -4,9 +4,7 @@ import torch.nn.functional as F
 from .ResNetBlocks import *
 from models.SpecAugment.specaugment import SpecAugment
 
-# baseline for resnet
-
-
+## baseline for resnet
 class ResNet(nn.Module):
     def __init__(
         self,
@@ -38,25 +36,20 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(
-            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(
-            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(
-            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(
-                    m.weight, mode="fan_out", nonlinearity="relu")
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -67,11 +60,9 @@ class ResNet(nn.Module):
         if zero_init_residual:
             for m in self.modules():
                 if isinstance(m, Bottleneck):
-                    # type: ignore[arg-type]
-                    nn.init.constant_(m.bn3.weight, 0)
+                    nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
                 elif isinstance(m, BasicBlock):
-                    # type: ignore[arg-type]
-                    nn.init.constant_(m.bn2.weight, 0)
+                    nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
     def _make_layer(
         self,
@@ -135,8 +126,8 @@ class ResNet(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
-
-# baseline for se resnet
+    
+## baseline for se resnet
 class ResNetSE(nn.Module):
     def __init__(self,
                  block,
@@ -144,17 +135,17 @@ class ResNetSE(nn.Module):
                  num_filters,
                  nOut,
                  encoder_type='ASP',
+                 n_mels=80,
                  att_dim=128,
                  **kwargs):
         super(ResNetSE, self).__init__()
 
         print('Embedding size is %d, encoder %s.' % (nOut, encoder_type))
         self.aug = kwargs['augment']
-        self.aug_chain = kwargs['augment_options']['augment_chain']
+        self.aug_chain = kwargs['augment_chain']
         self.inplanes = num_filters[0]
         self.encoder_type = encoder_type
-        self.n_mels = kwargs['n_mels']
-        self.kwargs = kwargs
+        self.n_mels = n_mels
 
         self.conv1 = nn.Conv2d(1,
                                num_filters[0],
@@ -178,17 +169,16 @@ class ResNetSE(nn.Module):
                                        layers[3],
                                        stride=(2, 2))
 
+        
         self.specaug = SpecAugment()
-        self.instancenorm = nn.InstanceNorm1d(self.n_mels)
+        self.instancenorm = nn.InstanceNorm1d(n_mels)
         outmap_size = int(self.n_mels / 8)
 
         self.attention = nn.Sequential(
-            nn.Conv1d(num_filters[3] * block.expansion *
-                      outmap_size, att_dim, kernel_size=1),
+            nn.Conv1d(num_filters[3] * block.expansion * outmap_size, att_dim, kernel_size=1),
             nn.ReLU(),
             nn.BatchNorm1d(att_dim),
-            nn.Conv1d(
-                att_dim, num_filters[3] * block.expansion * outmap_size, kernel_size=1),
+            nn.Conv1d(att_dim, num_filters[3] * block.expansion * outmap_size, kernel_size=1),
             nn.Softmax(dim=2),
         )
 
@@ -232,14 +222,16 @@ class ResNetSE(nn.Module):
 
     def forward(self, x):
         with torch.no_grad():
-            if self.kwargs['features'] == 'melspectrogram':
-                x = x + 1e-6
-                x = x.log()
-                x = x - torch.mean(x, dim=-1, keepdim=True)
-            x = self.instancenorm(x).unsqueeze(1)
+            x = x + 1e-6
+            x = x.log()   
+            x = x - torch.mean(x, dim=-1, keepdim=True)
+            if self.aug and 'spec_domain' in self.aug_chain:
+                x = self.specaug(x)
+                
+        x = self.instancenorm(x).unsqueeze(1)
 
         assert len(x.size()) == 4  # batch x channel x n_mels x n_frames
-
+        
         x = self.conv1(x)
         x = self.relu(x)
         x = self.bn1(x)
@@ -257,13 +249,12 @@ class ResNetSE(nn.Module):
             w = torch.matmul(h, self.attention).squeeze(dim=2)
             w = F.softmax(w, dim=1).view(x.size(0), x.size(1), 1)
             x = torch.sum(x * w, dim=1)
-
+            
         elif self.encoder_type == "ASP":
             x = x.reshape(x.size()[0], -1, x.size()[-1])
             w = self.attention(x)
             mu = torch.sum(x * w, dim=2)
-            sg = torch.sqrt(
-                (torch.sum((x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
+            sg = torch.sqrt((torch.sum((x**2) * w, dim=2) - mu**2).clamp(min=1e-5))
             x = torch.cat((mu, sg), 1)
 
         x = x.view(x.size()[0], -1)

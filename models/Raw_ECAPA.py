@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import importlib
 
-from models import ECAPA_TDNN, RawNet2_custom
-from models.FeatureExtraction.TDFbanks import tdfbanks
+from models import ECAPA_TDNN, RawNet2v2
+
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = False
 
 
 class Raw_ECAPA(nn.Module):
@@ -19,14 +21,12 @@ class Raw_ECAPA(nn.Module):
     def __init__(self, nOut=512, **kwargs):
         super(Raw_ECAPA, self).__init__()
         self.ECAPA_TDNN = ECAPA_TDNN.MainModel(nOut=192, channels= [512, 512, 512, 512, 1536], **kwargs)
-        self.rawnet2v2 = RawNet2_custom.MainModel(nOut=nOut-192,
-                                                  front_proc='conv',  aggregate='asp',
-                                                  att_dim=128, **kwargs)
-        # self.rawnet2v2 = RawNet2v2.MainModel(nOut=nOut-192,**kwargs)
+        self.rawnet2v2 = RawNet2v2.MainModel(nOut=nOut-192,**kwargs) # if error,change between self.rawmet2v2 and self.rawnet
+        
         features = 'melspectrogram'
         Features_extractor = importlib.import_module(
             'models.FeatureExtraction.feature').__getattribute__(f"{features}")
-        self.compute_features = Features_extractor(**kwargs)         
+        self.compute_features = Features_extractor(**kwargs) 
 
     def forward(self, x):
         #####
@@ -34,8 +34,10 @@ class Raw_ECAPA(nn.Module):
         # #####
         # # forward model 1
         # #####
-        x_spec = self.compute_features(x)
+        with torch.no_grad():
+            x_spec = self.compute_features(x)
         out1 = self.ECAPA_TDNN(x_spec)
+        
         # #####
         # # forward model 2
         # #####

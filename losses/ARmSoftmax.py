@@ -41,21 +41,21 @@ class ARmSoftmax(nn.Module):
         w_norm = torch.div(self.W, w_norm)
         costh = torch.mm(x_norm, w_norm)
         label_view = label.view(-1, 1)
+        
         if label_view.is_cuda: label_view = label_view.cpu()
+            
         delt_costh = torch.zeros(costh.size()).scatter_(1, label_view, self.m)
+        
         if x.is_cuda: delt_costh = delt_costh.cuda()
+        
         costh_m = costh - delt_costh
         costh_m_s = self.s * costh_m
-        # print(costh_m_s)
 
         if costh_m_s.is_cuda: label_view=label_view.cuda()
+        
         delt_costh_m_s = costh_m_s.gather(1, label_view).repeat(1,costh_m_s.size()[1])
-
         costh_m_s_reduct = costh_m_s - delt_costh_m_s
-        # print(costh_m_s_reduct)
-
         costh_relu = torch.where(costh_m_s_reduct < 0.0, torch.zeros_like(costh_m_s), costh_m_s)
-        # print(costh_relu)
         
         loss    = self.ce(costh_relu, label)
         prec1   = accuracy(costh_relu.detach(), label.detach(), topk=(1,))[0]
